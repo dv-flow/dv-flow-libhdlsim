@@ -1,0 +1,25 @@
+
+# yaml-language-server: $schema=https://dv-flow.github.io/flow.dv.schema.json
+
+package:
+  name: hdlsim
+
+  tasks:
+  - name: SimImage
+    with:
+      top:
+        type: list
+
+  - name: SimRun
+    # Note what 'accepts'
+    # Note what 'requires'
+    # Note what 'produces'
+    with:
+      plusargs:
+        type: list
+
+  types:
+  - name: SimRunData
+    with: {}
+
+

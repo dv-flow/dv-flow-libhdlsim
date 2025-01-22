@@ -1,0 +1,23 @@
+
+[build-system]
+requires = ["setuptools>=64", "setuptools-scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dv-flow-libhdlim"
+version = "0.0.1"
+dependencies = [
+    "dv-flow-mgr",
+    "toposort",
+]
+authors = [
+    {name = "Matthew Ballance", email = "matt.ballance@gmail.com"},
+]
+description = "Provides dv-flow tasks for performing common tasks related to HDL simulation"
+license = {file = "LICENSE" }
+
+[project.entry-points."dv_flow.mgr"]
+libhdlsim = "libhdlsim.__ext__"
+
+[tool.setuptools.package-data]
+"dv_flow.libhdlsim" = ['**/flow.dv']

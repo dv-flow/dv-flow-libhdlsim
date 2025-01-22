@@ -1,0 +1,13 @@
+
+package:
+  name: hdlsim.xsm
+
+  tasks:
+  - name: SimImage
+    uses: hdlsim.SimImage
+    pyclass: dv_flow.libhdlsim.xsm_sim_image.SimImage
+
+  - name: SimRun
+    uses: hdlsim.SimRun
+    pyclass: dv_flow.libhdlsim.xsm_sim_run.SimRun
+
