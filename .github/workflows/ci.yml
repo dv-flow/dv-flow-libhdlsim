@@ -15,22 +15,22 @@ jobs:
         python3 -m venv packages/python
         ./packages/python/bin/python -m pip install ivpm setuptools build --upgrade
         ./packages/python/bin/python3 -m ivpm update -a
-#    - name: Run Tests
-#      run: |
-#        export PYTHONPATH=$(pwd)/src:$(pwd)/test
-#        cd test
-#        ../packages/python/bin/python3 -m unittest 
+    - name: Run Tests
+      run: |
+       export PYTHONPATH=$(pwd)/src:$(pwd)/test
+       cd test
+        ../packages/python/bin/python3 -m unittest 
     - name: Build Package
       run: |
         sed -i -e "s/version = \"\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)\"/version = \"\1.${GITHUB_RUN_ID}a1\"/g" pyproject.toml
         ./packages/python/bin/python3 -m build .
 
-    - name: Build Docs
-      run: |
-        cd docs
-        make html
-        cp ../src/dv_flow_mgr/share/flow.json _build/html/
-        touch _build/html/.nojekyll
+#    - name: Build Docs
+#      run: |
+#        cd docs
+#        make html
+#        cp ../src/dv_flow_mgr/share/flow.json _build/html/
+#        touch _build/html/.nojekyll
 
     - name: Publish to PyPi
       if: ${{ startsWith(github.ref, 'refs/heads/main') }}
