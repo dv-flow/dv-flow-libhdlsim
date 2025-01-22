@@ -2,7 +2,10 @@ import os
 import pytest
 import shutil
 import asyncio
-from dv_flow.mgr import Session, TaskSpec
+from dv_flow.mgr import TaskSpec
+from dv_flow.mgr.pkg_rgy import PkgRgy
+from dv_flow.mgr.task_graph_runner_local import TaskGraphRunnerLocal
+from dv_flow.mgr.task_graph_builder import TaskGraphBuilder
 import dv_flow.libhdlsim as libhdlsim
 
 sims = None
@@ -26,58 +29,61 @@ def get_available_sims():
 def test_simple(tmpdir, request,sim):
 
     data_dir = os.path.join(os.path.dirname(__file__), "data")
-    session = Session(
-        os.path.join(tmpdir),
-        os.path.join(tmpdir, 'rundir')
-    )
+    runner = TaskGraphRunnerLocal(os.path.join(tmpdir, 'rundir'))
+    rgy = PkgRgy()
+    rgy._discover_plugins()
+    # rgy.registerPackage('hdlsim', 
+    #                         os.path.join(hdlsim_path, "flow.dv"))
+    # rgy.registerPackage('hdlsim.%s' % sim, 
+    #                         os.path.join(hdlsim_path, "%s_flow.dv" % sim))
+
+    builder = TaskGraphBuilder(
+        None, 
+        os.path.join(tmpdir, 'rundir'),
+        pkg_rgy=rgy)
 
     hdlsim_path = os.path.dirname(
         os.path.abspath(libhdlsim.__file__))
-
-    session.registerPackage('hdlsim', 
-                            os.path.join(hdlsim_path, "flow.dv"))
-    session.registerPackage('hdlsim.%s' % sim, 
-                            os.path.join(hdlsim_path, "%s_flow.dv" % sim))
     
-    fileset_t = session.getTaskCtor(TaskSpec('std.FileSet'))
+    fileset_t = builder.getTaskCtor(TaskSpec('std.FileSet'))
     fileset_params = fileset_t.param_ctor()
     fileset_params.type = "systemVerilogSource"
     fileset_params.base = data_dir
     fileset_params.include = "*.v"
 
     top_v = fileset_t.task_ctor(
-        "top_v",
-        session,
-        fileset_params,
+        name="top_v",
+        session=runner,
+        params=fileset_params,
         rundir=os.path.join(tmpdir, "rundir", "top_v"),
         srcdir=fileset_t.srcdir
     )
     
-    sim_img_t = session.getTaskCtor(TaskSpec('hdlsim.%s.SimImage' % sim))
+    sim_img_t = builder.getTaskCtor(TaskSpec('hdlsim.%s.SimImage' % sim))
     print("sim=%s sim_img_t.src=%s %s" % (sim, sim_img_t.srcdir, str(type(sim_img_t))))
     sim_img_params = sim_img_t.mkParams()
     sim_img_params.top.append('top')
     sim_img = sim_img_t.task_ctor(
-        "sim_img",
-        session,
-        sim_img_params,
+        name="sim_img",
+        session=runner,
+        params=sim_img_params,
         rundir=os.path.join(tmpdir, "rundir", "sim_img"),
         srcdir=sim_img_t.srcdir,
         depends=[top_v]
     )
     print("sim: %s sim_img: %s" % (sim, str(type(sim_img))))
 
-    sim_run_t = session.getTaskCtor(TaskSpec('hdlsim.%s.SimRun' % sim))
+    sim_run_t = builder.getTaskCtor(TaskSpec('hdlsim.%s.SimRun' % sim))
     print("sim=%s sim_run_t.src=%s" % (sim, sim_run_t.srcdir))
     sim_run = sim_run_t.task_ctor(
-        "sim_run",
-        session,
-        sim_run_t.mkParams(),
+        name="sim_run",
+        session=runner,
+        params=sim_run_t.mkParams(),
         rundir=os.path.join(tmpdir, "rundir", "sim_run"),
         srcdir=sim_run_t.srcdir,
         depends=[sim_img])
 
-    out = asyncio.run(session.runTask(sim_run))
+    out = asyncio.run(runner.runTask(sim_run))
 
     print("out: %s" % str(out))
 

@@ -17,7 +17,7 @@ description = "Provides dv-flow tasks for performing common tasks related to HDL
 license = {file = "LICENSE" }
 
 [project.entry-points."dv_flow.mgr"]
-libhdlsim = "libhdlsim.__ext__"
+libhdlsim = "dv_flow.libhdlsim.__ext__"
 
 [tool.setuptools.package-data]
 "dv_flow.libhdlsim" = ['**/flow.dv']
