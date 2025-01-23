@@ -83,7 +83,7 @@ def test_simple(tmpdir, request,sim):
         srcdir=sim_run_t.srcdir,
         depends=[sim_img])
 
-    out = asyncio.run(runner.runTask(sim_run))
+    out = asyncio.run(runner.run(sim_run))
 
     print("out: %s" % str(out))
 
@@ -98,6 +98,4 @@ def test_simple(tmpdir, request,sim):
     
     assert sim_log.find("Hello World!") != -1
     
-#    session.load()
-
     pass
