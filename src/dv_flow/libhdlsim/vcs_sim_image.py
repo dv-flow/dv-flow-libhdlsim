@@ -20,7 +20,8 @@ class SimImage(VlSimImage):
 
         cmd.extend(files)
 
-        cmd.extend(['-top', "+".join(self.params.top)])
+        if len(self.params.top):
+            cmd.extend(['-top', "+".join(self.params.top)])
 
         print("self.basedir=%s" % self.rundir)
         proc = await self.session.create_subprocess(*cmd,
