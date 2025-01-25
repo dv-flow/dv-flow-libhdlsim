@@ -9,5 +9,6 @@ def dvfm_packages():
         'hdlsim.mti': os.path.join(hdlsim_dir, "mti_flow.dv"),
         'hdlsim.vcs': os.path.join(hdlsim_dir, "vcs_flow.dv"),
         'hdlsim.vlt': os.path.join(hdlsim_dir, "vlt_flow.dv"),
+        'hdlsim.xcm': os.path.join(hdlsim_dir, "xcm_flow.dv"),
         'hdlsim.xsm': os.path.join(hdlsim_dir, "xsm_flow.dv"),
     }
