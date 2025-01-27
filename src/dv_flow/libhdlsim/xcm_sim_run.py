@@ -28,6 +28,9 @@ class SimRun(Task):
 
         fp.close()
 
+        if proc.returncode != 0:
+            raise Exception("xmsim failed (%d)" % proc.returncode)
+
         output = TaskData()
         output.addFileSet(FileSet(src=self.name, type="simRunDir", basedir=self.rundir))
 

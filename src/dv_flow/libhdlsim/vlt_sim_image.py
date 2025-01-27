@@ -1,9 +1,12 @@
 import os
-from typing import List
+import logging
+from typing import ClassVar, List
 from dv_flow.mgr import Task, TaskData
 from dv_flow.libhdlsim.vl_sim_image import VlSimImage
 
 class SimImage(VlSimImage):
+
+    _log : ClassVar = logging.getLogger("SimImage[vlt]")
 
     def getRefTime(self):
         if os.path.isfile(os.path.join(self.rundir, 'obj_dir/simv')):

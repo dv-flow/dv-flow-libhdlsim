@@ -1,14 +1,17 @@
 import os
+import logging
 import shutil
 import pydantic.dataclasses as dc
 from pydantic import BaseModel
 from toposort import toposort
 from dv_flow.mgr import FileSet, Task, TaskData, TaskMemento
-from typing import List, Tuple
+from typing import ClassVar, List, Tuple
 
 from svdep import FileCollection, TaskCheckUpToDate, TaskBuildFileCollection
 
 class VlSimImage(Task):
+
+    _log : ClassVar = logging.getLogger("VlSimImage")
 
     def getRefTime(self):
         raise NotImplementedError()
@@ -18,11 +21,11 @@ class VlSimImage(Task):
 
     async def run(self, input : TaskData) -> TaskData:
         for f in os.listdir(self.rundir):
-            print("sub-elem: %s" % f)
+            self._log.debug("sub-elem: %s" % f)
         ex_memento = self.getMemento(VlTaskSimImageMemento)
         in_changed = (ex_memento is None or input.changed)
 
-        print("in_changed: %s ; ex_memento: %s input.changed: %s" % (
+        self._log.debug("in_changed: %s ; ex_memento: %s input.changed: %s" % (
             in_changed, str(ex_memento), input.changed))
 
         files = []
@@ -31,7 +34,7 @@ class VlSimImage(Task):
 
         self._gatherSvSources(files, incdirs, input)
 
-        print("files: %s in_changed=%s" % (str(files), in_changed))
+        self._log.debug("files: %s in_changed=%s" % (str(files), in_changed))
 
         if not in_changed:
             try:
@@ -39,12 +42,12 @@ class VlSimImage(Task):
                 info = FileCollection.from_dict(ex_memento.svdeps)
                 in_changed = not TaskCheckUpToDate(files, incdirs).check(info, ref_mtime)
             except Exception as e:
-                print("Unexpected output-directory format (%s). Rebuilding" % str(e))
+                self._log.warning("Unexpected output-directory format (%s). Rebuilding" % str(e))
                 shutil.rmtree(self.rundir)
                 os.makedirs(self.rundir)
                 in_changed = True
 
-        print("in_changed=%s" % in_changed)
+        self._log.debug("in_changed=%s" % in_changed)
         if in_changed:
             memento = VlTaskSimImageMemento()
 
@@ -66,14 +69,14 @@ class VlSimImage(Task):
         # references must support transitivity
 
         vl_filesets = input.getFileSets(("verilogSource", "systemVerilogSource"))
-        print("vl_filesets: %s" % str(vl_filesets))
+        self._log.debug("vl_filesets: %s" % str(vl_filesets))
         fs_tasks = [fs.src for fs in vl_filesets]
 
         for fs in vl_filesets:
-            print("fs.basedir=%s" % fs.basedir)
+            self._log.debug("fs.basedir=%s" % fs.basedir)
             for file in fs.files:
                 path = os.path.join(fs.basedir, file)
-                print("path: basedir=%s fullpath=%s" % (fs.basedir, path))
+                self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))
                 dir = os.path.dirname(path)
                 if dir not in incdirs:
                     incdirs.append(dir)
@@ -93,7 +96,7 @@ class VlSimImage(Task):
         # Sort the deps
         order = list(toposort(input.deps))
 
-        print("order: %s" % str(order))
+        self._log.debug("order: %s" % str(order))
 
 
 class VlTaskSimImageParams(BaseModel):

@@ -48,46 +48,36 @@ def test_simple(tmpdir, request,sim):
         os.path.abspath(libhdlsim.__file__))
     
     fileset_t = builder.getTaskCtor(TaskSpec('std.FileSet'))
-    fileset_params = fileset_t.param_ctor()
+
+    top_v = fileset_t.mkTask(
+        name="top_v",
+        depends=[],
+        rundir=os.path.join(tmpdir, "rundir", "top_v"))
+    fileset_params = top_v.params
     fileset_params.type = "systemVerilogSource"
     fileset_params.base = data_dir
     fileset_params.include = "*.v"
-
-    top_v = fileset_t.task_ctor(
-        name="top_v",
-        session=runner,
-        params=fileset_params,
-        rundir=os.path.join(tmpdir, "rundir", "top_v"),
-        srcdir=fileset_t.srcdir
-    )
     
     sim_img_t = builder.getTaskCtor(TaskSpec('hdlsim.%s.SimImage' % sim))
     print("sim=%s sim_img_t.src=%s %s" % (sim, sim_img_t.srcdir, str(type(sim_img_t))))
-    sim_img_params = sim_img_t.mkParams()
-    sim_img_params.top.append('top')
-    sim_img = sim_img_t.task_ctor(
+    sim_img = sim_img_t.mkTask(
         name="sim_img",
-        session=runner,
-        params=sim_img_params,
         rundir=os.path.join(tmpdir, "rundir", "sim_img"),
-        srcdir=sim_img_t.srcdir,
         depends=[top_v]
     )
+    sim_img.params.top.append('top')
     print("sim: %s sim_img: %s" % (sim, str(type(sim_img))))
 
     sim_run_t = builder.getTaskCtor(TaskSpec('hdlsim.%s.SimRun' % sim))
     print("sim=%s sim_run_t.src=%s" % (sim, sim_run_t.srcdir))
-    sim_run = sim_run_t.task_ctor(
+    sim_run = sim_run_t.mkTask(
         name="sim_run",
-        session=runner,
-        params=sim_run_t.mkParams(),
         rundir=os.path.join(tmpdir, "rundir", "sim_run"),
-        srcdir=sim_run_t.srcdir,
         depends=[sim_img])
 
     out = asyncio.run(runner.run(sim_run))
 
-    print("out: %s" % str(out))
+    #print("out: %s" % str(out))
 
     rundir_fs = out.getFileSets("simRunDir")
 
@@ -173,7 +163,7 @@ endmodule
     # fileset_params.base = data_dir
     # fileset_params.include = "*.v"
 
-    # top_v = fileset_t.task_ctor(
+    # top_v = fileset_t.mkTask(
     #     name="top_v",
     #     session=runner,
     #     params=fileset_params,
@@ -185,7 +175,7 @@ endmodule
     # print("sim=%s sim_img_t.src=%s %s" % (sim, sim_img_t.srcdir, str(type(sim_img_t))))
     # sim_img_params = sim_img_t.mkParams()
     # sim_img_params.top.append('top')
-    # sim_img = sim_img_t.task_ctor(
+    # sim_img = sim_img_t.mkTask(
     #     name="sim_img",
     #     session=runner,
     #     params=sim_img_params,
@@ -197,7 +187,7 @@ endmodule
 
     # sim_run_t = builder.getTaskCtor(TaskSpec('hdlsim.%s.SimRun' % sim))
     # print("sim=%s sim_run_t.src=%s" % (sim, sim_run_t.srcdir))
-    # sim_run = sim_run_t.task_ctor(
+    # sim_run = sim_run_t.mkTask(
     #     name="sim_run",
     #     session=runner,
     #     params=sim_run_t.mkParams(),

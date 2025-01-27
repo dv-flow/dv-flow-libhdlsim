@@ -9,6 +9,9 @@ class SimRun(Task):
     async def run(self, input : TaskData) -> TaskData:
         vl_fileset = input.getFileSets("simDir")
 
+        if len(vl_fileset) == 0:
+            raise Exception("No simDir fileset provided")
+
         build_dir = vl_fileset[0].basedir
 
         cmd = [
