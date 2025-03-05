@@ -55,7 +55,7 @@ def test_simple(tmpdir, request,sim):
     fileset_params.base = data_dir
     fileset_params.include = "*.v"
     
-    sim_img_t = builder.getTaskCtor(TaskSpec('hdlsim.%s.SimImage2' % sim))
+    sim_img_t = builder.getTaskCtor(TaskSpec('hdlsim.%s.SimImage' % sim))
     params = sim_img_t.mkTaskParams()
     print("params: %s" % str(type(params)))
     print("sim=%s sim_img_t.src=%s %s" % (sim, sim_img_t.srcdir, str(type(sim_img_t))))
@@ -114,7 +114,7 @@ def test_simple_2(tmpdir, request,sim):
 
     top_v = fileset_t(name="top_v",  type="systeVerilogSource", base=data_dir, include="*.v")
 
-    sim_img_t = builder.getTaskCtor('hdlsim.%s.SimImage2' % sim)
+    sim_img_t = builder.getTaskCtor('hdlsim.%s.SimImage' % sim)
     sim_img_1 = sim_img_t(name="sim_img_1", needs=[top_v], top=["top"])
 
     sim_img_2 = sim_img_t(name="sim_img_2", needs=[top_v], top=["top"])

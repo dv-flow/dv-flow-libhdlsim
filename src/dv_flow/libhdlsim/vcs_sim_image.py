@@ -1,18 +1,18 @@
 import os
+import asyncio
+import json
 from typing import List
-from dv_flow.mgr import Task, TaskData
-from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImage
+from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder
 
-class SimImage(VlSimImage):
+class SimImageBuilder(VlSimImageBuilder):
 
     def getRefTime(self):
         if os.path.isfile(os.path.join(self.rundir, 'simv')):
-            print("Returning timestamp")
             return os.path.getmtime(os.path.join(self.rundir, 'simv'))
         else:
             raise Exception("simv file (%s) does not exist" % os.path.join(self.rundir, 'obj_dir/simv'))
     
-    async def build(self, files : List[str], incdirs : List[str]):
+    async def build(self, input, files : List[str], incdirs : List[str]):
         cmd = ['vcs', '-sverilog']
 
         for incdir in incdirs:
@@ -20,14 +20,23 @@ class SimImage(VlSimImage):
 
         cmd.extend(files)
 
-        if len(self.params.top):
-            cmd.extend(['-top', "+".join(self.params.top)])
+        if len(input.params.top):
+            cmd.extend(['-top', "+".join(input.params.top)])
 
-        print("self.basedir=%s" % self.rundir)
-        proc = await self.session.create_subprocess(*cmd,
-                                                        cwd=self.rundir)
+        fp = open(os.path.join(input.rundir, 'build.log'), "w")
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            cwd=input.rundir,
+            stdout=fp,
+            stderr=asyncio.subprocess.STDOUT)
+
         await proc.wait()
+        fp.close()
 
         if proc.returncode != 0:
             raise Exception("VCS failed (%d)" % proc.returncode)
+
+async def SimImage(runner, input) -> TaskData:
+    builder = SimImageBuilder()
+    return await builder.run(runner, input)
 

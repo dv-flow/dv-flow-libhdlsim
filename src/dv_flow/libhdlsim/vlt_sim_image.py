@@ -11,7 +11,6 @@ class SimImageBuilder(VlSimImageBuilder):
 
     def getRefTime(self):
         if os.path.isfile(os.path.join(self.rundir, 'obj_dir/simv')):
-            print("Returning timestamp")
             return os.path.getmtime(os.path.join(self.rundir, 'obj_dir/simv'))
         else:
             raise Exception("simv file (%s) does not exist" % os.path.join(self.rundir, 'obj_dir/simv'))
@@ -35,6 +34,7 @@ class SimImageBuilder(VlSimImageBuilder):
             stderr=asyncio.subprocess.STDOUT)
 
         await proc.wait()
+        fp.close()
 
         if proc.returncode != 0:
             raise Exception("Verilator failed (%d)" % proc.returncode)
