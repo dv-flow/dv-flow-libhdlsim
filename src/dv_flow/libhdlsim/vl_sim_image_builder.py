@@ -1,15 +1,16 @@
 import os
+import json
 import logging
 import shutil
 import pydantic.dataclasses as dc
 from pydantic import BaseModel
 from toposort import toposort
-from dv_flow.mgr import FileSet, Task, TaskData, TaskMemento
+from dv_flow.mgr import FileSet, TaskDataResult
 from typing import ClassVar, List, Tuple
 
 from svdep import FileCollection, TaskCheckUpToDate, TaskBuildFileCollection
 
-class VlSimImage(Task):
+class VlSimImageBuilder(object):
 
     _log : ClassVar = logging.getLogger("VlSimImage")
 
@@ -19,10 +20,10 @@ class VlSimImage(Task):
     async def build(self, files : List[str], incdirs : List[str]):
         raise NotImplementedError()
 
-    async def run(self, input : TaskData) -> TaskData:
-        for f in os.listdir(self.rundir):
+    async def run(self, runner, input) -> TaskDataResult:
+        for f in os.listdir(input.rundir):
             self._log.debug("sub-elem: %s" % f)
-        ex_memento = self.getMemento(VlTaskSimImageMemento)
+        ex_memento = input.memento
         in_changed = (ex_memento is None or input.changed)
 
         self._log.debug("in_changed: %s ; ex_memento: %s input.changed: %s" % (
@@ -43,8 +44,8 @@ class VlSimImage(Task):
                 in_changed = not TaskCheckUpToDate(files, incdirs).check(info, ref_mtime)
             except Exception as e:
                 self._log.warning("Unexpected output-directory format (%s). Rebuilding" % str(e))
-                shutil.rmtree(self.rundir)
-                os.makedirs(self.rundir)
+                shutil.rmtree(input.rundir)
+                os.makedirs(input.rundir)
                 in_changed = True
 
         self._log.debug("in_changed=%s" % in_changed)
@@ -55,24 +56,28 @@ class VlSimImage(Task):
             info = TaskBuildFileCollection(files, incdirs).build()
             memento.svdeps = info.to_dict()
 
-            await self.build(files, incdirs) 
+            await self.build(input, files, incdirs) 
 
-        output = TaskData()
-        output.addFileSet(FileSet(src=self.name, type="simDir", basedir=self.rundir))
-        output.changed = in_changed
-
-        self.setMemento(memento)
-        return output
+        return TaskDataResult(
+            memento=memento,
+            output=[FileSet(
+                src=input.name, 
+                filetype="simDir", 
+                basedir=input.rundir)],
+            changed=in_changed
+        )
     
     def _gatherSvSources(self, files, incdirs, input):
         # input must represent dependencies for all tasks related to filesets
         # references must support transitivity
 
-        vl_filesets = input.getFileSets(("verilogSource", "systemVerilogSource"))
+        vl_filesets = json.loads(input.params.sources)
+#        getFileSets(("verilogSource", "systemVerilogSource"))
         self._log.debug("vl_filesets: %s" % str(vl_filesets))
-        fs_tasks = [fs.src for fs in vl_filesets]
+#        fs_tasks = [fs.src for fs in vl_filesets]
 
-        for fs in vl_filesets:
+        for fs_j in vl_filesets:
+            fs = FileSet(**fs_j)
             self._log.debug("fs.basedir=%s" % fs.basedir)
             for file in fs.files:
                 path = os.path.join(fs.basedir, file)
@@ -94,15 +99,8 @@ class VlSimImage(Task):
         # -> Assume projects will often flatten before exporting
 
         # Sort the deps
-        order = list(toposort(input.deps))
-
-        self._log.debug("order: %s" % str(order))
 
 
-class VlTaskSimImageParams(BaseModel):
-    debug : bool = False
-    top : List[str] = dc.Field(default_factory=list)
-
-class VlTaskSimImageMemento(TaskMemento):
+class VlTaskSimImageMemento(BaseModel):
     svdeps : dict = dc.Field(default_factory=dict)
 

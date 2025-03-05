@@ -1,12 +1,13 @@
+import asyncio
 import os
 import logging
 from typing import ClassVar, List
-from dv_flow.mgr import Task, TaskData
-from dv_flow.libhdlsim.vl_sim_image import VlSimImage
+from dv_flow.mgr import TaskDataResult
+from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder
 
-class SimImage(VlSimImage):
+class SimImageBuilder(VlSimImageBuilder):
 
-    _log : ClassVar = logging.getLogger("SimImage[vlt]")
+    _log : ClassVar = logging.getLogger("SimImageBuilder[vlt]")
 
     def getRefTime(self):
         if os.path.isfile(os.path.join(self.rundir, 'obj_dir/simv')):
@@ -15,7 +16,7 @@ class SimImage(VlSimImage):
         else:
             raise Exception("simv file (%s) does not exist" % os.path.join(self.rundir, 'obj_dir/simv'))
     
-    async def build(self, files : List[str], incdirs : List[str]):
+    async def build(self, input, files : List[str], incdirs : List[str]):
         cmd = ['verilator', '--binary', '-o', 'simv']
 
         for incdir in incdirs:
@@ -23,14 +24,22 @@ class SimImage(VlSimImage):
 
         cmd.extend(files)
 
-        for top in self.params.top:
+        for top in input.params.top:
             cmd.extend(['--top-module', top])
 
-        print("self.basedir=%s" % self.rundir)
-        proc = await self.session.create_subprocess(*cmd,
-                                                        cwd=self.rundir)
+        fp = open(os.path.join(input.rundir, 'build.log'), "w")
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            cwd=input.rundir,
+            stdout=fp,
+            stderr=asyncio.subprocess.STDOUT)
+
         await proc.wait()
 
         if proc.returncode != 0:
             raise Exception("Verilator failed (%d)" % proc.returncode)
+
+async def SimImage(runner, input) -> TaskDataResult:
+    builder = SimImageBuilder()
+    return await builder.run(runner, input)
 

@@ -1,7 +1,7 @@
 import os
 from typing import List
 from dv_flow.mgr import Task, TaskData
-from dv_flow.libhdlsim.vl_sim_image import VlSimImage
+from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImage
 
 class SimImage(VlSimImage):
 
