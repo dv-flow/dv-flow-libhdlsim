@@ -23,7 +23,13 @@ class SimLibBuilder(VlSimLibBuilder):
                 input.params.libname, 
                 os.path.join(input.rundir, input.params.libname)))
 
+            for lib in libs:
+                fp.write("%s: %s\n" % (os.path.basename(lib), lib))
+
         cmd = ['vlogan', '-full64', '-sverilog', '-work', input.params.libname]
+
+        if len(libs):
+            cmd.extend(['-liblist', "+".join(os.path.basename(l) for l in libs)])
 
         for incdir in incdirs:
             cmd.append('+incdir+%s' % incdir)
