@@ -143,6 +143,60 @@ def test_simple_2(tmpdir, request,sim):
         assert sim_log.find("Hello World!") != -1
 
 @pytest.mark.parametrize("sim", get_available_sims())
+def test_passthrough_1(tmpdir, request,sim):
+
+    data_dir = os.path.join(os.path.dirname(__file__), "data")
+    runner = TaskSetRunner(os.path.join(tmpdir, 'rundir'))
+    rgy = PkgRgy()
+    rgy._discover_plugins()
+
+    builder = TaskGraphBuilder(
+        None, 
+        os.path.join(tmpdir, 'rundir'),
+        pkg_rgy=rgy)
+
+    fileset_t = builder.getTaskCtor('std.FileSet')
+
+    mod1 = builder.mkTaskNode(
+        task_t="std.FileSet",
+        name="mod1",  
+        type="systeVerilogSource", 
+        base=os.path.join(data_dir, "mod1"), include="*.sv")
+
+    top_mod1 = builder.mkTaskNode(
+        task_t="std.FileSet",
+        name="top_mod1", needs=[mod1], 
+        type="systeVerilogSource", 
+        base=os.path.join(data_dir, "top_mod1"), include="*.sv")
+
+    sim_img = builder.mkTaskNode(
+        task_t='hdlsim.%s.SimImage' % sim,
+        name="sim_img", needs=[top_mod1], top=["top"])
+
+    sim_run = builder.mkTaskNode(
+        'hdlsim.%s.SimRun' % sim, 
+        name="sim_run",
+        needs=[sim_img])
+
+    runner.add_listener(TaskListenerLog().event)
+    out_l = asyncio.run(runner.run([sim_run]))
+
+    for out in out_l:
+        rundir_fs = None
+        for fs in out.output:
+            if fs.type == 'std.FileSet' and fs.filetype == "simRunDir":
+                rundir_fs = fs
+
+        assert rundir_fs is not None
+        assert rundir_fs.src in ("sim_run",)
+
+        assert os.path.isfile(os.path.join(rundir_fs.basedir, "sim.log"))
+        with open(os.path.join(rundir_fs.basedir, "sim.log"), "r") as f:
+            sim_log = f.read()
+    
+        assert sim_log.find("Hello World!") != -1
+
+@pytest.mark.parametrize("sim", get_available_sims())
 def test_import_alias(tmpdir,sim):
 
     data_dir = os.path.join(os.path.dirname(__file__), "data")

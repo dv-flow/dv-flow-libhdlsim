@@ -36,7 +36,7 @@ class SimImageBuilder(VlSimImageBuilder):
         if proc.returncode != 0:
             raise Exception("VCS failed (%d)" % proc.returncode)
 
-async def SimImage(runner, input) -> TaskData:
+async def SimImage(runner, input):
     builder = SimImageBuilder()
     return await builder.run(runner, input)
 

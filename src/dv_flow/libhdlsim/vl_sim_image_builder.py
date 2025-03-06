@@ -71,7 +71,11 @@ class VlSimImageBuilder(object):
         # input must represent dependencies for all tasks related to filesets
         # references must support transitivity
 
-        vl_filesets = json.loads(input.params.sources)
+        try:
+            vl_filesets = json.loads(input.params.sources)
+        except Exception as e:
+            self._log.error("Failed to parse JSON: %s (%s)" % (input.params.sources, str(e)))
+            raise e
 #        getFileSets(("verilogSource", "systemVerilogSource"))
         self._log.debug("vl_filesets: %s" % str(vl_filesets))
 #        fs_tasks = [fs.src for fs in vl_filesets]
