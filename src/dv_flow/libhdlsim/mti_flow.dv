@@ -3,11 +3,15 @@ package:
   name: hdlsim.mti
 
   tasks:
+  - name: SimLib
+    uses: hdlsim.SimLib
+    pytask: dv_flow.libhdlsim.mti_sim_lib.SimLib
+
   - name: SimImage
     uses: hdlsim.SimImage
-    pyclass: dv_flow.libhdlsim.mti_sim_image.SimImage
+    pytask: dv_flow.libhdlsim.mti_sim_image.SimImage
 
   - name: SimRun
     uses: hdlsim.SimRun
-    pyclass: dv_flow.libhdlsim.mti_sim_run.SimRun
+    pytask: dv_flow.libhdlsim.mti_sim_run.SimRun
 

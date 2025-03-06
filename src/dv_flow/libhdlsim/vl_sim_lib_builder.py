@@ -9,10 +9,11 @@ from dv_flow.mgr import FileSet, TaskDataResult
 from typing import ClassVar, List, Tuple
 
 from svdep import FileCollection, TaskCheckUpToDate, TaskBuildFileCollection
+from .vl_sim_image_builder import VlTaskSimImageMemento
 
-class VlSimImageBuilder(object):
+class VlSimLibBuilder(object):
 
-    _log : ClassVar = logging.getLogger("VlSimImage")
+    _log : ClassVar = logging.getLogger("VlSimLib")
 
     def getRefTime(self):
         raise NotImplementedError()
@@ -25,6 +26,9 @@ class VlSimImageBuilder(object):
             self._log.debug("sub-elem: %s" % f)
         ex_memento = input.memento
         in_changed = (ex_memento is None or input.changed)
+
+        if input.params.libname is None or input.params.libname == "":
+            input.params.libname = input.name
 
         self._log.debug("in_changed: %s ; ex_memento: %s input.changed: %s" % (
             in_changed, str(ex_memento), input.changed))
@@ -63,8 +67,9 @@ class VlSimImageBuilder(object):
             memento=memento,
             output=[FileSet(
                 src=input.name, 
-                filetype="simDir", 
-                basedir=input.rundir)],
+                filetype="simLib", 
+                basedir=input.rundir,
+                files=[input.params.libname])],
             changed=in_changed
         )
     
@@ -81,7 +86,7 @@ class VlSimImageBuilder(object):
 
         for fs_j in vl_filesets:
             fs = FileSet(**fs_j)
-            self._log.debug("fs.filetype=%s fs.basedir=%s" % (fs.filetype, fs.basedir))
+            self._log.debug("fs.basedir=%s" % fs.basedir)
             if fs.filetype == "verilogIncDir":
                 incdirs.append(fs.basedir)
             elif fs.filetype == "simLib":
@@ -101,7 +106,4 @@ class VlSimImageBuilder(object):
                         incdirs.append(dir)
                     files.append(path)
 
-
-class VlTaskSimImageMemento(BaseModel):
-    svdeps : dict = dc.Field(default_factory=dict)
 

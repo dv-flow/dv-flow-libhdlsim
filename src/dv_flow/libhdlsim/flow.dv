@@ -5,6 +5,22 @@ package:
   name: hdlsim
 
   tasks:
+  - name: SimLib
+    passthrough: true
+    consumes:
+    - filetype: systemVerilogSource 
+    - filetype: verilogSource 
+    with:
+      libname:
+        type: str
+        value: ""
+      sources:
+        type: list
+        value: ${{ in | jq('[.[] | select( .type == "std.FileSet")]') }}
+
+  - name: SimLibUVM
+    with: {}
+
   - name: SimImage
     with:
       top:

@@ -2,9 +2,9 @@ import os
 import asyncio
 import json
 from typing import List
-from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder
+from dv_flow.libhdlsim.vl_sim_lib_builder import VlSimLibBuilder
 
-class SimImageBuilder(VlSimImageBuilder):
+class SimLibBuilder(VlSimLibBuilder):
 
     def getRefTime(self):
         if os.path.isfile(os.path.join(self.rundir, 'simv')):
@@ -13,15 +13,17 @@ class SimImageBuilder(VlSimImageBuilder):
             raise Exception("simv file (%s) does not exist" % os.path.join(self.rundir, 'obj_dir/simv'))
     
     async def build(self, input, files : List[str], incdirs : List[str], libs : List[str]):
-        # Create the library map
+
+        if not os.path.isdir(os.path.join(input.rundir, input.params.libname)):
+            os.makedirs(os.path.join(input.rundir, input.params.libname), exist_ok=True)
+
+        # Create a library map
         with open(os.path.join(input.rundir, 'synopsys_sim.setup'), 'w') as fp:
-            for lib in libs:
-                fp.write("%s: %s\n" % (os.path.basename(lib), lib))
+            fp.write("%s: %s\n" % (
+                input.params.libname, 
+                os.path.join(input.rundir, input.params.libname)))
 
-        cmd = ['vcs', '-full64', '-sverilog']
-
-        if len(libs):
-            cmd.extend(['-liblist', "+".join(os.path.basename(l) for l in libs)])
+        cmd = ['vlogan', '-full64', '-sverilog', '-work', input.params.libname]
 
         for incdir in incdirs:
             cmd.append('+incdir+%s' % incdir)
@@ -44,7 +46,7 @@ class SimImageBuilder(VlSimImageBuilder):
         if proc.returncode != 0:
             raise Exception("VCS failed (%d)" % proc.returncode)
 
-async def SimImage(runner, input):
-    builder = SimImageBuilder()
+async def SimLib(runner, input):
+    builder = SimLibBuilder()
     return await builder.run(runner, input)
 
