@@ -30,9 +30,6 @@ class SimLibBuilder(VlSimLibBuilder):
 
         cmd.extend(files)
 
-        if len(input.params.top):
-            cmd.extend(['-top', "+".join(input.params.top)])
-
         fp = open(os.path.join(input.rundir, 'build.log'), "w")
         proc = await asyncio.create_subprocess_exec(
             *cmd,

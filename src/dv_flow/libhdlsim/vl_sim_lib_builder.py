@@ -97,6 +97,7 @@ class VlSimLibBuilder(object):
                         libs.append(path)
                 else:
                     libs.append(fs.basedir)
+                incdirs.extend(fs.incdirs)
             else:
                 for file in fs.files:
                     path = os.path.join(fs.basedir, file)
@@ -105,5 +106,6 @@ class VlSimLibBuilder(object):
                     if dir not in incdirs:
                         incdirs.append(dir)
                     files.append(path)
+                incdirs.extend(fs.incdirs)
 
 
