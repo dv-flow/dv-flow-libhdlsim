@@ -14,9 +14,7 @@ async def SimLibUVM(runner, input):
     # TODO: determine whether we're up-to-date
 
     with open(os.path.join(input.rundir, 'synopsys_sim.setup'), 'w') as fp:
-        fp.write("%s: %s\n" % (
-            input.params.libname, 
-            os.path.join(input.rundir, 'uvm')))
+        fp.write("uvm: %s\n" % os.path.join(input.rundir, 'uvm'))
         
     which_vlogan = shutil.which('vlogan')
     if which_vlogan is None:
