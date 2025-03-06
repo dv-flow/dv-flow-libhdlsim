@@ -30,6 +30,8 @@ class SimLibBuilder(VlSimLibBuilder):
 
         cmd.extend(files)
 
+        self._log.debug("Running vlogan: %s", " ".join(cmd))
+
         fp = open(os.path.join(input.rundir, 'build.log'), "w")
         proc = await asyncio.create_subprocess_exec(
             *cmd,
