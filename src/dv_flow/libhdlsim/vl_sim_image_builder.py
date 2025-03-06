@@ -92,7 +92,7 @@ class VlSimImageBuilder(object):
                         libs.append(path)
                 else:
                     libs.append(fs.basedir)
-                incdirs.extend([os.path.join(fs.base, i) for i in fs.incdirs])
+                incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
             else:
                 for file in fs.files:
                     path = os.path.join(fs.basedir, file)
@@ -101,7 +101,7 @@ class VlSimImageBuilder(object):
                     if dir not in incdirs:
                         incdirs.append(dir)
                     files.append(path)
-                incdirs.extend([os.path.join(fs.base, i) for i in fs.incdirs])
+                incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
 
 
 class VlTaskSimImageMemento(BaseModel):
