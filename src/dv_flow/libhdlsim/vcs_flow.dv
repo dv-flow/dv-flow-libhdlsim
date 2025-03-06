@@ -11,6 +11,10 @@ package:
     uses: hdlsim.SimLib
     pytask: dv_flow.libhdlsim.vcs_sim_lib.SimLib
 
+  - name: SimLibUVM
+    uses: hdlsim.SimLibUVM
+    pytask: dv_flow.libhdlsim.vcs_sim_lib_uvm.SimLibUVM
+
   - name: SimRun
     uses: hdlsim.SimRun
     pytask: dv_flow.libhdlsim.vcs_sim_run.SimRun
