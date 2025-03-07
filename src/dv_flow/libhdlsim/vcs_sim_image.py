@@ -31,7 +31,10 @@ class SimImageBuilder(VlSimImageBuilder):
         if len(input.params.top):
             cmd.extend(['-top', "+".join(input.params.top)])
 
+            self._log.debug("VCS command: %s" % str(cmd))
+
         fp = open(os.path.join(input.rundir, 'build.log'), "w")
+        fp.write("Command: %s" % str(cmd))
         proc = await asyncio.create_subprocess_exec(
             *cmd,
             cwd=input.rundir,
