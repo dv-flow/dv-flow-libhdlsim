@@ -18,7 +18,10 @@ class SimImageBuilder(VlSimImageBuilder):
             for lib in libs:
                 fp.write("%s: %s\n" % (os.path.basename(lib), lib))
 
-        cmd = ['vcs', '-full64', '-sverilog']
+        cmd = ['vcs', '-full64']
+
+        if len(files):
+            cmd.append('-sverilog')
 
         if len(libs):
             cmd.extend(['-liblist', "+".join(os.path.basename(l) for l in libs)])
