@@ -5,7 +5,7 @@ from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImage
 
 class SimImage(VlSimImage):
 
-    def getRefTime(self):
+    def getRefTime(self, rundir):
         if os.path.isfile(os.path.join(self.rundir, 'simv.vpp')):
             print("Returning timestamp")
             return os.path.getmtime(os.path.join(self.rundir, 'simv.vpp'))

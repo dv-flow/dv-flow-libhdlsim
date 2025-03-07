@@ -6,11 +6,11 @@ from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder
 
 class SimImageBuilder(VlSimImageBuilder):
 
-    def getRefTime(self):
-        if os.path.isfile(os.path.join(self.rundir, 'simv_opt.d')):
-            return os.path.getmtime(os.path.join(self.rundir, 'simv_opt.d'))
+    def getRefTime(self, rundir):
+        if os.path.isfile(os.path.join(rundir, 'simv_opt.d')):
+            return os.path.getmtime(os.path.join(rundir, 'simv_opt.d'))
         else:
-            raise Exception("simv_opt.d file (%s) does not exist" % os.path.join(self.rundir, 'simv_opt.d'))
+            raise Exception("simv_opt.d file (%s) does not exist" % os.path.join(rundir, 'simv_opt.d'))
     
     async def build(self, input, files : List[str], incdirs : List[str], libs : List[str]):
         cmd = []
@@ -73,8 +73,12 @@ class SimImageBuilder(VlSimImageBuilder):
         await proc.wait()
         fp.close()
 
+
         if proc.returncode != 0:
             raise Exception("vopt failed (%d)" % proc.returncode)
+        else:
+            with open(os.path.join(input.rundir, 'simv_opt.d'), "w") as fp:
+                fp.write("\n")
 
 async def SimImage(runner, input):
     builder = SimImageBuilder()

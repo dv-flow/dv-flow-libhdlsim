@@ -14,7 +14,7 @@ class VlSimImageBuilder(object):
 
     _log : ClassVar = logging.getLogger("VlSimImage")
 
-    def getRefTime(self):
+    def getRefTime(self, rundir):
         raise NotImplementedError()
 
     async def build(self, files : List[str], incdirs : List[str]):
@@ -40,7 +40,7 @@ class VlSimImageBuilder(object):
 
         if not in_changed:
             try:
-                ref_mtime = self.getRefTime()
+                ref_mtime = self.getRefTime(input.rundir)
                 info = FileCollection.from_dict(ex_memento.svdeps)
                 in_changed = not TaskCheckUpToDate(files, incdirs).check(info, ref_mtime)
             except Exception as e:

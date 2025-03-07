@@ -9,12 +9,12 @@ class SimImageBuilder(VlSimImageBuilder):
 
     _log : ClassVar = logging.getLogger("SimImageBuilder[vlt]")
 
-    def getRefTime(self):
-        if os.path.isfile(os.path.join(self.rundir, 'obj_dir/simv')):
-            return os.path.getmtime(os.path.join(self.rundir, 'obj_dir/simv'))
+    def getRefTime(self, rundir):
+        if os.path.isfile(os.path.join(rundir, 'obj_dir/simv')):
+            return os.path.getmtime(os.path.join(rundir, 'obj_dir/simv'))
         else:
-            raise Exception("simv file (%s) does not exist" % os.path.join(self.rundir, 'obj_dir/simv'))
-    
+            raise Exception("simv file (%s) does not exist" % os.path.join(rundir, 'obj_dir/simv'))
+
     async def build(self, input, files : List[str], incdirs : List[str], libs : List[str]):
         cmd = ['verilator', '--binary', '-o', 'simv']
 
