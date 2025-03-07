@@ -23,11 +23,12 @@ class SimImageBuilder(VlSimImageBuilder):
         if len(files):
             cmd.append('-sverilog')
 
+            for incdir in incdirs:
+                cmd.append('+incdir+%s' % incdir)
+
         if len(libs):
             cmd.extend(['-liblist', "+".join(os.path.basename(l) for l in libs)])
 
-        for incdir in incdirs:
-            cmd.append('+incdir+%s' % incdir)
 
         cmd.extend(files)
 
