@@ -1,16 +1,18 @@
 import os
 import asyncio
 import json
+import shutil
+from pathlib import Path
 from typing import List
 from dv_flow.libhdlsim.vl_sim_lib_builder import VlSimLibBuilder
 
 class SimLibBuilder(VlSimLibBuilder):
 
     def getRefTime(self, rundir):
-        if os.path.isfile(os.path.join(rundir, 'simv')):
-            return os.path.getmtime(os.path.join(rundir, 'simv'))
+        if os.path.isfile(os.path.join(rundir, 'simlib.d')):
+            return os.path.getmtime(os.path.join(rundir, 'simlib.d'))
         else:
-            raise Exception("simv file (%s) does not exist" % os.path.join(rundir, 'obj_dir/simv'))
+            raise Exception("simv file (%s) does not exist" % os.path.join(rundir, 'simlib.d'))
     
     async def build(self, input, files : List[str], incdirs : List[str], libs : List[str]):
 
@@ -50,6 +52,8 @@ class SimLibBuilder(VlSimLibBuilder):
 
         if proc.returncode != 0:
             raise Exception("VCS failed (%d)" % proc.returncode)
+        else:
+            Path(os.path.join(input.rundir, 'simlib.d')).touch()
 
 async def SimLib(runner, input):
     builder = SimLibBuilder()

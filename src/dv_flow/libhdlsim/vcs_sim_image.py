@@ -10,7 +10,7 @@ class SimImageBuilder(VlSimImageBuilder):
         if os.path.isfile(os.path.join(rundir, 'simv')):
             return os.path.getmtime(os.path.join(rundir, 'simv'))
         else:
-            raise Exception("simv file (%s) does not exist" % os.path.join(rundir, 'obj_dir/simv'))
+            raise Exception("simv file (%s) does not exist" % os.path.join(rundir, 'simv'))
     
     async def build(self, input, files : List[str], incdirs : List[str], libs : List[str]):
         # Create the library map
