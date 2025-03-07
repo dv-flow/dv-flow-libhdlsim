@@ -45,7 +45,7 @@ class VlSimLibBuilder(object):
         if not in_changed:
             try:
                 ref_mtime = self.getRefTime(input.rundir)
-                info = FileCollection.from_dict(ex_memento.svdeps)
+                info = FileCollection.from_dict(ex_memento["svdeps"])
                 in_changed = not TaskCheckUpToDate(files, incdirs).check(info, ref_mtime)
             except Exception as e:
                 self._log.warning("Unexpected output-directory format (%s). Rebuilding" % str(e))
@@ -62,6 +62,8 @@ class VlSimLibBuilder(object):
             memento.svdeps = info.to_dict()
 
             await self.build(input, files, incdirs, libs) 
+        else:
+            memento = VlTaskSimImageMemento(**memento)
 
         return TaskDataResult(
             memento=memento,
