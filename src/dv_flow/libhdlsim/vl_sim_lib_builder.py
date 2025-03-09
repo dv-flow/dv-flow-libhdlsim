@@ -17,21 +17,8 @@ class VlSimLibBuilder(object):
 
     def getRefTime(self, rundir):
         raise NotImplementedError()
-    
-    async def init(self, input, libnames[]):
-        raise NotImplementedError()
 
-    async def build_vl(self, 
-                    input, 
-                    files : List[str], 
-                    incdirs : List[str],
-                    libname):
-        raise NotImplementedError()
-
-    async def build_vh(self, 
-                    input, 
-                    files : List[str], 
-                    libname):
+    async def build(self, files : List[str], incdirs : List[str]):
         raise NotImplementedError()
 
     async def run(self, runner, input) -> TaskDataResult:
@@ -52,9 +39,6 @@ class VlSimLibBuilder(object):
         memento = ex_memento
 
         self._gatherSvSources(files, incdirs, libs, input)
-
-#        vh_files = []
-#        self._gatherVhSources(vh_files, input)
 
         self._log.debug("files: %s in_changed=%s" % (str(files), in_changed))
 
