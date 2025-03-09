@@ -7,6 +7,13 @@ package:
     uses: hdlsim.SimImage
     pytask: dv_flow.libhdlsim.vlt_sim_image.SimImage
 
+  - name: SimLib
+    uses: hdl.SimLib
+    passthrough: true
+    doc: |
+      Verilator doesn't have a notion of a pre-compiled library.
+      Consequently, this notion is implemented as a passthrough.
+
   - name: SimRun
     uses: hdlsim.SimRun
     pytask: dv_flow.libhdlsim.vlt_sim_run.SimRun
