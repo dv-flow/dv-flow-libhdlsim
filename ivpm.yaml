@@ -10,6 +10,7 @@ package:
       src: pypi
     - name: svdep
       url: https://github.com/fvutils/svdep.git
+      dep-set: default
     - name: dv-flow-mgr
       url: http://github.com/dv-flow/dv-flow-mgr.git
     - name: pytest-dv
@@ -29,7 +30,7 @@ package:
     - name: sphinxcontrib-mermaid
       src: pypi
 
-  - name: default-dev
+  - name: default
     deps:
     - name: pytest
       src: pypi
