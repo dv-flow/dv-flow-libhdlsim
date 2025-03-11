@@ -50,6 +50,8 @@ class SimLibBuilder(VlSimLibBuilder):
 
         if proc.returncode != 0:
             raise Exception("vlog failed (%d)" % proc.returncode)
+        
+        return proc.returncode
 
 async def SimLib(runner, input):
     builder = SimLibBuilder()

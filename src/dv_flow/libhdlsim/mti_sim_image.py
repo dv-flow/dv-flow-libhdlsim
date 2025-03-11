@@ -80,6 +80,8 @@ class SimImageBuilder(VlSimImageBuilder):
             with open(os.path.join(input.rundir, 'simv_opt.d'), "w") as fp:
                 fp.write("\n")
 
+        return proc.returncode
+
 async def SimImage(runner, input):
     builder = SimImageBuilder()
     return await builder.run(runner, input)

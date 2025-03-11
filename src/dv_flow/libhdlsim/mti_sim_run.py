@@ -34,5 +34,6 @@ async def SimRun(runner, input) -> TaskDataResult:
         output=[FileSet(
                 src=input.name, 
                 filetype="simRunDir", 
-                basedir=input.rundir)],
+                basedir=input.rundir,
+                status=0)],
     )
