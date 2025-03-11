@@ -42,6 +42,8 @@ class SimLibBuilder(VlSimLibBuilder):
         self._log.debug("Running vlogan: %s", " ".join(cmd))
 
         fp = open(os.path.join(input.rundir, 'build.log'), "w")
+        fp.write("Command: %s" % str(cmd))
+        fp.flush()
         proc = await asyncio.create_subprocess_exec(
             *cmd,
             cwd=input.rundir,
