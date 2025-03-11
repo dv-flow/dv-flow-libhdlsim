@@ -3,6 +3,7 @@ import asyncio
 import json
 from typing import List
 from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder
+from dv_flow.mgr.task_data import TaskMarker, TaskMarkerLoc
 
 class SimImageBuilder(VlSimImageBuilder):
 
@@ -49,7 +50,12 @@ class SimImageBuilder(VlSimImageBuilder):
         fp.close()
 
         if proc.returncode != 0:
-            raise Exception("VCS failed (%d)" % proc.returncode)
+            self.markers.append(
+                TaskMarker(
+                    severity="error", 
+                    msg="vcs command failed"))
+        
+        return proc.returncode
 
 async def SimImage(runner, input):
     builder = SimImageBuilder()

@@ -6,11 +6,14 @@ import shutil
 import pathlib
 from typing import List
 from dv_flow.mgr import TaskDataResult, FileSet
+from dv_flow.mgr.task_data import TaskMarker, TaskMarkerLoc
 
 _log = logging.getLogger("SimLibUVM")
 
 async def SimLibUVM(runner, input):
     ex_memento = input.memento
+    status = 0
+    markers = []
 
     which_vlogan = shutil.which('vlogan')
     if which_vlogan is None:
@@ -41,12 +44,16 @@ async def SimLibUVM(runner, input):
         fp.close()
 
         if proc.returncode != 0:
-            raise Exception("VCS failed (%d)" % proc.returncode)
+            markers.append(
+                TaskMarker(
+                    severity="error", 
+                    msg="vlogan(UVM) command failed"))
+            status = 1
 
         changed = True
 
     return TaskDataResult(
-        memento=ex_memento,
+        memento=(ex_memento if status == 0 else None),
         changed=changed,
         output=[
             FileSet(
@@ -55,5 +62,7 @@ async def SimLibUVM(runner, input):
             FileSet(
                 basedir=os.path.join(input.rundir, "uvm"),
                 filetype="simLib")
-        ])
+        ],
+        status=status,
+        markers=markers)
 
