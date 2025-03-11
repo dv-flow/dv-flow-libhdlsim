@@ -39,6 +39,9 @@ class SimImageBuilder(VlSimImageBuilder):
 
         self._log.debug("proc.returncode: %d" % proc.returncode)
 
+        # Parse the log for warnings and error
+        self.parseLog(os.path.join(input.rundir, 'build.log'))
+
         if proc.returncode != 0:
             self.markers.append(
                 TaskMarker(

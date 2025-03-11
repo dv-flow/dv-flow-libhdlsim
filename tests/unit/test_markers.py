@@ -46,10 +46,12 @@ def test_simple_1(tmpdir, request,sim):
 
         top_v = builder.mkTaskNode(
             'std.FileSet', name="top_v",  
-            type="systeVerilogSource", base=data_dir, include="*.v")
+            type="systeVerilogSource", base=data_dir, include="*.sv")
 
         sim_img = builder.mkTaskNode(
-            'hdlsim.%s.SimImage' % sim, name="sim_img", needs=[top_v], 
+            'hdlsim.%s.SimImage' % sim, 
+            name="sim_img", 
+            needs=[top_v], 
             top=["top"])
 
         sim_run = builder.mkTaskNode(
@@ -70,4 +72,6 @@ def test_simple_1(tmpdir, request,sim):
     assert status_1 == 1
 
     assert len(status[-1][2]) != 0
+
+    print("status[-1][2]: %s" % str(status [-1][2]))
 

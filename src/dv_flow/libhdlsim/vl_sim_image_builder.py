@@ -8,6 +8,7 @@ import pydantic.dataclasses as pdc
 from toposort import toposort
 from dv_flow.mgr import FileSet, TaskDataResult
 from typing import ClassVar, List, Tuple
+from dv_flow.libhdlsim.log_parser import LogParser
 
 from svdep import FileCollection, TaskCheckUpToDate, TaskBuildFileCollection
 
@@ -22,6 +23,12 @@ class VlSimImageBuilder(object):
 
     async def build(self, files : List[str], incdirs : List[str]):
         raise NotImplementedError()
+
+    def parseLog(self, log):
+        parser = LogParser(notify=lambda m: self.markers.append(m))
+        with open(log, "r") as fp:
+            for line in fp.readlines():
+                parser.line(line)
 
     async def run(self, runner, input) -> TaskDataResult:
         for f in os.listdir(input.rundir):

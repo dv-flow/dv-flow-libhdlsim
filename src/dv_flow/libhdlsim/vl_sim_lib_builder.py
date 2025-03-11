@@ -8,6 +8,7 @@ from toposort import toposort
 from dv_flow.mgr import FileSet, TaskDataResult
 from dv_flow.mgr.task_data import TaskMarker, TaskMarkerLoc
 from typing import ClassVar, List, Tuple
+from dv_flow.libhdlsim.log_parser import LogParser
 
 from svdep import FileCollection, TaskCheckUpToDate, TaskBuildFileCollection
 from dv_flow.libhdlsim.vl_sim_image_builder import VlTaskSimImageMemento
@@ -23,6 +24,12 @@ class VlSimLibBuilder(object):
 
     async def build(self, files : List[str], incdirs : List[str]):
         raise NotImplementedError()
+    
+    def parseLog(self, log):
+        parser = LogParser(notify=lambda m: self.markers.append(m))
+        with open(log, "r") as fp:
+            for line in fp.readlines():
+                parser.line(line)
 
     async def run(self, runner, input) -> TaskDataResult:
         self.markers.clear()

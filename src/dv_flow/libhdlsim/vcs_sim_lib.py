@@ -53,6 +53,9 @@ class SimLibBuilder(VlSimLibBuilder):
         await proc.wait()
         fp.close()
 
+        # Pull in error/warning markers
+        self.parseLog(os.path.join(input.rundir, 'build.log'))
+
         if proc.returncode != 0:
             self.markers.append(
                 TaskMarker(
