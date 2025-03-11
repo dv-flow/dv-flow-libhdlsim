@@ -2,15 +2,18 @@ import os
 import json
 import logging
 import shutil
-import pydantic.dataclasses as dc
+import dataclasses as dc
 from pydantic import BaseModel
+import pydantic.dataclasses as pdc
 from toposort import toposort
 from dv_flow.mgr import FileSet, TaskDataResult
 from typing import ClassVar, List, Tuple
 
 from svdep import FileCollection, TaskCheckUpToDate, TaskBuildFileCollection
 
+@dc.dataclass
 class VlSimImageBuilder(object):
+    markers : List = dc.field(default_factory=list)
 
     _log : ClassVar = logging.getLogger("VlSimImage")
 
@@ -23,6 +26,7 @@ class VlSimImageBuilder(object):
     async def run(self, runner, input) -> TaskDataResult:
         for f in os.listdir(input.rundir):
             self._log.debug("sub-elem: %s" % f)
+        status = 0
         ex_memento = input.memento
         in_changed = (ex_memento is None or input.changed)
 
@@ -57,17 +61,19 @@ class VlSimImageBuilder(object):
             info = TaskBuildFileCollection(files, incdirs).build()
             memento.svdeps = info.to_dict()
 
-            await self.build(input, files, incdirs, libs) 
+            status = await self.build(input, files, incdirs, libs) 
         else:
             memento = VlTaskSimImageMemento(**memento)
 
         return TaskDataResult(
-            memento=memento,
+            memento=memento if status == 0 else None,
+            status=status,
             output=[FileSet(
                 src=input.name, 
                 filetype="simDir", 
                 basedir=input.rundir)],
-            changed=in_changed
+            changed=in_changed,
+            markers=self.markers
         )
     
     def _gatherSvSources(self, files, incdirs, libs, input):
@@ -107,5 +113,5 @@ class VlSimImageBuilder(object):
 
 
 class VlTaskSimImageMemento(BaseModel):
-    svdeps : dict = dc.Field(default_factory=dict)
+    svdeps : dict = pdc.Field(default_factory=dict)
 

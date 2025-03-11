@@ -4,6 +4,7 @@ import logging
 from typing import ClassVar, List
 from dv_flow.mgr import TaskDataResult
 from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder
+from dv_flow.mgr.task_data import TaskMarker, TaskMarkerLoc
 
 class SimImageBuilder(VlSimImageBuilder):
 
@@ -36,8 +37,17 @@ class SimImageBuilder(VlSimImageBuilder):
         await proc.wait()
         fp.close()
 
+        self._log.debug("proc.returncode: %d" % proc.returncode)
+
         if proc.returncode != 0:
-            raise Exception("Verilator failed (%d)" % proc.returncode)
+            self.markers.append(
+                TaskMarker(
+                    severity="error", 
+                    msg="verilator command failed"))
+        else:
+            pass
+
+        return proc.returncode
 
 async def SimImage(runner, input) -> TaskDataResult:
     builder = SimImageBuilder()

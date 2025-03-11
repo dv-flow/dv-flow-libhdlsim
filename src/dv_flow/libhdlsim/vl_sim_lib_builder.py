@@ -2,16 +2,19 @@ import os
 import json
 import logging
 import shutil
-import pydantic.dataclasses as dc
+import dataclasses as dc
 from pydantic import BaseModel
 from toposort import toposort
 from dv_flow.mgr import FileSet, TaskDataResult
+from dv_flow.mgr.task_data import TaskMarker, TaskMarkerLoc
 from typing import ClassVar, List, Tuple
 
 from svdep import FileCollection, TaskCheckUpToDate, TaskBuildFileCollection
-from .vl_sim_image_builder import VlTaskSimImageMemento
+from dv_flow.libhdlsim.vl_sim_image_builder import VlTaskSimImageMemento
 
+@dc.dataclass
 class VlSimLibBuilder(object):
+    markers : List = dc.field(default_factory=list)
 
     _log : ClassVar = logging.getLogger("VlSimLib")
 
@@ -22,6 +25,8 @@ class VlSimLibBuilder(object):
         raise NotImplementedError()
 
     async def run(self, runner, input) -> TaskDataResult:
+        self.markers.clear()
+        
         for f in os.listdir(input.rundir):
             self._log.debug("sub-elem: %s" % f)
         ex_memento = input.memento
@@ -54,6 +59,7 @@ class VlSimLibBuilder(object):
                 in_changed = True
 
         self._log.debug("in_changed=%s" % in_changed)
+        status = 0
         if in_changed:
             memento = VlTaskSimImageMemento()
 
@@ -61,18 +67,21 @@ class VlSimLibBuilder(object):
             info = TaskBuildFileCollection(files, incdirs).build()
             memento.svdeps = info.to_dict()
 
-            await self.build(input, files, incdirs, libs) 
+            status = await self.build(input, files, incdirs, libs) 
         else:
             memento = VlTaskSimImageMemento(**memento)
 
+        self._log.debug("%s status: %d" % (input.name, status))
+
         return TaskDataResult(
-            memento=memento,
+            memento=memento if status == 0 else None,
             output=[FileSet(
                 src=input.name, 
                 filetype="simLib", 
                 basedir=input.rundir,
                 files=[input.params.libname])],
-            changed=in_changed
+            changed=in_changed,
+            status=status
         )
     
     def _gatherSvSources(self, files, incdirs, libs, input):

@@ -8,7 +8,7 @@ package:
     pytask: dv_flow.libhdlsim.vlt_sim_image.SimImage
 
   - name: SimLib
-    uses: hdl.SimLib
+    uses: hdlsim.SimLib
     passthrough: true
     doc: |
       Verilator doesn't have a notion of a pre-compiled library.

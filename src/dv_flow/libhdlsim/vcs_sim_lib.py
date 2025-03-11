@@ -5,6 +5,7 @@ import shutil
 from pathlib import Path
 from typing import List
 from dv_flow.libhdlsim.vl_sim_lib_builder import VlSimLibBuilder
+from dv_flow.mgr.task_data import TaskMarker, TaskMarkerLoc
 
 class SimLibBuilder(VlSimLibBuilder):
 
@@ -51,9 +52,14 @@ class SimLibBuilder(VlSimLibBuilder):
         fp.close()
 
         if proc.returncode != 0:
-            raise Exception("VCS failed (%d)" % proc.returncode)
+            self.markers.append(
+                TaskMarker(
+                    severity="error", 
+                    msg="vlogan command failed"))
         else:
             Path(os.path.join(input.rundir, 'simlib.d')).touch()
+
+        return proc.returncode
 
 async def SimLib(runner, input):
     builder = SimLibBuilder()
