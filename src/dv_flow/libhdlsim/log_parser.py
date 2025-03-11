@@ -42,7 +42,7 @@ class LogParser(object):
                 # 1-2 Blank line delimiter 
                 #
                 sp_idx = l.find(" ")
-                self._kind = "warning" if l.startswith("Warning") else "error"
+                self._kind = "warn" if l.startswith("Warning") else "error"
                 self._message = l[sp_idx+1:].strip()
                 self._state = ParseState.MultiLineStyle1
             elif l.startswith("%Error") or l.startswith("%Warning"):
@@ -52,7 +52,7 @@ class LogParser(object):
                 # %Kind: <Short Desc>
                 #   <Indented Description Lines> (Ignore)
                 self._log.debug("Verilator-style message")
-                self._kind = "warning" if l.startswith("%Warning") else "error"
+                self._kind = "warn" if l.startswith("%Warning") else "error"
                 c1_idx = l.find(":")
                 s2_idx = l.find(" ", c1_idx+2)
                 if s2_idx == -1 and l[s2_idx-1] == ':':
@@ -73,7 +73,7 @@ class LogParser(object):
                 # Questa-style message:
                 # ** <Kind>: (<Code>) <Path>(<Line>): <Short Desc>
                 # ** <Kind> (suppressible): <Path>(<Line>): (<Code>) <Short Desc>
-                self._kind = "warning" if l.startswith("** Warning") else "error"
+                self._kind = "warn" if l.startswith("** Warning") else "error"
                 c1_idx = l.find(":")
                 if l[c1_idx-1] == ")":
                     # Style-2 message
