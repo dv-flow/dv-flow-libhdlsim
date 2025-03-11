@@ -81,6 +81,7 @@ class VlSimLibBuilder(object):
                 basedir=input.rundir,
                 files=[input.params.libname])],
             changed=in_changed,
+            markers=self.markers,
             status=status
         )
     
