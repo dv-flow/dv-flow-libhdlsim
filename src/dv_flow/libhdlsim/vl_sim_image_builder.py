@@ -6,7 +6,7 @@ import dataclasses as dc
 from pydantic import BaseModel
 import pydantic.dataclasses as pdc
 from toposort import toposort
-from dv_flow.mgr import FileSet, TaskDataResult
+from dv_flow.mgr import FileSet, TaskDataResult, TaskMarker
 from typing import ClassVar, List, Tuple
 from dv_flow.libhdlsim.log_parser import LogParser
 
@@ -65,10 +65,18 @@ class VlSimImageBuilder(object):
             memento = VlTaskSimImageMemento()
 
             # First, create dependency information
-            info = TaskBuildFileCollection(files, incdirs).build()
-            memento.svdeps = info.to_dict()
+            try:
+                info = TaskBuildFileCollection(files, incdirs).build()
+                memento.svdeps = info.to_dict()
+            except Exception as e:
+                self._log.error("Failed to build file collection: %s" % str(e))
+                self.markers.append(TaskMarker(
+                    severity="error",
+                    msg="Dependency-checking failed: %s" % str(e)))
+                status = 1
 
-            status = await self.build(input, files, incdirs, libs) 
+            if status == 0:
+                status = await self.build(input, files, incdirs, libs) 
         else:
             memento = VlTaskSimImageMemento(**memento)
 
