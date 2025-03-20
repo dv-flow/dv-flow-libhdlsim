@@ -141,7 +141,6 @@ class LogParser(object):
 
             self._count += 1
             if l.strip() == "" or self._count > 16:
-                print("line: %s" % self._tmp)
                 line = self._tmp.strip()
                 self._kind = "warn" if line.startswith("Warning") else "error"
                 if "-[SE]" in line:
