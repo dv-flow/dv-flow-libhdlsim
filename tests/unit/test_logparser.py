@@ -120,3 +120,67 @@ Follow-up line
     assert markers[0].loc.line == 17
     assert markers[0].loc.pos == -1
     assert markers[0].loc.path == "/foo/bar/baz.v"
+
+def test_parse_vcs_style_2():
+    markers = []
+
+    def notify(marker):
+        nonlocal markers
+        markers.append(marker)
+
+    input = """
+Error-[SV-LCM-PND] Package not defined
+/proj/foo/bar/baz/beef_pkg_hdl.sv, 27
+neat_pkg, "neat_pkg::"
+  Package scope resolution failed. Token 'neat_pkg' is not a package.
+  Originating module 'bar_pkg'.
+  Move package definition before the use of the package.
+
+"""
+
+    parser = LogParser(notify=notify)
+    for l in input.splitlines():
+        parser.line(l)
+    parser.close()
+
+    assert len(markers) == 1
+    assert markers[0].severity == "error"
+    assert markers[0].msg == "neat_pkg, \"neat_pkg::\" Package scope resolution failed. Token 'neat_pkg' is not a package. Originating module 'bar_pkg'. Move package definition before the use of the package."
+    assert markers[0].loc is not None
+    assert markers[0].loc.line == 27
+    assert markers[0].loc.pos == -1
+    assert markers[0].loc.path == "/proj/foo/bar/baz/beef_pkg_hdl.sv"
+
+def test_parse_vcs_style_3():
+    markers = []
+
+    def notify(marker):
+        nonlocal markers
+        markers.append(marker)
+
+    input = """
+Error-[SE] Syntax error
+  Following verilog source has syntax error :
+    Token 'uvmf_transaction_base' should be a valid type. Please check 
+  whether it is misspelled, not visible/valid in the current context, or not 
+  properly imported/exported.
+  "/foo/bar/baz/uart_transaction.svh",
+  23: token is ';' 
+  class uart_transaction  extends uvmf_transaction_base;
+
+
+"""
+
+    parser = LogParser(notify=notify)
+    for l in input.splitlines():
+        parser.line(l)
+    parser.close()
+
+    assert len(markers) == 1
+    assert markers[0].severity == "error"
+    assert markers[0].msg == "Token 'uvmf_transaction_base' should be a valid type. Please check whether it is misspelled, not visible/valid in the current context, or not properly imported/exported."
+    assert markers[0].loc is not None
+    assert markers[0].loc.line == 23
+    assert markers[0].loc.pos == -1
+    assert markers[0].loc.path == "/foo/bar/baz/uart_transaction.svh"
+

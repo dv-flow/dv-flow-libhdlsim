@@ -16,6 +16,8 @@ class LogParser(object):
     _kind : str = dc.field(default="")
     _path : str = dc.field(default="")
     _log : ClassVar = logging.getLogger("LogParser")
+    _tmp : str = dc.field(default="")
+    _count : int = 0
 
     def line(self, l):
         try:
@@ -30,6 +32,10 @@ class LogParser(object):
             self._kind = ""
             self._path = ""
 
+    def close(self):
+        # Process an empty lines to flush any accumulated messages
+        self._line("")
+
     def _line(self, l):
         self._log.debug("line: %s" % l)
         if self._state == ParseState.Init:
@@ -41,9 +47,8 @@ class LogParser(object):
                 #   ...
                 # 1-2 Blank line delimiter 
                 #
-                sp_idx = l.find(" ")
-                self._kind = "warn" if l.startswith("Warning") else "error"
-                self._message = l[sp_idx+1:].strip()
+                self._tmp = l
+                self._count = 0
                 self._state = ParseState.MultiLineStyle1
             elif l.startswith("%Error") or l.startswith("%Warning"):
                 # Verilator-style message:
@@ -113,18 +118,38 @@ class LogParser(object):
             # <Path>
             #   <Indented Description Lines>
 
-            c_idx = l.find(',')
-            if c_idx != -1:
-                self._log.debug("Found comma (and lineno): %s" % l)
-                path = l[:c_idx].strip()
-                line = l[c_idx+1:].strip()
-                self._path = "%s:%s" % (path, line)
-            else:
-                self._log.debug("No comma (and lineno): %s" % l)
-                self._path = l.strip()
+            self._count += 1
+            if l.strip() == "" or self._count > 16:
+                print("line: %s" % self._tmp)
+                line = self._tmp.strip()
+                self._kind = "warn" if line.startswith("Warning") else "error"
+                if "-[SE]" in line:
+                    # Syntax error
+                    se_idx = line.find("Syntax error")
+                    co_idx = line.find(':', se_idx) # First part is generic
+                    qu_idx = line.find('"', se_idx)
+                    qe_idx = line.find('"', qu_idx+1)
+                    cm_idx = line.find(',', qe_idx)
+                    ce_idx = line.find(':', cm_idx)
+                    self._message = line[co_idx+1:qu_idx].strip()
+                    self._path = line[qu_idx+1:qe_idx].strip()
+                    self._path += (":" + line[cm_idx+1:ce_idx].strip())
+                else:
+                    # Semantic error
+                    # First, find comma
+                    co_idx = line.find(',')
+                    sp_idx = line.rfind(" ", 0, co_idx)
+                    ns_idx = line.find(" ", co_idx+2)
 
-            self.emit_marker()
-            self._state = ParseState.Init
+                    self._message = line[ns_idx:].strip()
+                    self._path = line[sp_idx+1:co_idx].strip()
+                    self._path += (":" + line[co_idx+1:ns_idx].strip())
+
+                self.emit_marker()
+                self._state = ParseState.Init
+                self._count = 0
+            else:
+                self._tmp += (" " + l.strip())
         pass
 
     def emit_marker(self):
