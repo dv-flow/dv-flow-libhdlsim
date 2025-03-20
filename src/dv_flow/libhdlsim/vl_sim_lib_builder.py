@@ -27,7 +27,7 @@ import dataclasses as dc
 from pydantic import BaseModel
 from toposort import toposort
 from dv_flow.mgr import FileSet, TaskDataResult
-from dv_flow.mgr.task_data import TaskMarker, TaskMarkerLoc
+from dv_flow.mgr.task_data import TaskMarker, TaskMarkerLoc, SeverityE
 from typing import ClassVar, List, Tuple
 from dv_flow.libhdlsim.log_parser import LogParser
 
@@ -100,6 +100,14 @@ class VlSimLibBuilder(object):
             memento = VlTaskSimImageMemento(**memento)
 
         self._log.debug("%s status: %d" % (input.name, status))
+
+        for m in self.markers:
+            if m.severity == "error":
+                m.severity = SeverityE.Error
+            elif m.severity == "warn":
+                m.severity = SeverityE.Warning
+            elif m.severity == "info":
+                m.severity = SeverityE.Info
 
         return TaskDataResult(
             memento=memento if status == 0 else None,
