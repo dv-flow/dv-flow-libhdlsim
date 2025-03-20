@@ -68,7 +68,7 @@ class LogParser(object):
                 #   ...
                 # 1-2 Blank line delimiter 
                 #
-                self._tmp = l
+                self._tmp = l.strip()
                 self._count = 0
                 self._state = ParseState.MultiLineStyle1
             elif l.startswith("%Error") or l.startswith("%Warning"):
