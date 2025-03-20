@@ -145,7 +145,7 @@ neat_pkg, "neat_pkg::"
 
     assert len(markers) == 1
     assert markers[0].severity == "error"
-    assert markers[0].msg == "neat_pkg, \"neat_pkg::\" Package scope resolution failed. Token 'neat_pkg' is not a package. Originating module 'bar_pkg'. Move package definition before the use of the package."
+    assert markers[0].msg == "Package not defined neat_pkg, \"neat_pkg::\" Package scope resolution failed. Token 'neat_pkg' is not a package. Originating module 'bar_pkg'. Move package definition before the use of the package."
     assert markers[0].loc is not None
     assert markers[0].loc.line == 27
     assert markers[0].loc.pos == -1

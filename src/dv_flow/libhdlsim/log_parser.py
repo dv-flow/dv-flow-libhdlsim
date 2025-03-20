@@ -157,11 +157,12 @@ class LogParser(object):
                 else:
                     # Semantic error
                     # First, find comma
+                    ls_idx = line.find(' ')
                     co_idx = line.find(',')
                     sp_idx = line.rfind(" ", 0, co_idx)
                     ns_idx = line.find(" ", co_idx+2)
 
-                    self._message = line[ns_idx:].strip()
+                    self._message = line[ls_idx+1:sp_idx] + " " + line[ns_idx:].strip()
                     self._path = line[sp_idx+1:co_idx].strip()
                     self._path += (":" + line[co_idx+1:ns_idx].strip())
 
