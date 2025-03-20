@@ -1,3 +1,24 @@
+#****************************************************************************
+#* vlt_sim_image.py
+#*
+#* Copyright 2023-2025 Matthew Ballance and Contributors
+#*
+#* Licensed under the Apache License, Version 2.0 (the "License"); you may 
+#* not use this file except in compliance with the License.  
+#* You may obtain a copy of the License at:
+#*  
+#*   http://www.apache.org/licenses/LICENSE-2.0
+#*  
+#* Unless required by applicable law or agreed to in writing, software 
+#* distributed under the License is distributed on an "AS IS" BASIS, 
+#* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  
+#* See the License for the specific language governing permissions and 
+#* limitations under the License.
+#*
+#* Created on:
+#*     Author: 
+#*
+#****************************************************************************
 import asyncio
 import os
 import logging
@@ -17,7 +38,9 @@ class SimImageBuilder(VlSimImageBuilder):
             raise Exception("simv file (%s) does not exist" % os.path.join(rundir, 'obj_dir/simv'))
 
     async def build(self, input, files : List[str], incdirs : List[str], libs : List[str]):
-        cmd = ['verilator', '--binary', '-o', 'simv']
+        cmd = ['verilator', '--binary', '-o', 'simv', '-Wno-fatal']
+
+        cmd.extend(['-j', '0'])
 
         for incdir in incdirs:
             cmd.append('+incdir+%s' % incdir)
@@ -28,6 +51,8 @@ class SimImageBuilder(VlSimImageBuilder):
             cmd.extend(['--top-module', top])
 
         fp = open(os.path.join(input.rundir, 'build.log'), "w")
+        fp.write("Command: %s\n" % str(cmd))
+        fp.flush()
         proc = await asyncio.create_subprocess_exec(
             *cmd,
             cwd=input.rundir,

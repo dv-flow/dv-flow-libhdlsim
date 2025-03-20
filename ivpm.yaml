@@ -13,8 +13,8 @@ package:
       dep-set: default
     - name: dv-flow-mgr
       url: http://github.com/dv-flow/dv-flow-mgr.git
-    - name: pytest-dv
-      url: http://github.com/dv-flow/pytest-dv.git
+    - name: pytest-dfm
+      url: http://github.com/dv-flow/pytest-dfm.git
     - name: ply 
       src: pypi
     - name: pydantic
@@ -38,8 +38,8 @@ package:
       url: https://github.com/fvutils/svdep.git
     - name: dv-flow-mgr
       url: http://github.com/dv-flow/dv-flow-mgr.git
-    - name: pytest-dv
-      url: http://github.com/dv-flow/pytest-dv.git
+    - name: pytest-dfm
+      url: http://github.com/dv-flow/pytest-dfm.git
     - name: ply 
       src: pypi
     - name: pydantic

@@ -1,3 +1,24 @@
+#****************************************************************************
+#* vl_sim_image_builder.py
+#*
+#* Copyright 2023-2025 Matthew Ballance and Contributors
+#*
+#* Licensed under the Apache License, Version 2.0 (the "License"); you may 
+#* not use this file except in compliance with the License.  
+#* You may obtain a copy of the License at:
+#*  
+#*   http://www.apache.org/licenses/LICENSE-2.0
+#*  
+#* Unless required by applicable law or agreed to in writing, software 
+#* distributed under the License is distributed on an "AS IS" BASIS, 
+#* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  
+#* See the License for the specific language governing permissions and 
+#* limitations under the License.
+#*
+#* Created on:
+#*     Author: 
+#*
+#****************************************************************************
 import os
 import json
 import logging
@@ -6,7 +27,7 @@ import dataclasses as dc
 from pydantic import BaseModel
 import pydantic.dataclasses as pdc
 from toposort import toposort
-from dv_flow.mgr import FileSet, TaskDataResult
+from dv_flow.mgr import FileSet, TaskDataResult, TaskMarker
 from typing import ClassVar, List, Tuple
 from dv_flow.libhdlsim.log_parser import LogParser
 
@@ -65,10 +86,18 @@ class VlSimImageBuilder(object):
             memento = VlTaskSimImageMemento()
 
             # First, create dependency information
-            info = TaskBuildFileCollection(files, incdirs).build()
-            memento.svdeps = info.to_dict()
+            try:
+                info = TaskBuildFileCollection(files, incdirs).build()
+                memento.svdeps = info.to_dict()
+            except Exception as e:
+                self._log.error("Failed to build file collection: %s" % str(e))
+                self.markers.append(TaskMarker(
+                    severity="error",
+                    msg="Dependency-checking failed: %s" % str(e)))
+                status = 1
 
-            status = await self.build(input, files, incdirs, libs) 
+            if status == 0:
+                status = await self.build(input, files, incdirs, libs) 
         else:
             memento = VlTaskSimImageMemento(**memento)
 
