@@ -4,6 +4,7 @@ module mod1_top;
 
     initial begin
         $display("Hello World!");
+        $finish;
     end
 
 endmodule

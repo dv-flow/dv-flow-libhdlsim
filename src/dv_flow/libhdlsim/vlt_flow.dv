@@ -29,7 +29,7 @@ package:
 
   - name: SimLib
     uses: hdlsim.SimLib
-    passthrough: true
+    passthrough: all
     doc: |
       Verilator doesn't have a notion of a pre-compiled library.
       Consequently, this notion is implemented as a passthrough.

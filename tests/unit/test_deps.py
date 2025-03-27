@@ -45,7 +45,7 @@ def test_simple_1(tmpdir, request,sim):
 
         top_v = builder.mkTaskNode(
             'std.FileSet', name="top_v",  
-            type="systeVerilogSource", base=data_dir, include="*.v")
+            type="systemVerilogSource", base=data_dir, include="*.v")
 
         sim_img = builder.mkTaskNode(
             'hdlsim.%s.SimImage' % sim, name="sim_img", needs=[top_v], 
@@ -59,7 +59,9 @@ def test_simple_1(tmpdir, request,sim):
                 status.append((task, reason))
 
         runner.add_listener(listener)
-        return asyncio.run(runner.run(sim_run))
+        ret = asyncio.run(runner.run(sim_run))
+        assert runner.status == 0
+        return ret
 
     status = []
     out_1 = run(status)
