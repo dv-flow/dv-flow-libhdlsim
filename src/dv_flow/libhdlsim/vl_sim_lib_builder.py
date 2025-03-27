@@ -132,8 +132,7 @@ class VlSimLibBuilder(object):
             raise e
         self._log.debug("vl_filesets: %s" % str(vl_filesets))
 
-        for fs_j in vl_filesets:
-            fs = FileSet(**fs_j)
+        for fs in input.inputs:
             self._log.debug("fs.basedir=%s" % fs.basedir)
             if fs.filetype == "verilogIncDir":
                 incdirs.append(fs.basedir)

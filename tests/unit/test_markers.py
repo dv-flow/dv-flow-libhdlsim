@@ -3,9 +3,8 @@ import pytest
 import shutil
 import asyncio
 import sys
-from dv_flow.mgr import TaskSpec, TaskListenerLog, TaskSetRunner
+from dv_flow.mgr import TaskListenerLog, TaskSetRunner
 from dv_flow.mgr.pkg_rgy import PkgRgy
-from dv_flow.mgr.task_graph_runner_local import TaskGraphRunnerLocal
 from dv_flow.mgr.task_graph_builder import TaskGraphBuilder
 from dv_flow.mgr.util import loadProjPkgDef
 import dv_flow.libhdlsim as libhdlsim

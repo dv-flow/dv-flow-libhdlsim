@@ -21,13 +21,13 @@
 #****************************************************************************
 import os
 from typing import List
-from dv_flow.mgr import Task, TaskData, FileSet
+from dv_flow.mgr import Task, TaskDataInput, TaskDataResult, FileSet
 from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImage
 
 class SimRun(Task):
 
-    async def run(self, input : TaskData) -> TaskData:
-        vl_fileset = input.getFileSets("simDir")
+    async def run(self, input : TaskDataInput) -> TaskDataResult:
+        vl_fileset = input.inputs[0]
 
         build_dir = vl_fileset[0].basedir
 

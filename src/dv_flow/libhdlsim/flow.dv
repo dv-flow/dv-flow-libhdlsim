@@ -28,31 +28,34 @@ package:
   - name: SimLib
     passthrough: true
     consumes:
+    - filetype: simLib
     - filetype: systemVerilogSource 
+    - filetype: verilogIncDir 
     - filetype: verilogSource 
     with:
       libname:
         type: str
         value: ""
-      sources:
-        type: list
-        value: ${{ in | jq('[.[] | select( .type == "std.FileSet")]') }}
 
   - name: SimLibUVM
     with: {}
 
   - name: SimImage
+    consumes:
+    - filetype: systemVerilogSource 
+    - filetype: simLib
+    - filetype: verilogIncDir 
+    - filetype: verilogSource 
     with:
       top:
         type: list
-      sources:
-        type: list
-        value: ${{ in | jq('[.[] | select( .type == "std.FileSet")]') }}
 
   - name: SimRun
     # Note what 'accepts'
     # Note what 'requires'
     # Note what 'produces'
+    consumes:
+    - filetype: simImg
     with:
       plusargs:
         type: list

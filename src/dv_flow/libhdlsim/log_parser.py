@@ -78,7 +78,7 @@ class LogParser(object):
                 # %Kind: <Short Desc>
                 #   <Indented Description Lines> (Ignore)
                 self._log.debug("Verilator-style message")
-                self._kind = "warn" if l.startswith("%Warning") else "error"
+                self._kind = "warning" if l.startswith("%Warning") else "error"
                 c1_idx = l.find(":")
                 s2_idx = l.find(" ", c1_idx+2)
                 if s2_idx == -1 and l[s2_idx-1] == ':':
@@ -99,7 +99,7 @@ class LogParser(object):
                 # Questa-style message:
                 # ** <Kind>: (<Code>) <Path>(<Line>): <Short Desc>
                 # ** <Kind> (suppressible): <Path>(<Line>): (<Code>) <Short Desc>
-                self._kind = "warn" if l.startswith("** Warning") else "error"
+                self._kind = "warning" if l.startswith("** Warning") else "error"
                 c1_idx = l.find(":")
                 if l[c1_idx-1] == ")":
                     # Style-2 message
@@ -142,7 +142,7 @@ class LogParser(object):
             self._count += 1
             if l.strip() == "" or self._count > 16:
                 line = self._tmp.strip()
-                self._kind = "warn" if line.startswith("Warning") else "error"
+                self._kind = "warning" if line.startswith("Warning") else "error"
                 if "-[SE]" in line:
                     # Syntax error
                     se_idx = line.find("Syntax error")

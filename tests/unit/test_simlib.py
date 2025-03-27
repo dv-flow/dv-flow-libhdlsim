@@ -4,9 +4,8 @@ import pytest
 import shutil
 import asyncio
 import sys
-from dv_flow.mgr import TaskSpec, TaskListenerLog, TaskSetRunner
+from dv_flow.mgr import TaskListenerLog, TaskSetRunner
 from dv_flow.mgr.pkg_rgy import PkgRgy
-from dv_flow.mgr.task_graph_runner_local import TaskGraphRunnerLocal
 from dv_flow.mgr.task_graph_builder import TaskGraphBuilder
 from dv_flow.mgr.util import loadProjPkgDef
 import dv_flow.libhdlsim as libhdlsim
@@ -46,7 +45,8 @@ def test_mod1_top(tmpdir, request, sim):
     
     mod1 = builder.mkTaskNode(
         "std.FileSet",
-        name="mod1_top",
+        name="mod1",
+        type="systemVerilogSource",
         base=os.path.join(data_dir, "mod1"),
         include="*.sv")
     mod1_lib = builder.mkTaskNode(
@@ -57,6 +57,7 @@ def test_mod1_top(tmpdir, request, sim):
     mod1_top = builder.mkTaskNode(
         "std.FileSet",
         name="mod1_top",
+        type="systemVerilogSource",
         base=os.path.join(data_dir, "mod1_top"),
         include="*.sv")
 
@@ -73,5 +74,7 @@ def test_mod1_top(tmpdir, request, sim):
 
     runner.add_listener(TaskListenerLog().event)
     out = asyncio.run(runner.run(sim_run))
+
+    assert runner.status == 0
 
 
