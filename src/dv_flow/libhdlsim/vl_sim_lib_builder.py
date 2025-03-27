@@ -125,13 +125,6 @@ class VlSimLibBuilder(object):
         # input must represent dependencies for all tasks related to filesets
         # references must support transitivity
 
-        try:
-            vl_filesets = json.loads(input.params.sources)
-        except Exception as e:
-            self._log.error("Failed to parse JSON: %s (%s)" % (input.params.sources, str(e)))
-            raise e
-        self._log.debug("vl_filesets: %s" % str(vl_filesets))
-
         for fs in input.inputs:
             self._log.debug("fs.basedir=%s" % fs.basedir)
             if fs.filetype == "verilogIncDir":
