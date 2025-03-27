@@ -22,7 +22,6 @@
 import os
 import asyncio
 from typing import List
-from dv_flow.mgr import Task, TaskData
 from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder
 
 class SimImageBuilder(VlSimImageBuilder):

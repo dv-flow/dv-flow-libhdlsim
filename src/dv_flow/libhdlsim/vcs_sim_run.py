@@ -23,7 +23,7 @@ import asyncio
 import json
 import os
 from typing import List
-from dv_flow.mgr import Task, TaskDataResult, FileSet
+from dv_flow.mgr import TaskDataResult, FileSet
 
 async def SimRun(runner, input) -> TaskDataResult:
     vl_fileset = json.loads(input.params.simdir)
