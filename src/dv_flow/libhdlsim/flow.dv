@@ -26,7 +26,7 @@ package:
 
   tasks:
   - name: SimLib
-    passthrough: all
+    passthrough: unused
     consumes:
     - filetype: simLib
     - filetype: systemVerilogSource 
