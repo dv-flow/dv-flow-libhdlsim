@@ -69,7 +69,7 @@ class SimImageBuilder(VlSimImageBuilder):
             fp.close()
 
         if status == 0:
-            cmd = ['vcs', '-full64']
+            cmd = ['vcs', '-full64', '-ntb_opts', 'uvm-1.2']
 
             # Seems that VCS behaves better with the list in the setup file
 #            if len(libs):
