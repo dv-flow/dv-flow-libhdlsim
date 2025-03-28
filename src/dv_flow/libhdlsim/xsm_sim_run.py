@@ -21,10 +21,10 @@
 #****************************************************************************
 import os
 from typing import List
-from dv_flow.mgr import Task, TaskDataInput, TaskDataResult, FileSet
+from dv_flow.mgr import TaskDataInput, TaskDataResult, FileSet
 from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImage
 
-class SimRun(Task):
+class SimRun(object):
 
     async def run(self, input : TaskDataInput) -> TaskDataResult:
         vl_fileset = input.inputs[0]

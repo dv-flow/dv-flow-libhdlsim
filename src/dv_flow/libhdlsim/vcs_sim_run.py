@@ -25,33 +25,31 @@ import os
 from typing import List
 from dv_flow.mgr import TaskDataResult, FileSet
 from dv_flow.libhdlsim.log_parser import LogParser
+from dv_flow.libhdlsim.vl_sim_runner import VLSimRunner
+
+class SimRunner(VLSimRunner):
+
+    async def runsim(self, imgdir):
+
+        cmd = [
+            os.path.join(imgdir, 'simv'),
+        ]
+
+        cmd.extend(self.args)
+
+        cmd.extend(["+%s" % p for p in self.plusargs])
+
+        fp = open(os.path.join(self.rundir, 'sim.log'), "w")
+        fp.write("Command: %s\n" % str(cmd))
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            cwd=input.rundir,
+            stdout=fp,
+            stderr=asyncio.subprocess.STDOUT)
+
+        status = await proc.wait()
+
+        fp.close()
 
 async def SimRun(runner, input) -> TaskDataResult:
-    vl_fileset = json.loads(input.params.simdir)
-
-    markers = []
-    build_dir = vl_fileset["basedir"]
-
-    cmd = [
-        os.path.join(build_dir, 'simv'),
-    ]
-
-    fp = open(os.path.join(input.rundir, 'sim.log'), "w")
-    proc = await asyncio.create_subprocess_exec(
-        *cmd,
-        cwd=input.rundir,
-        stdout=fp,
-        stderr=asyncio.subprocess.STDOUT)
-
-    status = await proc.wait()
-
-    fp.close()
-
-    return TaskDataResult(
-        status=status,
-        markers=markers,
-        output=[FileSet(
-                src=input.name, 
-                filetype="simRunDir", 
-                basedir=input.rundir)],
-    )
+    return await SimRunner().run(runner, input)

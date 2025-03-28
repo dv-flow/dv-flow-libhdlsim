@@ -55,13 +55,12 @@ package:
     # Note what 'requires'
     # Note what 'produces'
     consumes:
-    - filetype: simImg
+    - filetype: simDir
     with:
+      args:
+        type: list
       plusargs:
         type: list
-      simdir:
-        type: str
-        value: ${{ in | jq('.[] | select( .type == "std.FileSet" and .filetype == "simDir")') }}
 
 
 #  types:
