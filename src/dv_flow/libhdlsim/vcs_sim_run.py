@@ -51,5 +51,7 @@ class SimRunner(VLSimRunner):
 
         fp.close()
 
+        return status
+
 async def SimRun(runner, input) -> TaskDataResult:
     return await SimRunner().run(runner, input)
