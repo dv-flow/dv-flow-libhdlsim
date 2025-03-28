@@ -24,10 +24,12 @@ import json
 import os
 from typing import List
 from dv_flow.mgr import TaskDataResult, FileSet
+from dv_flow.libhdlsim.log_parser import LogParser
 
 async def SimRun(runner, input) -> TaskDataResult:
     vl_fileset = json.loads(input.params.simdir)
 
+    markers = []
     build_dir = vl_fileset["basedir"]
 
     cmd = [
@@ -41,11 +43,13 @@ async def SimRun(runner, input) -> TaskDataResult:
         stdout=fp,
         stderr=asyncio.subprocess.STDOUT)
 
-    await proc.wait()
+    status = await proc.wait()
 
     fp.close()
 
     return TaskDataResult(
+        status=status,
+        markers=markers,
         output=[FileSet(
                 src=input.name, 
                 filetype="simRunDir", 
