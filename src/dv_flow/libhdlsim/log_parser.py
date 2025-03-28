@@ -154,6 +154,10 @@ class LogParser(object):
                     self._message = line[co_idx+1:qu_idx].strip()
                     self._path = line[qu_idx+1:qe_idx].strip()
                     self._path += (":" + line[cm_idx+1:ce_idx].strip())
+                elif "-NS" in line:
+                    # Name space error
+                    sb_idx = line.find(']')
+                    self._message = line[sb_idx:].strip()
                 else:
                     # Semantic error
                     # First, find comma
