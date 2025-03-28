@@ -71,8 +71,9 @@ class SimImageBuilder(VlSimImageBuilder):
         if status == 0:
             cmd = ['vcs', '-full64']
 
-            if len(libs):
-                cmd.extend(['-liblist', "+".join(os.path.basename(l) for l in libs)])
+            # Seems that VCS behaves better with the list in the setup file
+#            if len(libs):
+#                cmd.extend(['-liblist', "+".join(os.path.basename(l) for l in libs)])
 
             if len(input.params.top):
                 cmd.extend(['-top', "+".join(input.params.top)])
