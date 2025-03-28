@@ -35,51 +35,71 @@ class SimImageBuilder(VlSimImageBuilder):
             raise Exception("simv file (%s) does not exist" % os.path.join(rundir, 'simv'))
     
     async def build(self, input, files : List[str], incdirs : List[str], libs : List[str]):
+
+        status = 0
+
+        if len(files):
+            libs.append(os.path.join(input.rundir, 'work'))
+
         # Create the library map
         with open(os.path.join(input.rundir, 'synopsys_sim.setup'), 'w') as fp:
             for lib in libs:
                 fp.write("%s: %s\n" % (os.path.basename(lib), lib))
 
-        cmd = ['vcs', '-full64']
-
+        # If source is provided, then compile that to a 'work' library
         if len(files):
-            cmd.append('-sverilog')
+            self._log.debug("Building source files: %s" % str(files))
+
+            cmd = ['vlogan', '-full64', '-sverilog', '-work', 'work']
 
             for incdir in incdirs:
                 cmd.append('+incdir+%s' % incdir)
 
-        if len(libs):
-            cmd.extend(['-liblist', "+".join(os.path.basename(l) for l in libs)])
+            cmd.extend(files)
 
+            fp = open(os.path.join(input.rundir, 'vlogan.log'), "w")
+            fp.write("Command: %s" % str(cmd))
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                cwd=input.rundir,
+                stdout=fp,
+                stderr=asyncio.subprocess.STDOUT)
 
-        cmd.extend(files)
+            status = await proc.wait()
+            fp.close()
 
-        if len(input.params.top):
-            cmd.extend(['-top', "+".join(input.params.top)])
+        if status == 0:
+            cmd = ['vcs', '-full64']
 
-            self._log.debug("VCS command: %s" % str(cmd))
+            if len(libs):
+                cmd.extend(['-liblist', "+".join(os.path.basename(l) for l in libs)])
 
-        fp = open(os.path.join(input.rundir, 'build.log'), "w")
-        fp.write("Command: %s" % str(cmd))
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            cwd=input.rundir,
-            stdout=fp,
-            stderr=asyncio.subprocess.STDOUT)
+            if len(input.params.top):
+                cmd.extend(['-top', "+".join(input.params.top)])
 
-        await proc.wait()
-        fp.close()
+                self._log.debug("VCS command: %s" % str(cmd))
 
-        # Pull in error/warning markers
-        self.parseLog(os.path.join(input.rundir, 'build.log'))
+            fp = open(os.path.join(input.rundir, 'build.log'), "w")
+            fp.write("Command: %s" % str(cmd))
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                cwd=input.rundir,
+                stdout=fp,
+                stderr=asyncio.subprocess.STDOUT)
 
-        if proc.returncode != 0:
-            self.markers.append(
-                TaskMarker(
-                    severity="error", 
-                    msg="vcs command failed"))
+            status = await proc.wait()
+            fp.close()
+
+            # Pull in error/warning markers
+            self.parseLog(os.path.join(input.rundir, 'build.log'))
+
+            if status != 0:
+                self.markers.append(
+                    TaskMarker(
+                        severity="error", 
+                        msg="vcs command failed"))
         
-        return proc.returncode
+        return status
 
 async def SimImage(runner, input):
     builder = SimImageBuilder()
