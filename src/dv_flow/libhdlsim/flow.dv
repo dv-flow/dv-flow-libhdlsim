@@ -49,6 +49,8 @@ package:
     with:
       top:
         type: list
+      args:
+        type: list
 
   - name: SimRun
     # Note what 'accepts'
