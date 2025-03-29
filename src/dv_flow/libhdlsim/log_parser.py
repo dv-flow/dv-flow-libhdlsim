@@ -24,7 +24,7 @@ import dataclasses as dc
 import enum
 import logging
 from typing import Callable, ClassVar
-from dv_flow.mgr.task_data import TaskMarker, TaskMarkerLoc
+from dv_flow.mgr.task_data import TaskMarker, TaskMarkerLoc, SeverityE
 
 class ParseState(enum.Enum):
     Init = enum.auto()
@@ -69,7 +69,12 @@ class LogParser(object):
                 #   ...
                 # 1-2 Blank line delimiter 
                 #
-                self._tmp = l.strip()
+                l = l.strip()
+                self._kind = SeverityE.Warning if l.startswith("Warning") else SeverityE.Error
+
+                if l.find("Syntax error") == -1:
+                    self._tmp = l
+
                 self._count = 0
                 self._state = ParseState.MultiLineStyle1
             elif l.startswith("%Error") or l.startswith("%Warning"):
@@ -148,44 +153,51 @@ class LogParser(object):
                 # First line after the title. If a file path is provided,
                 # then it should be here
                 c_idx = l.find(",")
+                print("c_idx=%d" % c_idx)
                 if c_idx != -1:
                     # May have a path
                     path = l[:c_idx].strip()
-                    if os.path.exists(path):
+                    print("path=%s" % path)
+                    if os.path.exists(path) or path.find("/") != -1:
                         self._path = "%s:%s" % (path, l[c_idx+1:].strip())
+                        print("_path=%s" % self._path)
                 if self._path == "":
                     # No path
                     self._tmp += (" " + l.strip())
             elif l.strip() == "" or self._count > 16:
                 # End
                 line = self._tmp.strip()
-                self._kind = "warning" if line.startswith("Warning") else "error"
-                if "-[SE]" in line:
-                    # Syntax error
-                    se_idx = line.find("Syntax error")
-                    co_idx = line.find(':', se_idx) # First part is generic
-                    qu_idx = line.find('"', se_idx)
-                    qe_idx = line.find('"', qu_idx+1)
-                    cm_idx = line.find(',', qe_idx)
-                    ce_idx = line.find(':', cm_idx)
-                    self._message = line[co_idx+1:qu_idx].strip()
-                    self._path = line[qu_idx+1:qe_idx].strip()
-                    self._path += (":" + line[cm_idx+1:ce_idx].strip())
-                elif "-NS" in line:
-                    # Name space error
-                    sb_idx = line.find(']')
-                    self._message = line[sb_idx:].strip()
+                sq_idx = line.find("]")
+                if sq_idx != -1:
+                    self._message = line[sq_idx+1:].strip()
                 else:
-                    # Semantic error
-                    # First, find comma
-                    ls_idx = line.find(' ')
-                    co_idx = line.find(',')
-                    sp_idx = line.rfind(" ", 0, co_idx)
-                    ns_idx = line.find(" ", co_idx+2)
+                    self._message = line
+                # if "-[SE]" in line:
+                #     # Syntax error
+                #     se_idx = line.find("Syntax error")
+                #     co_idx = line.find(':', se_idx) # First part is generic
+                #     qu_idx = line.find('"', se_idx)
+                #     qe_idx = line.find('"', qu_idx+1)
+                #     cm_idx = line.find(',', qe_idx)
+                #     ce_idx = line.find(':', cm_idx)
+                #     self._message = line[co_idx+1:qu_idx].strip()
+                #     self._path = line[qu_idx+1:qe_idx].strip()
+                #     self._path += (":" + line[cm_idx+1:ce_idx].strip())
+                # elif "-NS" in line:
+                #     # Name space error
+                #     sb_idx = line.find(']')
+                #     self._message = line[sb_idx:].strip()
+                # else:
+                #     # Semantic error
+                #     # First, find comma
+                #     ls_idx = line.find(' ')
+                #     co_idx = line.find(',')
+                #     sp_idx = line.rfind(" ", 0, co_idx)
+                #     ns_idx = line.find(" ", co_idx+2)
 
-                    self._message = line[ls_idx+1:sp_idx] + " " + line[ns_idx:].strip()
-                    self._path = line[sp_idx+1:co_idx].strip()
-                    self._path += (":" + line[co_idx+1:ns_idx].strip())
+                #     self._message = line[ls_idx+1:sp_idx] + " " + line[ns_idx:].strip()
+                #     self._path = line[sp_idx+1:co_idx].strip()
+                #     self._path += (":" + line[co_idx+1:ns_idx].strip())
 
                 self.emit_marker()
                 self._state = ParseState.Init
