@@ -43,7 +43,7 @@ class SimImageBuilder(VlSimImageBuilder):
 
         # Create the library map
         self.runner.create("synopsys_sim.setup", 
-                           [("%s: %s\n" % (os.path.basename(lib), lib)) for lib in libs])
+                           "\n".join(("%s: %s" % (os.path.basename(lib), lib)) for lib in libs))
 
         # If source is provided, then compile that to a 'work' library
         if len(files):
