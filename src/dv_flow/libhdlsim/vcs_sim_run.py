@@ -41,6 +41,8 @@ class SimRunner(VLSimRunner):
 
         fp = open(os.path.join(self.rundir, 'sim.log'), "w")
         fp.write("Command: %s\n" % str(cmd))
+        fp.flush()
+
         proc = await asyncio.create_subprocess_exec(
             *cmd,
             cwd=self.rundir,

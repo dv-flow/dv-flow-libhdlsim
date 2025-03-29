@@ -19,6 +19,7 @@
 #*     Author: 
 #*
 #****************************************************************************
+import os
 import dataclasses as dc
 import enum
 import logging
@@ -140,7 +141,21 @@ class LogParser(object):
             #   <Indented Description Lines>
 
             self._count += 1
-            if l.strip() == "" or self._count > 16:
+
+            if self._count == 1:
+                # First line after the title. If a file path is provided,
+                # then it should be here
+                c_idx = l.find(",")
+                if c_idx != -1:
+                    # May have a path
+                    path = l[:c_idx].strip()
+                    if os.path.exists(path):
+                        self._path = "%s:%s" % (path, l[c_idx+1:].strip())
+                if self._path == "":
+                    # No path
+                    self._tmp += (" " + l.strip())
+            elif l.strip() == "" or self._count > 16:
+                # End
                 line = self._tmp.strip()
                 self._kind = "warning" if line.startswith("Warning") else "error"
                 if "-[SE]" in line:
@@ -174,6 +189,7 @@ class LogParser(object):
                 self._state = ParseState.Init
                 self._count = 0
             else:
+                # Continue adding to the accumulated message
                 self._tmp += (" " + l.strip())
         pass
 
