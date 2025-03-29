@@ -153,14 +153,11 @@ class LogParser(object):
                 # First line after the title. If a file path is provided,
                 # then it should be here
                 c_idx = l.find(",")
-                print("c_idx=%d" % c_idx)
                 if c_idx != -1:
                     # May have a path
                     path = l[:c_idx].strip()
-                    print("path=%s" % path)
                     if os.path.exists(path) or path.find("/") != -1:
                         self._path = "%s:%s" % (path, l[c_idx+1:].strip())
-                        print("_path=%s" % self._path)
                 if self._path == "":
                     # No path
                     self._tmp += (" " + l.strip())
