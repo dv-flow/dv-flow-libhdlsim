@@ -27,7 +27,7 @@ import dataclasses as dc
 from pydantic import BaseModel
 import pydantic.dataclasses as pdc
 from toposort import toposort
-from dv_flow.mgr import FileSet, TaskDataResult, TaskMarker
+from dv_flow.mgr import FileSet, TaskDataResult, TaskMarker, TaskRunCtxt
 from typing import ClassVar, List, Tuple
 from dv_flow.libhdlsim.log_parser import LogParser
 
@@ -35,6 +35,7 @@ from svdep import FileCollection, TaskCheckUpToDate, TaskBuildFileCollection
 
 @dc.dataclass
 class VlSimImageBuilder(object):
+    runner : TaskRunCtxt
     markers : List = dc.field(default_factory=list)
 
     _log : ClassVar = logging.getLogger("VlSimImage")

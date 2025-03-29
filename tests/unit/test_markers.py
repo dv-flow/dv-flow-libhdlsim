@@ -45,7 +45,7 @@ def test_simple_1(tmpdir, request,sim):
 
         top_v = builder.mkTaskNode(
             'std.FileSet', name="top_v",  
-            type="systeVerilogSource", base=data_dir, include="*.sv")
+            type="systemVerilogSource", base=data_dir, include="*.sv")
 
         sim_img = builder.mkTaskNode(
             'hdlsim.%s.SimImage' % sim, 
@@ -54,7 +54,8 @@ def test_simple_1(tmpdir, request,sim):
             top=["top"])
 
         sim_run = builder.mkTaskNode(
-            'hdlsim.%s.SimRun' % sim, name="sim_run", needs=[sim_img])
+            'hdlsim.%s.SimRun' % sim, name="sim_run", 
+            needs=[sim_img])
 
         def listener(task, reason):
             if reason == "leave":

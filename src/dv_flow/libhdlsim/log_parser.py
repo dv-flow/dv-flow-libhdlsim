@@ -82,11 +82,13 @@ class LogParser(object):
                 self._kind = "warning" if l.startswith("%Warning") else "error"
                 c1_idx = l.find(":")
                 s2_idx = l.find(" ", c1_idx+2)
-                if s2_idx == -1 and l[s2_idx-1] == ':':
-                    # s2 is after the path (if present)
+                self._log.debug("c1_idx=%d s2_idx=%d" % (c1_idx, s2_idx))
+                if s2_idx != -1 and l[s2_idx-1] == ':':
+                    # s2 is after the path
                     path_or_exe = l[c1_idx+1:s2_idx-1].strip()
                     self._log.debug("path_or_exe: %s" % path_or_exe)
-                    c2_idx = path_or_exe.find(":")
+
+                    c2_idx = l.find(":")
 
                     if c2_idx != -1:
                         # Have a location specification

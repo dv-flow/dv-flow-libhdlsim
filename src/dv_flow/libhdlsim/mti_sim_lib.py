@@ -22,7 +22,7 @@
 import os
 import asyncio
 from typing import List
-from dv_flow.mgr import Task, TaskData
+from dv_flow.mgr import TaskData
 from dv_flow.libhdlsim.vl_sim_lib_builder import VlSimLibBuilder
 
 class SimLibBuilder(VlSimLibBuilder):
@@ -36,44 +36,26 @@ class SimLibBuilder(VlSimLibBuilder):
     async def build(self, input, files : List[str], incdirs : List[str], libs : List[str]):
         cmd = []
 
+        status = 0
+
         libname = input.params.libname
         if not os.path.isdir(os.path.join(input.rundir, libname)):
             cmd = ['vlib', libname]
-            fp = open(os.path.join(input.rundir, "vlib.log"), "w")
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                cwd=input.rundir,
-                stdout=fp,
-                stderr=asyncio.subprocess.STDOUT)
-            fp.close()
 
-            await proc.wait()
+            status |= await self.runner.exec(cmd, logfile="vlib.log")
 
-            if proc.returncode != 0:
-                raise Exception("vlib failed (%d)" % proc.returncode)
+        if not status:
+            cmd = ['vlog', '-sv', '-work', libname]
 
-        cmd = ['vlog', '-sv', '-work', libname]
+            for incdir in incdirs:
+                cmd.append('+incdir+%s' % incdir)
 
-        for incdir in incdirs:
-            cmd.append('+incdir+%s' % incdir)
+            cmd.extend(files)
 
-        cmd.extend(files)
-
-        fp = open(os.path.join(input.rundir, "build.log"), "w")
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            cwd=input.rundir,
-            stdout=fp,
-            stderr=asyncio.subprocess.STDOUT)
-
-        await proc.wait()
-        fp.close()
-
-        if proc.returncode != 0:
-            raise Exception("vlog failed (%d)" % proc.returncode)
+            status |= await self.runner.exec(cmd, logfile="build.log")
         
-        return proc.returncode
+        return status
 
 async def SimLib(runner, input):
-    builder = SimLibBuilder()
+    builder = SimLibBuilder(runner)
     return await builder.run(runner, input)

@@ -42,9 +42,8 @@ class SimImageBuilder(VlSimImageBuilder):
             libs.append(os.path.join(input.rundir, 'work'))
 
         # Create the library map
-        with open(os.path.join(input.rundir, 'synopsys_sim.setup'), 'w') as fp:
-            for lib in libs:
-                fp.write("%s: %s\n" % (os.path.basename(lib), lib))
+        self.runner.create("synopsys_sim.setup", 
+                           [("%s: %s\n" % (os.path.basename(lib), lib)) for lib in libs])
 
         # If source is provided, then compile that to a 'work' library
         if len(files):
@@ -57,16 +56,9 @@ class SimImageBuilder(VlSimImageBuilder):
 
             cmd.extend(files)
 
-            fp = open(os.path.join(input.rundir, 'vlogan.log'), "w")
-            fp.write("Command: %s" % str(cmd))
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                cwd=input.rundir,
-                stdout=fp,
-                stderr=asyncio.subprocess.STDOUT)
+            status |= await self.runner.exec(cmd, logfile="vlogan.log")
 
-            status = await proc.wait()
-            fp.close()
+            self.parseLog(os.path.join(input.rundir, 'vlogan.log'))
 
         if status == 0:
             cmd = ['vcs', '-full64', '-ntb_opts', 'uvm-1.2']
@@ -80,29 +72,14 @@ class SimImageBuilder(VlSimImageBuilder):
 
                 self._log.debug("VCS command: %s" % str(cmd))
 
-            fp = open(os.path.join(input.rundir, 'build.log'), "w")
-            fp.write("Command: %s" % str(cmd))
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                cwd=input.rundir,
-                stdout=fp,
-                stderr=asyncio.subprocess.STDOUT)
-
-            status = await proc.wait()
-            fp.close()
+            status |= await self.runner.exec(cmd, logfile="vcs.log")
 
             # Pull in error/warning markers
-            self.parseLog(os.path.join(input.rundir, 'build.log'))
+            self.parseLog(os.path.join(input.rundir, 'vcs.log'))
 
-            if status != 0:
-                self.markers.append(
-                    TaskMarker(
-                        severity="error", 
-                        msg="vcs command failed"))
-        
         return status
 
 async def SimImage(runner, input):
-    builder = SimImageBuilder()
+    builder = SimImageBuilder(runner)
     return await builder.run(runner, input)
 

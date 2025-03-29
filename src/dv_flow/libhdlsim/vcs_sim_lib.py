@@ -38,56 +38,34 @@ class SimLibBuilder(VlSimLibBuilder):
     
     async def build(self, input, files : List[str], incdirs : List[str], libs : List[str]):
 
+        status = 0
+
         if not os.path.isdir(os.path.join(input.rundir, input.params.libname)):
             os.makedirs(os.path.join(input.rundir, input.params.libname), exist_ok=True)
 
         # Create a library map
-        with open(os.path.join(input.rundir, 'synopsys_sim.setup'), 'w') as fp:
-            fp.write("%s: %s\n" % (
-                input.params.libname, 
-                os.path.join(input.rundir, input.params.libname)))
-
-            for lib in libs:
-                fp.write("%s: %s\n" % (os.path.basename(lib), lib))
-
+        libs.insert(0, os.path.join(input.rundir, input.params.libname))
+        self.runner.create("synopsys_sim.setup", 
+                           [("%s: %s\n" % (os.path.basename(lib), lib)) for lib in libs])
         cmd = ['vlogan', '-full64', '-sverilog', '-work', input.params.libname]
-
-        if len(libs):
-            cmd.extend(['-liblist', "+".join(os.path.basename(l) for l in libs)])
 
         for incdir in incdirs:
             cmd.append('+incdir+%s' % incdir)
 
         cmd.extend(files)
 
-        self._log.debug("Running vlogan: %s", " ".join(cmd))
 
-        fp = open(os.path.join(input.rundir, 'build.log'), "w")
-        fp.write("Command: %s" % str(cmd))
-        fp.flush()
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            cwd=input.rundir,
-            stdout=fp,
-            stderr=asyncio.subprocess.STDOUT)
-
-        await proc.wait()
-        fp.close()
+        status |= await self.runner.exec(cmd, logfile="vlogan.log")
 
         # Pull in error/warning markers
-        self.parseLog(os.path.join(input.rundir, 'build.log'))
+        self.parseLog(os.path.join(input.rundir, 'vlogan.log'))
 
-        if proc.returncode != 0:
-            self.markers.append(
-                TaskMarker(
-                    severity="error", 
-                    msg="vlogan command failed"))
-        else:
+        if not status:
             Path(os.path.join(input.rundir, 'simlib.d')).touch()
 
-        return proc.returncode
+        return status
 
 async def SimLib(runner, input):
-    builder = SimLibBuilder()
+    builder = SimLibBuilder(runner)
     return await builder.run(runner, input)
 

@@ -34,23 +34,13 @@ class SimImageBuilder(VlSimImageBuilder):
     
     async def build(self, input, files : List[str], incdirs : List[str], libs : List[str]):
         cmd = []
+        status = 0
 
         if not os.path.isdir(os.path.join(input.rundir, 'work')):
             cmd = ['vlib', 'work']
-            fp = open(os.path.join(input.rundir, "vlib.log"), "w")
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                cwd=input.rundir,
-                stdout=fp,
-                stderr=asyncio.subprocess.STDOUT)
-            fp.close()
+            status |= await self.runner.exec(cmd, logfile="vlib.log")
 
-            await proc.wait()
-
-            if proc.returncode != 0:
-                raise Exception("vlib failed (%d)" % proc.returncode)
-
-        if len(files) > 0:
+        if not status and len(files) > 0:
             cmd = ['vlog', '-sv']
 
             for incdir in incdirs:
@@ -58,50 +48,30 @@ class SimImageBuilder(VlSimImageBuilder):
 
             cmd.extend(files)
 
-            fp = open(os.path.join(input.rundir, "build.log"), "w")
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                cwd=input.rundir,
-                stdout=fp,
-                stderr=asyncio.subprocess.STDOUT)
-
-            await proc.wait()
-            fp.close()
-
-            if proc.returncode != 0:
-                raise Exception("vlog failed (%d)" % proc.returncode)
+            status |= await self.runner.exec(cmd, logfile="build.log")
 
         # Now, run vopt
-        cmd = ['vopt', '-o', 'simv_opt']
-        for top in input.params.top:
-            cmd.append(top)
+        if not status:
+            cmd = ['vopt', '-o', 'simv_opt']
+            for top in input.params.top:
+                cmd.append(top)
 
-        # Add in libraries
-        for lib in libs:
-            cmd.extend([
-                '-Ldir', os.path.dirname(lib),
-                '-L', os.path.basename(lib)])
+            # Add in libraries
+            for lib in libs:
+                cmd.extend([
+                    '-Ldir', os.path.dirname(lib),
+                    '-L', os.path.basename(lib)])
             
-        self._log.debug("vopt cmd: %s" % str(cmd))
+            self._log.debug("vopt cmd: %s" % str(cmd))
 
-        fp = open(os.path.join(input.rundir, "elab.log"), "w")
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            cwd=input.rundir,
-            stdout=fp,
-            stderr=asyncio.subprocess.STDOUT)
-        await proc.wait()
-        fp.close()
+            status |= await self.runner.exec(cmd, logfile="vopt.log")
 
-
-        if proc.returncode != 0:
-            raise Exception("vopt failed (%d)" % proc.returncode)
-        else:
+        if not status:
             with open(os.path.join(input.rundir, 'simv_opt.d'), "w") as fp:
                 fp.write("\n")
 
-        return proc.returncode
+        return status
 
 async def SimImage(runner, input):
-    builder = SimImageBuilder()
+    builder = SimImageBuilder(runner)
     return await builder.run(runner, input)

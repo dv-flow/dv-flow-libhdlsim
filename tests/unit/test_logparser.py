@@ -23,7 +23,7 @@ def test_parse_vlt_style():
 
     assert len(markers) == 1
     assert markers[0].severity == SeverityE.Warning
-    assert markers[0].msg == "/home/mballance/projects/zuspec/zuspec-sv/src/include/zsp/sv/zsp_sv/zsp_sv.sv:51:9: Logical operator IF expects 1 bit on the If, but If's VARREF 'count' generates 32 bits."
+    assert markers[0].msg == "Logical operator IF expects 1 bit on the If, but If's VARREF 'count' generates 32 bits."
     assert markers[0].loc is not None
     assert markers[0].loc.line == 51
     assert markers[0].loc.pos == 9
