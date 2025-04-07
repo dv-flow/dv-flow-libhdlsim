@@ -37,7 +37,7 @@ class SimRunner(VLSimRunner):
 
         for lib in dpi:
             cmd.append("-sv_lib")
-            cmd.append(lib.splitext()[0])
+            cmd.append(os.path.splitext(lib)[0])
 
         cmd.extend(self.args)
 
