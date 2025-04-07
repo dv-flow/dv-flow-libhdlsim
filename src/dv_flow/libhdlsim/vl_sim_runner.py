@@ -46,6 +46,8 @@ class VLSimRunner(object):
 
     async def run(self, runner, input) -> TaskDataResult:
         imgdir = None
+        dpi = []
+        vpi = []
         status = 0
 
         self.rundir = input.rundir
@@ -63,6 +65,12 @@ class VLSimRunner(object):
                     break
                 else:
                     imgdir = inp.basedir
+            elif inp.filetype == "systemVerilogDPI":
+                for f in input.files:
+                    dpi.append(os.path.join(inp.basedir, f))
+            elif inp.filetype == "verilogVPI":
+                for f in input.files:
+                    vpi.append(os.path.join(inp.basedir, f))
         
         if imgdir is None:
             self.markers.append(TaskMarker(
@@ -71,7 +79,7 @@ class VLSimRunner(object):
             status = 1
 
         if status == 0:
-            status = await self.runsim(imgdir)
+            status = await self.runsim(imgdir, dpi, vpi)
 
         return TaskDataResult(
             status=status,

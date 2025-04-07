@@ -67,9 +67,11 @@ class VlSimImageBuilder(object):
         files = []
         incdirs = []
         libs = []
+        dpi = []
+        vpi = []
         memento = ex_memento
 
-        self._gatherSvSources(files, incdirs, libs, input)
+        self._gatherSvSources(files, incdirs, libs, dpi, vpi, input)
 
         self._log.debug("files: %s in_changed=%s" % (str(files), in_changed))
 
@@ -100,7 +102,7 @@ class VlSimImageBuilder(object):
                 status = 1
 
             if status == 0:
-                status = await self.build(input, files, incdirs, libs) 
+                status = await self.build(input, files, incdirs, libs, dpi, vpi) 
         else:
             memento = VlTaskSimImageMemento(**memento)
 
@@ -115,7 +117,7 @@ class VlSimImageBuilder(object):
             markers=self.markers
         )
     
-    def _gatherSvSources(self, files, incdirs, libs, input):
+    def _gatherSvSources(self, files, incdirs, libs, dpi, vpi, input):
         # input must represent dependencies for all tasks related to filesets
         # references must support transitivity
 
@@ -132,6 +134,16 @@ class VlSimImageBuilder(object):
                 else:
                     libs.append(fs.basedir)
                 incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
+            elif fs.filetype == "systemVerilogDPI":
+                for file in fs.files:
+                    path = os.path.join(fs.basedir, file)
+                    self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))
+                    dpi.append(path)
+            elif fs.filetype == "verilogVPI":
+                for file in fs.files:
+                    path = os.path.join(fs.basedir, file)
+                    self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))
+                    vpi.append(path)
             else:
                 for file in fs.files:
                     path = os.path.join(fs.basedir, file)

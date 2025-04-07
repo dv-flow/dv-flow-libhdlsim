@@ -32,7 +32,7 @@ class SimImageBuilder(VlSimImageBuilder):
         else:
             raise Exception("simv_opt.d file (%s) does not exist" % os.path.join(rundir, 'simv_opt.d'))
     
-    async def build(self, input, files : List[str], incdirs : List[str], libs : List[str]):
+    async def build(self, input, files : List[str], incdirs : List[str], libs : List[str], dpi, vpi):
         cmd = []
         status = 0
 

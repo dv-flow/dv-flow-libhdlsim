@@ -46,6 +46,8 @@ package:
     - filetype: simLib
     - filetype: verilogIncDir 
     - filetype: verilogSource 
+    - filetype: systemVerilogDPI
+    - filetype: verilogVPI
     with:
       top:
         type: list
@@ -58,15 +60,14 @@ package:
     # Note what 'produces'
     consumes:
     - filetype: simDir
+    - filetype: systemVerilogDPI
+    - filetype: verilogVPI
     with:
       args:
         type: list
       plusargs:
         type: list
 
-
 #  types:
 #  - name: SimRunData
 #    with: {}
-
-

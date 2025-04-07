@@ -29,11 +29,15 @@ from dv_flow.libhdlsim.vl_sim_runner import VLSimRunner
 
 class SimRunner(VLSimRunner):
 
-    async def runsim(self, imgdir):
+    async def runsim(self, imgdir, dpi, vpi):
 
         cmd = [
             os.path.join(imgdir, 'simv'),
         ]
+
+        for lib in dpi:
+            cmd.append("-sv_lib")
+            cmd.append(lib.splitext()[0])
 
         cmd.extend(self.args)
 

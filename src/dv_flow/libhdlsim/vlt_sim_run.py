@@ -28,7 +28,7 @@ from dv_flow.libhdlsim.vl_sim_runner import VLSimRunner
 
 class SimRunner(VLSimRunner):
 
-    async def runsim(self, imgdir):
+    async def runsim(self, imgdir, dpi, vpi):
 
         cmd = [
             os.path.join(imgdir, 'obj_dir/simv'),

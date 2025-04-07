@@ -34,7 +34,7 @@ class SimImageBuilder(VlSimImageBuilder):
         else:
             raise Exception("simv file (%s) does not exist" % os.path.join(rundir, 'simv'))
     
-    async def build(self, input, files : List[str], incdirs : List[str], libs : List[str]):
+    async def build(self, input, files : List[str], incdirs : List[str], libs : List[str], dpi : List[str], vpi : List[str]):
 
         status = 0
 
@@ -62,6 +62,12 @@ class SimImageBuilder(VlSimImageBuilder):
 
         if status == 0:
             cmd = ['vcs', '-full64', '-ntb_opts', 'uvm-1.2']
+
+            if len(vpi):
+                cmd.append("+vpi")
+
+                for lib in vpi:
+                    cmd.extend(["-load", lib])
 
             cmd.extend(self.input.params.args)
 

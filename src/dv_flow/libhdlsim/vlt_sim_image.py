@@ -37,7 +37,7 @@ class SimImageBuilder(VlSimImageBuilder):
         else:
             raise Exception("simv file (%s) does not exist" % os.path.join(rundir, 'obj_dir/simv'))
 
-    async def build(self, input, files : List[str], incdirs : List[str], libs : List[str]):
+    async def build(self, input, files : List[str], incdirs : List[str], libs : List[str], dpi, vpi):
         status = 0
         cmd = ['verilator', '--binary', '-o', 'simv', '-Wno-fatal']
 
