@@ -66,10 +66,10 @@ class VLSimRunner(object):
                 else:
                     imgdir = inp.basedir
             elif inp.filetype == "systemVerilogDPI":
-                for f in input.files:
+                for f in inp.files:
                     dpi.append(os.path.join(inp.basedir, f))
             elif inp.filetype == "verilogVPI":
-                for f in input.files:
+                for f in inp.files:
                     vpi.append(os.path.join(inp.basedir, f))
         
         if imgdir is None:
