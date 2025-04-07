@@ -68,6 +68,10 @@ package:
       plusargs:
         type: list
 
-#  types:
-#  - name: SimRunData
-#    with: {}
+  types:
+  - name: SimRunData
+    with: 
+      plusargs:
+        type: list
+      args:
+        type: list

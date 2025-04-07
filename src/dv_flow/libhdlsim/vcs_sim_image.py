@@ -64,7 +64,7 @@ class SimImageBuilder(VlSimImageBuilder):
             cmd = ['vcs', '-full64', '-ntb_opts', 'uvm-1.2']
 
             if len(vpi):
-                cmd.append("+vpi")
+                cmd.extend(["+vpi", "-debug_access"])
 
                 for lib in vpi:
                     cmd.extend(["-load", lib])
