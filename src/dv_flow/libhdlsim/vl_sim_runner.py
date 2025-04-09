@@ -26,8 +26,8 @@ import shutil
 import dataclasses as dc
 from pydantic import BaseModel
 from toposort import toposort
-from dv_flow.mgr import FileSet, TaskDataResult
-from dv_flow.mgr.task_data import TaskMarker, TaskMarkerLoc, SeverityE
+from dv_flow.mgr import FileSet, TaskDataResult, TaskRunCtxt
+from dv_flow.mgr.task_data import TaskMarker, SeverityE
 from typing import ClassVar, List, Tuple
 from dv_flow.libhdlsim.log_parser import LogParser
 
@@ -43,13 +43,15 @@ class VLSimRunner(object):
     vpilibs : List[str] = dc.field(default_factory=list)
     dumpwaves : bool = dc.field(default=False)
     rundir : str = dc.field(default=None)
+    ctxt : TaskRunCtxt = dc.field(default=None)
 
-    async def run(self, runner, input) -> TaskDataResult:
+    async def run(self, ctxt, input) -> TaskDataResult:
         imgdir = None
         dpi = []
         vpi = []
         status = 0
 
+        self.ctxt = ctxt
         self.rundir = input.rundir
 
         self.plusargs = input.params.plusargs.copy()

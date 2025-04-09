@@ -4,8 +4,7 @@ import pytest
 import shutil
 import asyncio
 import sys
-from dv_flow.mgr import TaskListenerLog, TaskSetRunner
-from dv_flow.mgr.pkg_rgy import PkgRgy
+from dv_flow.mgr import TaskListenerLog, TaskSetRunner, TaskSpec, PackageLoader
 from dv_flow.mgr.task_graph_builder import TaskGraphBuilder
 from dv_flow.mgr.util import loadProjPkgDef
 import dv_flow.libhdlsim as libhdlsim
@@ -32,23 +31,26 @@ def test_plusarg(tmpdir, request, sim):
 
     data_dir = os.path.join(os.path.dirname(__file__), "data/simrun")
     runner = TaskSetRunner(os.path.join(tmpdir, 'rundir'))
-    rgy = PkgRgy()
-    rgy._discover_plugins()
+
+    def marker_listener(marker):
+        raise Exception("marker")
 
     builder = TaskGraphBuilder(
-        None, 
-        os.path.join(tmpdir, 'rundir'),
-        pkg_rgy=rgy)
+        PackageLoader(marker_listeners=[marker_listener]).load_rgy(['std', 'hdlsim.%s' % sim]),
+        os.path.join(tmpdir, 'rundir'))
 
     top = builder.mkTaskNode(
-        task_t="std.FileSet",
+        'std.FileSet',
         name="top",  
         type="systemVerilogSource", 
-        base=os.path.join(data_dir), include="simrun_plusarg.sv")
+        base=os.path.join(data_dir),
+        include="simrun_plusarg.sv")
 
     sim_img = builder.mkTaskNode(
-        task_t='hdlsim.%s.SimImage' % sim,
-        name="sim_img", needs=[top], top=["simrun_plusarg"])
+        'hdlsim.%s.SimImage' % sim,
+        name="sim_img",
+        needs=[top],
+        top=["simrun_plusarg"])
 
     sim_run = builder.mkTaskNode(
         'hdlsim.%s.SimRun' % sim, 

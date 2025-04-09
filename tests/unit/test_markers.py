@@ -3,8 +3,7 @@ import pytest
 import shutil
 import asyncio
 import sys
-from dv_flow.mgr import TaskListenerLog, TaskSetRunner
-from dv_flow.mgr.pkg_rgy import PkgRgy
+from dv_flow.mgr import TaskListenerLog, TaskSetRunner, TaskSpec, PackageLoader 
 from dv_flow.mgr.task_graph_builder import TaskGraphBuilder
 from dv_flow.mgr.util import loadProjPkgDef
 import dv_flow.libhdlsim as libhdlsim
@@ -28,20 +27,16 @@ def get_available_sims():
 
 @pytest.mark.parametrize("sim", get_available_sims())
 def test_simple_1(tmpdir, request,sim):
-
     data_dir = os.path.join(os.path.dirname(__file__), "data/test_markers")
-    rgy = PkgRgy()
-    rgy._discover_plugins()
 
+    def marker_listener(marker):
+        raise Exception("marker")
 
     def run(status):
         runner = TaskSetRunner(os.path.join(tmpdir, 'rundir'))
         builder = TaskGraphBuilder(
-            None, 
-            os.path.join(tmpdir, 'rundir'),
-            pkg_rgy=rgy)
-
-        fileset_t = builder.getTaskCtor('std.FileSet')
+            PackageLoader(marker_listeners=[marker_listener]).load_rgy(['std', 'hdlsim.%s' % sim]),
+            os.path.join(tmpdir, 'rundir'))
 
         top_v = builder.mkTaskNode(
             'std.FileSet', name="top_v",  
@@ -74,4 +69,3 @@ def test_simple_1(tmpdir, request,sim):
     assert len(status[-1][2]) != 0
 
     print("status[-1][2]: %s" % str(status [-1][2]))
-

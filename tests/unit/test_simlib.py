@@ -4,8 +4,7 @@ import pytest
 import shutil
 import asyncio
 import sys
-from dv_flow.mgr import TaskListenerLog, TaskSetRunner
-from dv_flow.mgr.pkg_rgy import PkgRgy
+from dv_flow.mgr import TaskListenerLog, TaskSetRunner, TaskSpec, PackageLoader
 from dv_flow.mgr.task_graph_builder import TaskGraphBuilder
 from dv_flow.mgr.util import loadProjPkgDef
 import dv_flow.libhdlsim as libhdlsim
@@ -32,16 +31,13 @@ def test_mod1_top(tmpdir, request, sim):
 
     data_dir = os.path.join(os.path.dirname(__file__), "data", "simlib")
     runner = TaskSetRunner(os.path.join(tmpdir, 'rundir'))
-    rgy = PkgRgy()
-    rgy._discover_plugins()
+
+    def marker_listener(marker):
+        raise Exception("marker")
 
     builder = TaskGraphBuilder(
-        None, 
-        os.path.join(tmpdir, 'rundir'),
-        pkg_rgy=rgy)
-
-    hdlsim_path = os.path.dirname(
-        os.path.abspath(libhdlsim.__file__))
+        PackageLoader(marker_listeners=[marker_listener]).load_rgy(['std', 'hdlsim.%s' % sim]),
+        os.path.join(tmpdir, 'rundir'))
     
     mod1 = builder.mkTaskNode(
         "std.FileSet",
@@ -76,5 +72,3 @@ def test_mod1_top(tmpdir, request, sim):
     out = asyncio.run(runner.run(sim_run))
 
     assert runner.status == 0
-
-
