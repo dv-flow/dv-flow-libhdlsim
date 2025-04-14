@@ -26,36 +26,26 @@ from typing import List
 from dv_flow.mgr import TaskDataResult, FileSet
 from dv_flow.libhdlsim.log_parser import LogParser
 from dv_flow.libhdlsim.vl_sim_runner import VLSimRunner
+from dv_flow.libhdlsim.vl_sim_data import VlSimRunData
 
 class SimRunner(VLSimRunner):
 
-    async def runsim(self, imgdir, dpi, vpi):
+    async def runsim(self, data):
+        status = 0
 
         cmd = [
-            os.path.join(imgdir, 'simv'),
+            os.path.join(data.imgdir, 'simv'),
         ]
 
-        for lib in dpi:
+        for lib in data.dpilibs:
             cmd.append("-sv_lib")
             cmd.append(os.path.splitext(lib)[0])
 
-        cmd.extend(self.args)
+        cmd.extend(data.args)
 
-        cmd.extend(["+%s" % p for p in self.plusargs])
+        cmd.extend(["+%s" % p for p in data.plusargs])
 
-        fp = open(os.path.join(self.rundir, 'sim.log'), "w")
-        fp.write("Command: %s\n" % str(cmd))
-        fp.flush()
-
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            cwd=self.rundir,
-            stdout=fp,
-            stderr=asyncio.subprocess.STDOUT)
-
-        status = await proc.wait()
-
-        fp.close()
+        status |= await self.ctxt.exec(cmd, logfile="sim.log")
 
         return status
 

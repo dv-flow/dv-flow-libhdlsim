@@ -26,15 +26,15 @@ from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImage
 
 class SimImage(VlSimImage):
 
-    def getRefTime(self):
-        if os.path.isfile(os.path.join(self.rundir, 'simv_opt.d')):
-            print("Returning timestamp")
-            return os.path.getmtime(os.path.join(self.rundir, 'simv_opt.d'))
+    def getRefTime(self, rundir):
+        if os.path.isfile(os.path.join(rundir, 'simv_opt.d')):
+            return os.path.getmtime(os.path.join(rundir, 'simv_opt.d'))
         else:
-            raise Exception("simv_opt.d file (%s) does not exist" % os.path.join(self.rundir, 'simv_opt.d'))
+            raise Exception("simv_opt.d file (%s) does not exist" % os.path.join(rundir, 'simv_opt.d'))
     
     async def build(self, files : List[str], incdirs : List[str]):
         cmd = []
+        status = 0
 
         cmd = ['xmvlog', '-sv', '-64bit']
 
@@ -43,23 +43,14 @@ class SimImage(VlSimImage):
 
         cmd.extend(files)
 
-        print("self.basedir=%s" % self.rundir)
-        proc = await self.session.create_subprocess(*cmd,
-                                                        cwd=self.rundir)
-        await proc.wait()
-
-        if proc.returncode != 0:
-            raise Exception("xmvlog failed (%d)" % proc.returncode)
+        status |= await self.runnner.exec(cmd, logfile="xmvlog.log")
 
         # Now, run vopt
-        cmd = ['xmelab', '-64bit', '-snap', 'simv:snap']
-        for top in self.params.top:
-            cmd.append(top)
+        if not status:
+            cmd = ['xmelab', '-64bit', '-snap', 'simv:snap']
+            for top in self.params.top:
+                cmd.append(top)
 
-        proc = await self.session.create_subprocess(*cmd,
-                                                        cwd=self.rundir)
-        await proc.wait()
+            status |= await self.runner.exec(cmd, logfile="xmelab.log")
 
-        if proc.returncode != 0:
-            raise Exception("xmelab failed (%d)" % proc.returncode)
-
+        return status

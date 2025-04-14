@@ -26,6 +26,7 @@ import shutil
 from pathlib import Path
 from typing import List
 from dv_flow.libhdlsim.vl_sim_lib_builder import VlSimLibBuilder
+from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
 from dv_flow.mgr.task_data import TaskMarker, TaskMarkerLoc
 
 class SimLibBuilder(VlSimLibBuilder):
@@ -36,7 +37,7 @@ class SimLibBuilder(VlSimLibBuilder):
         else:
             raise Exception("simv file (%s) does not exist" % os.path.join(rundir, 'simlib.d'))
     
-    async def build(self, input, files : List[str], incdirs : List[str], libs : List[str]):
+    async def build(self, input, data : VlSimImageData):
 
         status = 0
 
@@ -44,15 +45,15 @@ class SimLibBuilder(VlSimLibBuilder):
             os.makedirs(os.path.join(input.rundir, input.params.libname), exist_ok=True)
 
         # Create a library map
-        libs.insert(0, os.path.join(input.rundir, input.params.libname))
+        data.libs.insert(0, os.path.join(input.rundir, input.params.libname))
         self.runner.create("synopsys_sim.setup", 
                            "\n".join(("%s: %s\n" % (os.path.basename(lib), lib)) for lib in libs))
         cmd = ['vlogan', '-full64', '-sverilog', '-work', input.params.libname]
 
-        for incdir in incdirs:
+        for incdir in data.incdirs:
             cmd.append('+incdir+%s' % incdir)
 
-        cmd.extend(files)
+        cmd.extend(data.files)
 
 
         status |= await self.runner.exec(cmd, logfile="vlogan.log")

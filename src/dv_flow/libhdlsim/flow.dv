@@ -53,6 +53,8 @@ package:
         type: list
       args:
         type: list
+      vpilibs:
+        type: list
 
   - name: SimRun
     # Note what 'accepts'
@@ -62,6 +64,7 @@ package:
     - filetype: simDir
     - filetype: systemVerilogDPI
     - filetype: verilogVPI
+    - type: hdlsim.SimArgs
     with:
       args:
         type: list

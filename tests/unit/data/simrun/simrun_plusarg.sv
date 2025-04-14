@@ -1,7 +1,8 @@
 
 module simrun_plusarg;
+    string s;
+
     initial begin
-        automatic string s;
 
         if (!$value$plusargs("myarg=%s", s)) begin
             $display("Error: no plusarg found");

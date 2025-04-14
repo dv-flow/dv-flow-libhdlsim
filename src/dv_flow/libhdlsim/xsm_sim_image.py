@@ -21,45 +21,43 @@
 #****************************************************************************
 import os
 from typing import List
-from dv_flow.mgr import Task, TaskData
-from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImage
+from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder
+from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
 
-class SimImage(VlSimImage):
+class SimImageBuilder(VlSimImageBuilder):
 
-    def getRefTime(self):
-        if os.path.isfile(os.path.join(self.rundir, 'simv_opt.d')):
-            print("Returning timestamp")
-            return os.path.getmtime(os.path.join(self.rundir, 'simv_opt.d'))
+    def getRefTime(self, rundir):
+        if os.path.isfile(os.path.join(rundir, 'simv_opt.d')):
+            return os.path.getmtime(os.path.join(rundir, 'simv_opt.d'))
         else:
-            raise Exception("simv_opt.d file (%s) does not exist" % os.path.join(self.rundir, 'simv_opt.d'))
+            raise Exception("simv_opt.d file (%s) does not exist" % os.path.join(rundir, 'simv_opt.d'))
     
-    async def build(self, files : List[str], incdirs : List[str]):
+    async def build(self, input, data : VlSimImageData):
         cmd = []
+        status = 0
 
         cmd = ['xvlog', '--sv']
 
-        for incdir in incdirs:
+        for incdir in data.incdirs:
             cmd.extend(['-i', incdir])
 
-        cmd.extend(files)
+        cmd.extend(data.files)
 
-        print("self.basedir=%s" % self.rundir)
-        proc = await self.session.create_subprocess(*cmd,
-                                                        cwd=self.rundir)
-        await proc.wait()
-
-        if proc.returncode != 0:
-            raise Exception("xvlog failed (%d)" % proc.returncode)
+        status |= await self.runner.exec(cmd, logfile="xvlog.log")
 
         # Now, run vopt
-        cmd = ['xelab', '--snapshot', 'simv.snap']
-        for top in self.params.top:
-            cmd.append(top)
+        if not status:
+            cmd = ['xelab', '--snapshot', 'simv.snap']
+            for top in data.top:
+                cmd.append(top)
 
-        proc = await self.session.create_subprocess(*cmd,
-                                                        cwd=self.rundir)
-        await proc.wait()
+            status |= await self.runner.exec(cmd, logfile="xelab.log")
 
-        if proc.returncode != 0:
-            raise Exception("xelab failed (%d)" % proc.returncode)
+        if not status:
+            with open(os.path.join(input.rundir, 'simv_opt.d'), "w") as fp:
+                fp.write("\n")
 
+        return status
+
+async def SimImage(runner, input):
+    return await SimImageBuilder(runner).run(runner, input)

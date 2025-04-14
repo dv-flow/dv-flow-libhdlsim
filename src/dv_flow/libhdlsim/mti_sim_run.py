@@ -25,9 +25,10 @@ import os
 from typing import List
 from dv_flow.mgr import TaskDataResult, FileSet
 from dv_flow.libhdlsim.vl_sim_runner import VLSimRunner
+from dv_flow.libhdlsim.vl_sim_data import VlSimRunData
 
 class SimRunner(VLSimRunner):
-    async def runsim(self, imgdir, dpi, vpi):
+    async def runsim(self, data : VlSimRunData):
         status = 0
 
         cmd = [
@@ -37,8 +38,13 @@ class SimRunner(VLSimRunner):
             "run -a; quit -f",
             "simv_opt",
             "-work",
-            os.path.join(imgdir, 'work')
+            os.path.join(data.imgdir, 'work')
         ]
+
+        for plusarg in data.plusargs:
+            cmd.append("+%s" % plusarg)
+        for arg in data.args:
+            cmd.append(arg)
 
         status |= await self.ctxt.exec(cmd, logfile="sim.log")
         

@@ -22,34 +22,26 @@
 import os
 from typing import List
 from dv_flow.mgr import TaskData, FileSet
-from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImage
+from dv_flow.libhdlsim.vl_sim_runner import VLSimRunner
+from dv_flow.libhdlsim.vl_sim_data import VlSimRunData
 
-class SimRun(object):
+class SimRunner(VLSimRunner):
 
-    async def run(self, input : TaskData) -> TaskData:
-        vl_fileset = input.getFileSets("simDir")
-
-        if len(vl_fileset) == 0:
-            raise Exception("No simDir fileset provided")
-
-        build_dir = vl_fileset[0].basedir
+    async def runsim(self, data : VlSimRunData) -> TaskData:
+        status = 0
 
         cmd = [
             'vvp',
-            os.path.join(build_dir, 'simv.vpp'),
+            os.path.join(data.imgdir, 'simv.vpp'),
         ]
 
-        fp = open(os.path.join(self.rundir, 'sim.log'), "w")
-        proc = await self.session.create_subprocess(*cmd,
-                                                    cwd=self.rundir,
-                                                    stdout=fp)
+        for plusarg in data.plusargs:
+            cmd.append("+%s" % plusarg)
 
-        await proc.wait()
+        status |= await self.ctxt.exec(cmd, logfile="sim.log")
 
-        fp.close()
+        return status
 
-        output = TaskData()
-        output.addFileSet(FileSet(src=self.name, type="simRunDir", basedir=self.rundir))
+async def SimRun(runner, input) -> TaskData:
+    return await SimRunner().run(runner, input)
 
-        return output
-    pass

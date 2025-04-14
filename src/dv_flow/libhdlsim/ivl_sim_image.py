@@ -22,33 +22,33 @@
 import os
 from typing import List
 from dv_flow.mgr import TaskData
-from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImage
+from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder
+from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
 
-class SimImage(VlSimImage):
+class SimImageBuilder(VlSimImageBuilder):
 
     def getRefTime(self, rundir):
-        if os.path.isfile(os.path.join(self.rundir, 'simv.vpp')):
+        if os.path.isfile(os.path.join(rundir, 'simv.vpp')):
             print("Returning timestamp")
-            return os.path.getmtime(os.path.join(self.rundir, 'simv.vpp'))
+            return os.path.getmtime(os.path.join(rundir, 'simv.vpp'))
         else:
-            raise Exception("simv file (%s) does not exist" % os.path.join(self.rundir, 'simv.vpp'))
+            raise Exception("simv file (%s) does not exist" % os.path.join(rundir, 'simv.vpp'))
     
-    async def build(self, files : List[str], incdirs : List[str]):
+    async def build(self, input, data : VlSimImageData):
+        status = 0
         cmd = ['iverilog', '-o', 'simv.vpp', '-g2012']
 
-        for incdir in incdirs:
+        for incdir in data.incdirs:
             cmd.extend(['-I', incdir])
 
-        cmd.extend(files)
+        cmd.extend(data.files)
 
-        for top in self.params.top:
+        for top in data.top:
             cmd.extend(['-s', top])
 
-        print("self.basedir=%s" % self.rundir)
-        proc = await self.session.create_subprocess(*cmd,
-                                                        cwd=self.rundir)
-        await proc.wait()
+        status |= await self.runner.exec(cmd, logfile="iverilog.log")
 
-        if proc.returncode != 0:
-            raise Exception("iverilog failed (%d)" % proc.returncode)
+        return status
 
+async def SimImage(ctxt, input):
+    return await SimImageBuilder(ctxt).run(ctxt, input)

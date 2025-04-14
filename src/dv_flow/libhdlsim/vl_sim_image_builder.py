@@ -30,6 +30,7 @@ from toposort import toposort
 from dv_flow.mgr import FileSet, TaskDataResult, TaskMarker, TaskRunCtxt
 from typing import Any, ClassVar, List, Tuple
 from dv_flow.libhdlsim.log_parser import LogParser
+from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
 
 from svdep import FileCollection, TaskCheckUpToDate, TaskBuildFileCollection
 
@@ -44,7 +45,7 @@ class VlSimImageBuilder(object):
     def getRefTime(self, rundir):
         raise NotImplementedError()
 
-    async def build(self, files : List[str], incdirs : List[str]):
+    async def build(self, input, data : VlSimImageData):
         raise NotImplementedError()
 
     def parseLog(self, log):
@@ -64,22 +65,19 @@ class VlSimImageBuilder(object):
             in_changed, str(ex_memento), input.changed))
 
         self.input = input
-        files = []
-        incdirs = []
-        libs = []
-        dpi = []
-        vpi = []
+        data = VlSimImageData()
+        data.top.extend(input.params.top)
         memento = ex_memento
 
-        self._gatherSvSources(files, incdirs, libs, dpi, vpi, input)
+        self._gatherSvSources(data, input)
 
-        self._log.debug("files: %s in_changed=%s" % (str(files), in_changed))
+        self._log.debug("files: %s in_changed=%s" % (str(data.files), in_changed))
 
         if not in_changed:
             try:
                 ref_mtime = self.getRefTime(input.rundir)
                 info = FileCollection.from_dict(ex_memento["svdeps"])
-                in_changed = not TaskCheckUpToDate(files, incdirs).check(info, ref_mtime)
+                in_changed = not TaskCheckUpToDate(data.files, data.incdirs).check(info, ref_mtime)
             except Exception as e:
                 self._log.warning("Unexpected output-directory format (%s). Rebuilding" % str(e))
                 shutil.rmtree(input.rundir)
@@ -92,7 +90,7 @@ class VlSimImageBuilder(object):
 
             # First, create dependency information
             try:
-                info = TaskBuildFileCollection(files, incdirs).build()
+                info = TaskBuildFileCollection(data.files, data.incdirs).build()
                 memento.svdeps = info.to_dict()
             except Exception as e:
                 self._log.error("Failed to build file collection: %s" % str(e))
@@ -102,7 +100,7 @@ class VlSimImageBuilder(object):
                 status = 1
 
             if status == 0:
-                status = await self.build(input, files, incdirs, libs, dpi, vpi) 
+                status = await self.build(input, data) 
         else:
             memento = VlTaskSimImageMemento(**memento)
 
@@ -117,42 +115,42 @@ class VlSimImageBuilder(object):
             markers=self.markers
         )
     
-    def _gatherSvSources(self, files, incdirs, libs, dpi, vpi, input):
+    def _gatherSvSources(self, data : VlSimImageData, input):
         # input must represent dependencies for all tasks related to filesets
         # references must support transitivity
 
         for fs in input.inputs:
             self._log.debug("fs.filetype=%s fs.basedir=%s" % (fs.filetype, fs.basedir))
             if fs.filetype == "verilogIncDir":
-                incdirs.append(fs.basedir)
+                data.incdirs.append(fs.basedir)
             elif fs.filetype == "simLib":
                 if len(fs.files) > 0:
                     for file in fs.files:
                         path = os.path.join(fs.basedir, file)
                         self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))
-                        libs.append(path)
+                        data.libs.append(path)
                 else:
-                    libs.append(fs.basedir)
-                incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
+                    data.libs.append(fs.basedir)
+                data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
             elif fs.filetype == "systemVerilogDPI":
                 for file in fs.files:
                     path = os.path.join(fs.basedir, file)
                     self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))
-                    dpi.append(path)
+                    data.dpi.append(path)
             elif fs.filetype == "verilogVPI":
                 for file in fs.files:
                     path = os.path.join(fs.basedir, file)
                     self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))
-                    vpi.append(path)
+                    data.vpi.append(path)
             else:
                 for file in fs.files:
                     path = os.path.join(fs.basedir, file)
                     self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))
                     dir = os.path.dirname(path)
-                    if dir not in incdirs:
-                        incdirs.append(dir)
-                    files.append(path)
-                incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
+                    if dir not in data.incdirs:
+                        data.incdirs.append(dir)
+                    data.files.append(path)
+                data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
 
 
 class VlTaskSimImageMemento(BaseModel):

@@ -25,6 +25,7 @@ import logging
 from typing import ClassVar, List
 from dv_flow.mgr import TaskDataResult, TaskRunCtxt
 from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder
+from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
 from dv_flow.mgr.task_data import TaskMarker, TaskMarkerLoc
 
 class SimImageBuilder(VlSimImageBuilder):
@@ -37,16 +38,16 @@ class SimImageBuilder(VlSimImageBuilder):
         else:
             raise Exception("simv file (%s) does not exist" % os.path.join(rundir, 'obj_dir/simv'))
 
-    async def build(self, input, files : List[str], incdirs : List[str], libs : List[str], dpi, vpi):
+    async def build(self, input, data : VlSimImageData):
         status = 0
         cmd = ['verilator', '--binary', '-o', 'simv', '-Wno-fatal']
 
         cmd.extend(['-j', '0'])
 
-        for incdir in incdirs:
+        for incdir in data.incdirs:
             cmd.append('+incdir+%s' % incdir)
 
-        cmd.extend(files)
+        cmd.extend(data.files)
 
         for top in input.params.top:
             cmd.extend(['--top-module', top])

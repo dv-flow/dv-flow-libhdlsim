@@ -24,7 +24,7 @@ import asyncio
 import json
 from typing import List
 from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder
-from dv_flow.mgr.task_data import TaskMarker, TaskMarkerLoc
+from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
 
 class SimImageBuilder(VlSimImageBuilder):
 
@@ -34,27 +34,27 @@ class SimImageBuilder(VlSimImageBuilder):
         else:
             raise Exception("simv file (%s) does not exist" % os.path.join(rundir, 'simv'))
     
-    async def build(self, input, files : List[str], incdirs : List[str], libs : List[str], dpi : List[str], vpi : List[str]):
+    async def build(self, input, data : VlSimImageData):
 
         status = 0
 
-        if len(files):
-            libs.append(os.path.join(input.rundir, 'work'))
+        if len(data.files):
+            data.libs.append(os.path.join(input.rundir, 'work'))
 
         # Create the library map
         self.runner.create("synopsys_sim.setup", 
-                           "\n".join(("%s: %s" % (os.path.basename(lib), lib)) for lib in libs))
+                           "\n".join(("%s: %s" % (os.path.basename(lib), lib)) for lib in data.libs))
 
         # If source is provided, then compile that to a 'work' library
-        if len(files):
-            self._log.debug("Building source files: %s" % str(files))
+        if len(data.files):
+            self._log.debug("Building source files: %s" % str(data.files))
 
             cmd = ['vlogan', '-full64', '-sverilog', '-work', 'work']
 
-            for incdir in incdirs:
+            for incdir in data.incdirs:
                 cmd.append('+incdir+%s' % incdir)
 
-            cmd.extend(files)
+            cmd.extend(data.files)
 
             status |= await self.runner.exec(cmd, logfile="vlogan.log")
 
@@ -63,10 +63,10 @@ class SimImageBuilder(VlSimImageBuilder):
         if status == 0:
             cmd = ['vcs', '-full64', '-ntb_opts', 'uvm-1.2']
 
-            if len(vpi):
+            if len(data.vpi):
                 cmd.extend(["+vpi", "-debug_access"])
 
-                for lib in vpi:
+                for lib in data.vpi:
                     cmd.extend(["-load", lib])
 
             cmd.extend(self.input.params.args)

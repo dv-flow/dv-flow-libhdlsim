@@ -30,6 +30,7 @@ from dv_flow.mgr import FileSet, TaskDataResult, TaskRunCtxt
 from dv_flow.mgr.task_data import TaskMarker, TaskMarkerLoc, SeverityE
 from typing import ClassVar, List, Tuple
 from dv_flow.libhdlsim.log_parser import LogParser
+from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
 
 from svdep import FileCollection, TaskCheckUpToDate, TaskBuildFileCollection
 from dv_flow.libhdlsim.vl_sim_image_builder import VlTaskSimImageMemento
@@ -67,20 +68,18 @@ class VlSimLibBuilder(object):
         self._log.debug("in_changed: %s ; ex_memento: %s input.changed: %s" % (
             in_changed, str(ex_memento), input.changed))
 
-        files = []
-        incdirs = []
-        libs = []
+        data = VlSimImageData()
         memento = ex_memento
 
-        self._gatherSvSources(files, incdirs, libs, input)
+        self._gatherSvSources(data, input)
 
-        self._log.debug("files: %s in_changed=%s" % (str(files), in_changed))
+        self._log.debug("files: %s in_changed=%s" % (str(data.files), in_changed))
 
         if not in_changed:
             try:
                 ref_mtime = self.getRefTime(input.rundir)
                 info = FileCollection.from_dict(ex_memento["svdeps"])
-                in_changed = not TaskCheckUpToDate(files, incdirs).check(info, ref_mtime)
+                in_changed = not TaskCheckUpToDate(data.files, data.incdirs).check(info, ref_mtime)
             except Exception as e:
                 self._log.warning("Unexpected output-directory format (%s). Rebuilding" % str(e))
                 shutil.rmtree(input.rundir)
@@ -93,10 +92,10 @@ class VlSimLibBuilder(object):
             memento = VlTaskSimImageMemento()
 
             # First, create dependency information
-            info = TaskBuildFileCollection(files, incdirs).build()
+            info = TaskBuildFileCollection(data.files, data.incdirs).build()
             memento.svdeps = info.to_dict()
 
-            status = await self.build(input, files, incdirs, libs) 
+            status = await self.build(input, data) 
         else:
             memento = VlTaskSimImageMemento(**memento)
 
@@ -122,31 +121,31 @@ class VlSimLibBuilder(object):
             status=status
         )
     
-    def _gatherSvSources(self, files, incdirs, libs, input):
+    def _gatherSvSources(self, data : VlSimImageData, input):
         # input must represent dependencies for all tasks related to filesets
         # references must support transitivity
 
         for fs in input.inputs:
             self._log.debug("fs.basedir=%s" % fs.basedir)
             if fs.filetype == "verilogIncDir":
-                incdirs.append(fs.basedir)
+                data.incdirs.append(fs.basedir)
             elif fs.filetype == "simLib":
                 if len(fs.files) > 0:
                     for file in fs.files:
                         path = os.path.join(fs.basedir, file)
                         self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))
-                        libs.append(path)
+                        data.libs.append(path)
                 else:
-                    libs.append(fs.basedir)
-                incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
+                    data.libs.append(fs.basedir)
+                data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
             else:
                 for file in fs.files:
                     path = os.path.join(fs.basedir, file)
                     self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))
                     dir = os.path.dirname(path)
-                    if dir not in incdirs:
-                        incdirs.append(dir)
-                    files.append(path)
-                incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
+                    if dir not in data.incdirs:
+                        data.incdirs.append(dir)
+                    data.files.append(path)
+                data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
 
 

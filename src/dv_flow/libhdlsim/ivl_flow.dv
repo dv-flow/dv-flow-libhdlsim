@@ -27,6 +27,13 @@ package:
     uses: hdlsim.SimImage
     pytask: dv_flow.libhdlsim.ivl_sim_image.SimImage
 
+  - name: SimLib
+    uses: hdlsim.SimLib
+    passthrough: all
+    doc: |
+      Icarus Verilog doesn't have a notion of a pre-compiled library.
+      Consequently, this notion is implemented as a passthrough.
+
   - name: SimRun
     uses: hdlsim.SimRun
     pytask: dv_flow.libhdlsim.ivl_sim_run.SimRun

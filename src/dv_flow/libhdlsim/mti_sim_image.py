@@ -23,6 +23,7 @@ import os
 import asyncio
 from typing import List
 from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder
+from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
 
 class SimImageBuilder(VlSimImageBuilder):
 
@@ -32,7 +33,7 @@ class SimImageBuilder(VlSimImageBuilder):
         else:
             raise Exception("simv_opt.d file (%s) does not exist" % os.path.join(rundir, 'simv_opt.d'))
     
-    async def build(self, input, files : List[str], incdirs : List[str], libs : List[str], dpi, vpi):
+    async def build(self, input, data : VlSimImageData):
         cmd = []
         status = 0
 
@@ -40,13 +41,13 @@ class SimImageBuilder(VlSimImageBuilder):
             cmd = ['vlib', 'work']
             status |= await self.runner.exec(cmd, logfile="vlib.log")
 
-        if not status and len(files) > 0:
+        if not status and len(data.files) > 0:
             cmd = ['vlog', '-sv']
 
-            for incdir in incdirs:
+            for incdir in data.incdirs:
                 cmd.append('+incdir+%s' % incdir)
 
-            cmd.extend(files)
+            cmd.extend(data.files)
 
             status |= await self.runner.exec(cmd, logfile="build.log")
 
@@ -57,7 +58,7 @@ class SimImageBuilder(VlSimImageBuilder):
                 cmd.append(top)
 
             # Add in libraries
-            for lib in libs:
+            for lib in data.libs:
                 cmd.extend([
                     '-Ldir', os.path.dirname(lib),
                     '-L', os.path.basename(lib)])

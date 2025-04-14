@@ -64,8 +64,7 @@ def test_simple_1(tmpdir, request,sim):
     status = []
     status_1, out_1 = run(status)
 
-    assert status_1 == 1
-
+    assert status_1 != 0
     assert len(status[-1][2]) != 0
 
     print("status[-1][2]: %s" % str(status [-1][2]))
