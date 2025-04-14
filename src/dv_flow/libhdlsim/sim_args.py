@@ -3,7 +3,7 @@ import pydantic.dataclasses as pdc
 from pydantic import BaseModel
 from typing import List
 
-def SimArgs(BaseModel):
+class SimArgs(BaseModel):
     type : str = "hdlsim.SimArgs"
     src : str = ""
     seq : int = -1
