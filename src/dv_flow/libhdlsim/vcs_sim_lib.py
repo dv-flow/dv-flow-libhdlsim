@@ -47,7 +47,7 @@ class SimLibBuilder(VlSimLibBuilder):
         # Create a library map
         data.libs.insert(0, os.path.join(input.rundir, input.params.libname))
         self.runner.create("synopsys_sim.setup", 
-                           "\n".join(("%s: %s\n" % (os.path.basename(lib), lib)) for lib in libs))
+                           "\n".join(("%s: %s\n" % (os.path.basename(lib), lib)) for lib in data.libs))
         cmd = ['vlogan', '-full64', '-sverilog', '-work', input.params.libname]
 
         for incdir in data.incdirs:
