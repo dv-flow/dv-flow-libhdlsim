@@ -63,7 +63,7 @@ class SimImageBuilder(VlSimImageBuilder):
             self.parseLog(os.path.join(input.rundir, 'vlogan.log'))
 
         if status == 0:
-            cmd = ['vcs', '-full64', '-ntb_opts', 'uvm-1.2']
+            cmd = ['vcs', '-full64', '-ntb_opts', 'uvm-1.2', '-partcomp', '-fastpartcomp=j4']
 
             if len(data.vpi):
                 cmd.extend(["+vpi", "-debug_access"])
