@@ -46,6 +46,8 @@ class SimImageBuilder(VlSimImageBuilder):
 
         for incdir in data.incdirs:
             cmd.append('+incdir+%s' % incdir)
+        for define in data.defines:
+            cmd.append('+define+%s' % define)
 
         cmd.extend(data.files)
 

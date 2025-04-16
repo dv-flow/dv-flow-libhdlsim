@@ -41,6 +41,9 @@ class SimImageBuilder(VlSimImageBuilder):
         for incdir in data.incdirs:
             cmd.extend(['-i', incdir])
 
+        for define in data.defines:
+            cmd.extend(['-d', define])
+
         cmd.extend(data.files)
 
         status |= await self.runner.exec(cmd, logfile="xvlog.log")

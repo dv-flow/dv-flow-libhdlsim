@@ -23,6 +23,7 @@ import os
 from typing import List
 from dv_flow.mgr import Task, TaskData
 from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImage
+from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
 
 class SimImage(VlSimImage):
 
@@ -32,16 +33,19 @@ class SimImage(VlSimImage):
         else:
             raise Exception("simv_opt.d file (%s) does not exist" % os.path.join(rundir, 'simv_opt.d'))
     
-    async def build(self, files : List[str], incdirs : List[str]):
+    async def build(self, data : VlSimImageData):
         cmd = []
         status = 0
 
         cmd = ['xmvlog', '-sv', '-64bit']
 
-        for incdir in incdirs:
+        for incdir in data.incdirs:
             cmd.extend(['-incdir', incdir])
+        
+        for define in data.defines:
+            cmd.extend(['-define', define])
 
-        cmd.extend(files)
+        cmd.extend(data.files)
 
         status |= await self.runnner.exec(cmd, logfile="xmvlog.log")
 

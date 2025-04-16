@@ -120,6 +120,7 @@ class VlSimImageBuilder(object):
         # references must support transitivity
 
         for fs in input.inputs:
+            data.defines.extend(fs.defines)
             self._log.debug("fs.filetype=%s fs.basedir=%s" % (fs.filetype, fs.basedir))
             if fs.filetype == "verilogIncDir":
                 data.incdirs.append(fs.basedir)

@@ -5,6 +5,7 @@ from typing import List
 class VlSimImageData(object):
     files : List[str] = dc.field(default_factory=list)
     incdirs : List[str] = dc.field(default_factory=list)
+    defines : List[str] = dc.field(default_factory=list)
     libs : List[str] = dc.field(default_factory=list)
     dpi : List[str] = dc.field(default_factory=list)
     vpi : List[str] = dc.field(default_factory=list)

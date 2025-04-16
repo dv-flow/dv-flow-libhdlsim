@@ -127,6 +127,7 @@ class VlSimLibBuilder(object):
 
         for fs in input.inputs:
             self._log.debug("fs.basedir=%s" % fs.basedir)
+            data.defines.extend(fs.defines)
             if fs.filetype == "verilogIncDir":
                 data.incdirs.append(fs.basedir)
             elif fs.filetype == "simLib":
