@@ -53,6 +53,8 @@ package:
         type: list
       args:
         type: list
+      elabargs:
+        type: list
       vpilibs:
         type: list
 

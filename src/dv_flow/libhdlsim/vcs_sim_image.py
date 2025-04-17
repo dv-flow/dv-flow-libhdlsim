@@ -64,6 +64,7 @@ class SimImageBuilder(VlSimImageBuilder):
 
         if status == 0:
             cmd = ['vcs', '-full64', '-ntb_opts', 'uvm-1.2', '-partcomp', '-fastpartcomp=j4']
+            cmd.extend(data.elabargs)
 
             if len(data.vpi):
                 cmd.extend(["+vpi", "-debug_access"])
