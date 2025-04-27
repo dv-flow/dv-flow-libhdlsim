@@ -11,6 +11,7 @@ class VlSimImageData(object):
     dpi : List[str] = dc.field(default_factory=list)
     vpi : List[str] = dc.field(default_factory=list)
     top : List[str] = dc.field(default_factory=list)
+    trace : bool = dc.field(default=False)
 
 @dc.dataclass
 class VlSimRunData(object):
@@ -19,5 +20,5 @@ class VlSimRunData(object):
     plusargs : List[str] = dc.field(default_factory=list)
     dpilibs : List[str] = dc.field(default_factory=list)
     vpilibs : List[str] = dc.field(default_factory=list)
-    dumpwaves : bool = dc.field(default=False)
+    trace : bool = dc.field(default=False)
 

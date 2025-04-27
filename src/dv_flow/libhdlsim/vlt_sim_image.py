@@ -49,6 +49,9 @@ class SimImageBuilder(VlSimImageBuilder):
         for define in data.defines:
             cmd.append('+define+%s' % define)
 
+        if data.trace:
+            cmd.append('--trace')
+
         cmd.extend(data.files)
 
         for top in input.params.top:

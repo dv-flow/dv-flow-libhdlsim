@@ -59,6 +59,8 @@ package:
         type: list
       elabargs:
         type: list
+      trace:
+        type: bool
       vpilibs:
         type: list
       incdirs:
@@ -81,6 +83,8 @@ package:
         type: list
       plusargs:
         type: list
+      trace:
+        type: bool
 
   # types:
   # - name: SimRunData

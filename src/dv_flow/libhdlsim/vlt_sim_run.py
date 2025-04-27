@@ -42,6 +42,9 @@ class SimRunner(VLSimRunner):
         for p in data.plusargs:
             cmd.append("+%s" % p)
 
+        if data.trace:
+            cmd.append("+verilator+debug")
+
         status |= await self.ctxt.exec(cmd, logfile="sim.log")
 
         return status
