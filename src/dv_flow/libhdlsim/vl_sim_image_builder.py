@@ -68,6 +68,8 @@ class VlSimImageBuilder(object):
         data = VlSimImageData()
         data.top.extend(input.params.top)
         data.elabargs.extend(input.params.elabargs)
+        data.incdirs.extend(input.params.incdirs)
+        data.defines.extend(input.params.defines)
         memento = ex_memento
 
         self._gatherSvSources(data, input)
