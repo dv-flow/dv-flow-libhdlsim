@@ -26,12 +26,12 @@ import logging
 import shutil
 import pathlib
 from typing import List
-from dv_flow.mgr import TaskDataResult, FileSet
+from dv_flow.mgr import TaskDataResult, FileSet, TaskRunCtxt
 from dv_flow.mgr.task_data import TaskMarker, TaskMarkerLoc
 
 _log = logging.getLogger("SimLibUVM")
 
-async def SimLibUVM(runner, input):
+async def SimLibUVM(ctxt : TaskRunCtxt, input):
     ex_memento = input.memento
     status = 0
     markers = []
@@ -82,7 +82,11 @@ async def SimLibUVM(runner, input):
                 filetype="verilogIncDir"),
             FileSet(
                 basedir=os.path.join(input.rundir, "uvm"),
-                filetype="simLib")
+                filetype="simLib"),
+            ctxt.mkDataItem(
+                type="hdlsim.SimElabArgs",
+                args=["-ntb_opts", "uvm-1.2"]
+            )
         ],
         status=status,
         markers=markers)

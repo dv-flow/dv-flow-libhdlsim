@@ -32,6 +32,7 @@ package:
     - filetype: systemVerilogSource 
     - filetype: verilogIncDir 
     - filetype: verilogSource 
+    - type: hdlsim.SimCompileArgs
     with:
       libname:
         type: str
@@ -52,6 +53,8 @@ package:
     - filetype: verilogSource 
     - filetype: systemVerilogDPI
     - filetype: verilogVPI
+    - type: hdlsim.SimElabArgs
+    - type: hdlsim.SimCompileArgs
     with:
       top:
         type: list
@@ -77,7 +80,7 @@ package:
     - filetype: simDir
     - filetype: systemVerilogDPI
     - filetype: verilogVPI
-    - type: hdlsim.SimArgs
+    - type: hdlsim.SimRunArgs
     with:
       args:
         type: list
@@ -86,10 +89,33 @@ package:
       trace:
         type: bool
 
-  # types:
-  # - name: SimRunData
-  #   with: 
-  #     plusargs:
-  #       type: list
-  #     args:
-  #       type: list
+  types:
+  - name: SimCompileArgs
+    with:
+      args:
+        type: list
+      incdirs:
+        type: list
+      defines:
+        type: list
+
+  - name: SimElabArgs
+    with:
+      args:
+        type: list
+      dpilibs:
+        type: list
+      vpilibs:
+        type: list
+      
+  - name: SimRunArgs
+    with: 
+      plusargs:
+        type: list
+      args:
+        type: list
+      dpilibs:
+        type: list
+      vpilibs:
+        type: list
+      

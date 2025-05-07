@@ -24,8 +24,6 @@ import json
 import logging
 import shutil
 import dataclasses as dc
-from pydantic import BaseModel
-from toposort import toposort
 from dv_flow.mgr import FileSet, TaskDataResult, TaskRunCtxt
 from dv_flow.mgr.task_data import TaskMarker, SeverityE
 from typing import ClassVar, List, Tuple
@@ -38,7 +36,7 @@ from dv_flow.libhdlsim.vl_sim_image_builder import VlTaskSimImageMemento
 @dc.dataclass
 class VLSimRunner(object):
     markers : List[TaskMarker] = dc.field(default_factory=list)
-    rundir : str = dc.field(default=None)
+    rundir : str = dc.field(default="")
     ctxt : TaskRunCtxt = dc.field(default=None)
 
     async def run(self, ctxt, input) -> TaskDataResult:
@@ -69,11 +67,15 @@ class VLSimRunner(object):
                 elif inp.filetype == "verilogVPI":
                     for f in inp.files:
                         data.vpilibs.append(os.path.join(inp.basedir, f))
-            elif inp.type == "hdlsim.SimArgs":
+            elif inp.type == "hdlsim.SimRunArgs":
                 if inp.args:
                     data.args.extend(inp.args)
                 if inp.plusargs:
                     data.plusargs.extend(inp.plusargs)
+                if inp.vpilibs:
+                    data.vpilibs.extend(inp.vpilibs)
+                if inp.dpilibs:
+                    data.dpilibs.extend(inp.dpilibs)
 
         if data.imgdir is None:
             self.markers.append(TaskMarker(

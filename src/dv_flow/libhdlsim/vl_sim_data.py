@@ -15,7 +15,7 @@ class VlSimImageData(object):
 
 @dc.dataclass
 class VlSimRunData(object):
-    imgdir : str = None
+    imgdir : str = ""
     args : List[str] = dc.field(default_factory=list)
     plusargs : List[str] = dc.field(default_factory=list)
     dpilibs : List[str] = dc.field(default_factory=list)

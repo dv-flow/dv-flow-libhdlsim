@@ -126,36 +126,41 @@ class VlSimImageBuilder(object):
         for fs in input.inputs:
             data.defines.extend(fs.defines)
             self._log.debug("fs.filetype=%s fs.basedir=%s" % (fs.filetype, fs.basedir))
-            if fs.filetype == "verilogIncDir":
-                data.incdirs.append(fs.basedir)
-            elif fs.filetype == "simLib":
-                if len(fs.files) > 0:
+            if fs.type == "std.FileSet":
+                if fs.filetype == "verilogIncDir":
+                    data.incdirs.append(fs.basedir)
+                elif fs.filetype == "simLib":
+                    if len(fs.files) > 0:
+                        for file in fs.files:
+                            path = os.path.join(fs.basedir, file)
+                            self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))
+                            data.libs.append(path)
+                    else:
+                        data.libs.append(fs.basedir)
+                    data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
+                elif fs.filetype == "systemVerilogDPI":
                     for file in fs.files:
                         path = os.path.join(fs.basedir, file)
                         self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))
-                        data.libs.append(path)
+                        data.dpi.append(path)
+                elif fs.filetype == "verilogVPI":
+                    for file in fs.files:
+                        path = os.path.join(fs.basedir, file)
+                        self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))
+                        data.vpi.append(path)
                 else:
-                    data.libs.append(fs.basedir)
-                data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
-            elif fs.filetype == "systemVerilogDPI":
-                for file in fs.files:
-                    path = os.path.join(fs.basedir, file)
-                    self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))
-                    data.dpi.append(path)
-            elif fs.filetype == "verilogVPI":
-                for file in fs.files:
-                    path = os.path.join(fs.basedir, file)
-                    self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))
-                    data.vpi.append(path)
-            else:
-                for file in fs.files:
-                    path = os.path.join(fs.basedir, file)
-                    self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))
-                    dir = os.path.dirname(path)
-                    if dir not in data.incdirs:
-                        data.incdirs.append(dir)
-                    data.files.append(path)
-                data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
+                    for file in fs.files:
+                        path = os.path.join(fs.basedir, file)
+                        self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))
+                        dir = os.path.dirname(path)
+                        if dir not in data.incdirs:
+                            data.incdirs.append(dir)
+                        data.files.append(path)
+                    data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
+            elif fs.type == "hdlsim.SimElabArgs":
+                data.args.extend(fs.args)
+                data.vpi.extend(fs.vpilibs)
+                data.dpi.extend(fs.dpilibs)
 
 
 class VlTaskSimImageMemento(BaseModel):
