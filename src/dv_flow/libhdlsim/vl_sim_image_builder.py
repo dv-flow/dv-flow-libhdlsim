@@ -124,9 +124,9 @@ class VlSimImageBuilder(object):
         # references must support transitivity
 
         for fs in input.inputs:
-            data.defines.extend(fs.defines)
-            self._log.debug("fs.filetype=%s fs.basedir=%s" % (fs.filetype, fs.basedir))
             if fs.type == "std.FileSet":
+                self._log.debug("fs.filetype=%s fs.basedir=%s" % (fs.filetype, fs.basedir))
+                data.defines.extend(fs.defines)
                 if fs.filetype == "verilogIncDir":
                     data.incdirs.append(fs.basedir)
                 elif fs.filetype == "simLib":
@@ -158,7 +158,8 @@ class VlSimImageBuilder(object):
                         data.files.append(path)
                     data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
             elif fs.type == "hdlsim.SimElabArgs":
-                data.args.extend(fs.args)
+                self._log.debug("fs.type=%s" % fs.type)
+                data.elabargs.extend(fs.args)
                 data.vpi.extend(fs.vpilibs)
                 data.dpi.extend(fs.dpilibs)
 
