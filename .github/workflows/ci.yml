@@ -8,7 +8,7 @@ jobs:
   ci:
     uses: dv-flow/dv-flow-release/.github/workflows/dv-flow-pybuild.yml@main
     with:
-        version_dir: "src/dv_flow/mgr"
+        version_dir: "src/dv_flow/libhdlsim"
         tests_dir: "tests"
         build_docs: true
     secrets:
