@@ -47,7 +47,63 @@ Parameters
 
 Task: SimLibUVM
 ===============
+Most simulators have a built-in mechanism for enabling UVM support. This task
+shall implement that mechanism and output appropriate data to support 
+downstream compilation and elaboration tasks.
 
+Task: SimLibDPI
+============
+The SimLibDPI task compiles a set of provided C/C++ sources and object files
+into a SystemVerilog DPI library using simulator-specific include directories
+
+Example
+-------
+
+Consumes
+--------
+
+* cSource
+* cppSource
+
+
+Produces
+--------
+
+* systemVerilogDPI
+
+Parameters
+----------
+
+* **libname** - [Optional] Specifies the base name of the library
+* **incdirs** - [Optional] List of extra include directories
+* **defines** - [Optional] List of extra defines
+
+Task: SimLibVPI
+============
+The SimLibVPI task compiles a set of provided C/C++ sources and object files
+into a Verilog VPI library using simulator-specific include directories
+
+Example
+-------
+
+Consumes
+--------
+
+* cSource
+* cppSource
+
+
+Produces
+--------
+
+* verilogVPI
+
+Parameters
+----------
+
+* **libname** - [Optional] Specifies the base name of the library
+* **incdirs** - [Optional] List of extra include directories
+* **defines** - [Optional] List of extra defines
 
 Task: SimImage
 ==============
