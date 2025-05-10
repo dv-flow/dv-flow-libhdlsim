@@ -53,6 +53,9 @@ class SimLibBuilder(VlSimLibBuilder):
             for define in data.defines:
                 cmd.append('+define+%s' % define)
 
+            cmd.extend(data.args)
+            cmd.extend(data.compargs)
+
             cmd.extend(data.files)
 
             status |= await self.runner.exec(cmd, logfile="build.log")

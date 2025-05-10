@@ -34,6 +34,8 @@ package:
     - filetype: verilogSource 
     - type: hdlsim.SimCompileArgs
     with:
+      args:
+        type: list
       libname:
         type: str
         value: ""
@@ -41,6 +43,24 @@ package:
         type: list
       defines:
         type: list
+
+  - name: SimVpiLib
+    consumes:
+    - filetype: cSource
+    - filetype: cppSource
+    with:
+      name:
+        type: str
+        value: ""
+
+  - name: SimDpiLib
+    consumes:
+    - filetype: cSource
+    - filetype: cppSource
+    with:
+      name:
+        type: str
+        value: ""
 
   - name: SimLibUVM
     with: {}
@@ -60,10 +80,14 @@ package:
         type: list
       args:
         type: list
+      compargs:
+        type: list
       elabargs:
         type: list
       trace:
         type: bool
+      dpilibs:
+        type: list
       vpilibs:
         type: list
       incdirs:
@@ -73,9 +97,6 @@ package:
 
 
   - name: SimRun
-    # Note what 'accepts'
-    # Note what 'requires'
-    # Note what 'produces'
     consumes:
     - filetype: simDir
     - filetype: systemVerilogDPI
@@ -85,6 +106,10 @@ package:
       args:
         type: list
       plusargs:
+        type: list
+      dpilibs:
+        type: list
+      vpilibs:
         type: list
       trace:
         type: bool

@@ -67,9 +67,13 @@ class VlSimImageBuilder(object):
         self.input = input
         data = VlSimImageData()
         data.top.extend(input.params.top)
+        data.args.extend(input.params.args)
+        data.compargs.extend(input.params.compargs)
         data.elabargs.extend(input.params.elabargs)
         data.incdirs.extend(input.params.incdirs)
         data.defines.extend(input.params.defines)
+        data.vpi.extend(input.params.vpilibs)
+        data.dpi.extend(input.params.dpilibs)
         data.trace = input.params.trace
         memento = ex_memento
 
@@ -157,6 +161,10 @@ class VlSimImageBuilder(object):
                             data.incdirs.append(dir)
                         data.files.append(path)
                     data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
+            elif fs.type == "hdlsim.SimCompileArgs":
+                data.compargs.extend(fs.args)
+                data.incdirs.extend(fs.incdirs)
+                data.defines.extend(fs.defines)
             elif fs.type == "hdlsim.SimElabArgs":
                 self._log.debug("fs.type=%s" % fs.type)
                 data.elabargs.extend(fs.args)

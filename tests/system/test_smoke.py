@@ -23,7 +23,7 @@ def get_available_sims():
             sims.append(sim)
     return sims
 
-@pytest.mark.skip(reason="skip test")
+#@pytest.mark.skip(reason="skip test")
 @pytest.mark.parametrize("sim", get_available_sims())
 def test_top(tmpdir, sim):
     data_dir = os.path.join(os.path.dirname(__file__), "data/smoke")
@@ -36,10 +36,11 @@ def test_top(tmpdir, sim):
         fp.write("""
 package:
   name: foo
-  imports:
+  with:
+    sim:
+      type: str
 """)
-        fp.write("  - name: hdlsim.%s\n" % sim)
-        fp.write("    as: hdlsim\n")
+        fp.write("      value: %s\n" % sim)
         fp.write("""
   tasks:
   - name: files
@@ -49,21 +50,24 @@ package:
       include: "*.sv"
 
   - name: build
-    uses: hdlsim.SimImage
+""")
+        fp.write("    uses: hdlsim.%s.SimImage\n" % sim)
+        fp.write("""
     with:
       top: [top]
     needs: [files]
 
   - name: run
-    uses: hdlsim.SimRun
+""") 
+        fp.write("    uses: hdlsim.%s.SimRun\n" % sim)
+        fp.write("""
     needs: [build]
 """)
         
     print("active log: %d" % logging.root.level)
 
     cmd = [
-        sys.executable, '-m', 'dv_flow.mgr', "-d",
-        "run", "run"
+        sys.executable, '-m', 'dv_flow.mgr', "run", "run"
     ]
     output = subprocess.check_call(cmd, cwd=os.path.join(tmpdir))
 

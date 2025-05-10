@@ -41,6 +41,16 @@ class SimRunner(VLSimRunner):
             os.path.join(data.imgdir, 'work')
         ]
 
+        for pli in data.vpilibs:
+            cmd.extend(['-pli', pli])
+        
+        for dpi in data.dpilibs:
+            dpi_libdir = os.path.dirname(dpi)
+            dpi_file = os.path.basename(dpi)
+            if dpi_file.rfind('.') > 0:
+                dpi_file = dpi_file[:dpi_file.rfind('.')]
+            cmd.extend(['-sv_lib', os.path.join(dpi_libdir, dpi_file)])
+
         for plusarg in data.plusargs:
             cmd.append("+%s" % plusarg)
         for arg in data.args:

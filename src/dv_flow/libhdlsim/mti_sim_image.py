@@ -49,6 +49,9 @@ class SimImageBuilder(VlSimImageBuilder):
             for define in data.defines:
                 cmd.append('+define+%s' % define)
 
+            cmd.extend(data.args)
+            cmd.extend(data.compargs)
+
             cmd.extend(data.files)
 
             status |= await self.runner.exec(cmd, logfile="build.log")
@@ -58,6 +61,9 @@ class SimImageBuilder(VlSimImageBuilder):
             cmd = ['vopt', '-o', 'simv_opt']
             for top in input.params.top:
                 cmd.append(top)
+
+            cmd.extend(data.args)
+            cmd.extend(data.elabargs)
 
             # Add in libraries
             for lib in data.libs:

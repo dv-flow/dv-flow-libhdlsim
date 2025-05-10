@@ -69,6 +69,9 @@ class VlSimLibBuilder(object):
             in_changed, str(ex_memento), input.changed))
 
         data = VlSimImageData()
+        data.compargs.extend(input.params.args)
+        data.incdirs.extend(input.params.incdirs)
+        data.defines.extend(input.params.defines)
         memento = ex_memento
 
         self._gatherSvSources(data, input)
@@ -126,27 +129,32 @@ class VlSimLibBuilder(object):
         # references must support transitivity
 
         for fs in input.inputs:
-            self._log.debug("fs.basedir=%s" % fs.basedir)
-            data.defines.extend(fs.defines)
-            if fs.filetype == "verilogIncDir":
-                data.incdirs.append(fs.basedir)
-            elif fs.filetype == "simLib":
-                if len(fs.files) > 0:
+            if fs.type == "std.FileSet":
+                self._log.debug("fs.basedir=%s" % fs.basedir)
+                data.defines.extend(fs.defines)
+                if fs.filetype == "verilogIncDir":
+                    data.incdirs.append(fs.basedir)
+                elif fs.filetype == "simLib":
+                    if len(fs.files) > 0:
+                        for file in fs.files:
+                            path = os.path.join(fs.basedir, file)
+                            self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))
+                            data.libs.append(path)
+                    else:
+                        data.libs.append(fs.basedir)
+                    data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
+                else:
                     for file in fs.files:
                         path = os.path.join(fs.basedir, file)
                         self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))
-                        data.libs.append(path)
-                else:
-                    data.libs.append(fs.basedir)
-                data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
-            else:
-                for file in fs.files:
-                    path = os.path.join(fs.basedir, file)
-                    self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))
-                    dir = os.path.dirname(path)
-                    if dir not in data.incdirs:
-                        data.incdirs.append(dir)
-                    data.files.append(path)
-                data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
+                        dir = os.path.dirname(path)
+                        if dir not in data.incdirs:
+                            data.incdirs.append(dir)
+                        data.files.append(path)
+                    data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
+            elif fs.type == "hdlsim.SimCompileArgs":
+                data.compargs.extend(fs.args)
+                data.incdirs.extend(fs.incdirs)
+                data.defines.extend(fs.defines)
 
 

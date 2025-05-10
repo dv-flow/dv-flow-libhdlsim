@@ -49,6 +49,8 @@ class VLSimRunner(object):
         data.plusargs = input.params.plusargs.copy()
         data.args = input.params.args.copy()
         data.trace = input.params.trace
+        data.dpilibs.extend(input.params.dpilibs)
+        data.vpilibs.extend(input.params.vpilibs)
 
         for inp in input.inputs:
             if inp.type == "std.FileSet":

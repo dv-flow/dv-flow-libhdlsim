@@ -45,6 +45,9 @@ class SimImage(VlSimImage):
         for define in data.defines:
             cmd.extend(['-define', define])
 
+        cmd.extend(data.args)
+        cmd.extend(data.compargs)
+
         cmd.extend(data.files)
 
         status |= await self.runnner.exec(cmd, logfile="xmvlog.log")
@@ -54,6 +57,9 @@ class SimImage(VlSimImage):
             cmd = ['xmelab', '-64bit', '-snap', 'simv:snap']
             for top in self.params.top:
                 cmd.append(top)
+
+            cmd.extend(data.args)
+            cmd.extend(data.elabargs)
 
             status |= await self.runner.exec(cmd, logfile="xmelab.log")
 

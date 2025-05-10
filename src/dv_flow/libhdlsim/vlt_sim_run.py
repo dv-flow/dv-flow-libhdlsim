@@ -36,11 +36,16 @@ class SimRunner(VLSimRunner):
             os.path.join(data.imgdir, 'obj_dir/simv'),
         ]
 
-        for f in data.args:
-            cmd.append(f)
+        cmd.extend(data.args)
 
         for p in data.plusargs:
             cmd.append("+%s" % p)
+
+        if len(data.dpilibs):
+            raise Exception("DPI libraries not supported yet")
+
+        if len(data.vpilibs):
+            raise Exception("VPI libraries not supported yet")
 
         if data.trace:
             cmd.append("+verilator+debug")

@@ -38,6 +38,14 @@ class SimRunner(VLSimRunner):
             '--runall'
         ]
 
+        cmd.extend(data.args)
+
+        if len(data.dpilibs):
+            raise Exception("DPI libraries not supported yet")
+
+        if len(data.vpilibs):
+            raise Exception("VPI libraries not supported by xsim")
+
         for plusarg in data.plusargs:
             cmd.extend(["--testplusarg",  plusarg])
 

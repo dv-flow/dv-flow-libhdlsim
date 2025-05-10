@@ -52,6 +52,16 @@ class SimImageBuilder(VlSimImageBuilder):
         if data.trace:
             cmd.append('--trace')
 
+        if len(data.dpi) > 0:
+            raise Exception("DPI not supported in VLT")
+
+        if len(data.vpi) > 0:
+            raise Exception("VPI not supported in VLT")
+
+        cmd.extend(data.args)
+        cmd.extend(data.compargs)
+        cmd.extend(data.elabargs)
+
         cmd.extend(data.files)
 
         for top in input.params.top:

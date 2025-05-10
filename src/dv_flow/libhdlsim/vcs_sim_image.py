@@ -56,6 +56,9 @@ class SimImageBuilder(VlSimImageBuilder):
             for define in data.defines:
                 cmd.append('+define+%s' % define)
 
+            cmd.extend(data.args)
+            cmd.extend(data.compargs)
+
             cmd.extend(data.files)
 
             status |= await self.runner.exec(cmd, logfile="vlogan.log")
@@ -64,6 +67,7 @@ class SimImageBuilder(VlSimImageBuilder):
 
         if status == 0:
             cmd = ['vcs', '-full64', '-partcomp', '-fastpartcomp=j4']
+            cmd.extend(data.args)
             cmd.extend(data.elabargs)
 
             if len(data.vpi):
@@ -71,6 +75,9 @@ class SimImageBuilder(VlSimImageBuilder):
 
                 for lib in data.vpi:
                     cmd.extend(["-load", lib])
+
+            if len(data.dpi):
+                raise Exception("DPI not yet supported") 
 
             cmd.extend(self.input.params.args)
 

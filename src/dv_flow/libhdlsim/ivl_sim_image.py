@@ -41,6 +41,13 @@ class SimImageBuilder(VlSimImageBuilder):
         for incdir in data.incdirs:
             cmd.extend(['-I', incdir])
 
+        for define in data.defines:
+            cmd.extend(['-D', define])
+
+        cmd.extend(data.args)
+        cmd.extend(data.compargs)
+        cmd.extend(data.elabargs)
+
         cmd.extend(data.files)
 
         for top in data.top:

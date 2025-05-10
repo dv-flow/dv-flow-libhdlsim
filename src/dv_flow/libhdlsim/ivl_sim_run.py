@@ -35,8 +35,16 @@ class SimRunner(VLSimRunner):
             os.path.join(data.imgdir, 'simv.vpp'),
         ]
 
+        if len(data.vpilibs):
+            raise Exception("VPI libraries not supported yet")
+        
+        if len(data.dpilibs):
+            raise Exception("Icarus Verilog does not support DPI libraries")
+
         for plusarg in data.plusargs:
             cmd.append("+%s" % plusarg)
+
+        cmd.extend(data.args)
 
         status |= await self.ctxt.exec(cmd, logfile="sim.log")
 

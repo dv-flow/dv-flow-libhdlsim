@@ -44,15 +44,27 @@ class SimImageBuilder(VlSimImageBuilder):
         for define in data.defines:
             cmd.extend(['-d', define])
 
+        cmd.extend(data.args)
+        cmd.extend(data.compargs)
+
         cmd.extend(data.files)
 
         status |= await self.runner.exec(cmd, logfile="xvlog.log")
 
-        # Now, run vopt
+        # Now, run xelab
         if not status:
             cmd = ['xelab', '--snapshot', 'simv.snap']
             for top in data.top:
                 cmd.append(top)
+
+            cmd.extend(data.args)
+            cmd.extend(data.elabargs)
+
+            if len(data.dpi) > 0:
+                raise Exception("DPI not supported in xsim")
+
+            if len(data.vpi) > 0:
+                raise Exception("VPI not supported in xsim")
 
             status |= await self.runner.exec(cmd, logfile="xelab.log")
 
