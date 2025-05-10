@@ -80,6 +80,7 @@ Parameters
 
 * **top** - [Required] List of top module names
 * **args** - [Optional] List of extra arguments to pass to the compilation and elaboration commands
+* **compargs** - [Optional] List of extra arguments to pass to the compilation commands
 * **elabargs** - [Optional] List of extra arguments to pass to the elaboration command
 * **vpilibs** - [Optional] List of VPI library paths to specify to the elaboration command
 * **dpilibs** - [Optional] List of DPI library paths to specify to the elaboration command
