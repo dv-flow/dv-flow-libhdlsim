@@ -44,23 +44,31 @@ package:
       defines:
         type: list
 
-  - name: SimVpiLib
+  - name: SimLibVPI
     consumes:
     - filetype: cSource
     - filetype: cppSource
     with:
-      name:
+      libname:
         type: str
         value: ""
+      incdirs:
+        type: list
+      defines:
+        type: list
 
-  - name: SimDpiLib
+  - name: SimLibDPI
     consumes:
     - filetype: cSource
     - filetype: cppSource
     with:
-      name:
+      libname:
         type: str
         value: ""
+      incdirs:
+        type: list
+      defines:
+        type: list
 
   - name: SimLibUVM
     with: {}
