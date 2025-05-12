@@ -131,7 +131,13 @@ class VlSimImageBuilder(object):
             if fs.type == "std.FileSet":
                 self._log.debug("fs.filetype=%s fs.basedir=%s" % (fs.filetype, fs.basedir))
                 data.defines.extend(fs.defines)
-                if fs.filetype == "verilogIncDir":
+
+                if fs.filetype == "cSource" or fs.filetype == "cppSource":
+                    for file in fs.files:
+                        path = os.path.join(fs.basedir, file)
+                        self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))
+                        data.csource.append(path)
+                elif fs.filetype == "verilogIncDir":
                     data.incdirs.append(fs.basedir)
                 elif fs.filetype == "simLib":
                     if len(fs.files) > 0:

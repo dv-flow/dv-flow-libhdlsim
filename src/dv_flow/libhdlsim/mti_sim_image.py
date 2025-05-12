@@ -41,7 +41,8 @@ class SimImageBuilder(VlSimImageBuilder):
             cmd = ['vlib', 'work']
             status |= await self.runner.exec(cmd, logfile="vlib.log")
 
-        if not status and len(data.files) > 0:
+        if not status and (len(data.files) > 0 or len(data.csource) > 0):
+            # Now, run vlog
             cmd = ['vlog', '-sv']
 
             for incdir in data.incdirs:
@@ -53,6 +54,8 @@ class SimImageBuilder(VlSimImageBuilder):
             cmd.extend(data.compargs)
 
             cmd.extend(data.files)
+
+            cmd.extend(data.csource)
 
             status |= await self.runner.exec(cmd, logfile="build.log")
 

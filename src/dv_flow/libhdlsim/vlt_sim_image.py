@@ -64,6 +64,8 @@ class SimImageBuilder(VlSimImageBuilder):
 
         cmd.extend(data.files)
 
+        cmd.extend(data.csource)
+
         for top in input.params.top:
             cmd.extend(['--top-module', top])
 

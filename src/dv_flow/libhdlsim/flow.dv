@@ -75,6 +75,8 @@ package:
 
   - name: SimImage
     consumes:
+    - filetype: cSource
+    - filetype: cppSource
     - filetype: systemVerilogSource 
     - filetype: simLib
     - filetype: verilogIncDir 

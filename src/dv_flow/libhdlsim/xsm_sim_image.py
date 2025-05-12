@@ -48,6 +48,7 @@ class SimImageBuilder(VlSimImageBuilder):
         cmd.extend(data.compargs)
 
         cmd.extend(data.files)
+        cmd.extend(data.csource)
 
         status |= await self.runner.exec(cmd, logfile="xvlog.log")
 
