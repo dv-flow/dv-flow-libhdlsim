@@ -116,6 +116,8 @@ Example
 Consumes
 --------
 
+* cSource
+* cppSource
 * simLib 
 * systemVerilogSource 
 * verilogIncDir 
