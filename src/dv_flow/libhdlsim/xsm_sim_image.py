@@ -23,6 +23,7 @@ import os
 from typing import List
 from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder
 from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
+from dv_flow.mgr import FileSet
 
 class SimImageBuilder(VlSimImageBuilder):
 
@@ -62,7 +63,11 @@ class SimImageBuilder(VlSimImageBuilder):
             cmd.extend(data.elabargs)
 
             if len(data.dpi) > 0:
-                raise Exception("DPI not supported in xsim")
+                for dpi in data.dpi:
+                    dpi = os.path.splitext(dpi)[0]  # Remove file extension
+                    cmd.extend([
+                        '--sv_root', os.path.dirname(dpi), 
+                        '--sv_lib', os.path.basename(dpi)])
 
             if len(data.vpi) > 0:
                 raise Exception("VPI not supported in xsim")
@@ -72,6 +77,14 @@ class SimImageBuilder(VlSimImageBuilder):
         if not status:
             with open(os.path.join(input.rundir, 'simv_opt.d'), "w") as fp:
                 fp.write("\n")
+
+        if len(data.dpi):
+            for dpi in data.dpi:
+                self.output.append(FileSet(
+                    basedir=os.path.dirname(dpi),
+                    files=[os.path.basename(dpi)],
+                    filetype="systemVerilogDPI"
+                ))
 
         return status
 
