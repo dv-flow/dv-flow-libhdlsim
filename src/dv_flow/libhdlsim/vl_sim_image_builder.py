@@ -163,8 +163,6 @@ class VlSimImageBuilder(object):
                         path = os.path.join(fs.basedir, file)
                         self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))
                         dir = os.path.dirname(path)
-                        if dir not in data.incdirs:
-                            data.incdirs.append(dir)
                         data.files.append(path)
                     data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
             elif fs.type == "hdlsim.SimCompileArgs":
