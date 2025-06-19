@@ -24,6 +24,7 @@ import asyncio
 from typing import List
 from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder
 from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
+from dv_flow.mgr import FileSet
 
 class SimImageBuilder(VlSimImageBuilder):
 
@@ -81,6 +82,14 @@ class SimImageBuilder(VlSimImageBuilder):
         if not status:
             with open(os.path.join(input.rundir, 'simv_opt.d'), "w") as fp:
                 fp.write("\n")
+
+        if len(data.dpi):
+            for dpi in data.dpi:
+                self.output.append(FileSet(
+                    basedir=os.path.dirname(dpi),
+                    files=[os.path.basename(dpi)],
+                    filetype="systemVerilogDPI"
+                ))
 
         return status
 

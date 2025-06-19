@@ -52,8 +52,22 @@ class SimImageBuilder(VlSimImageBuilder):
         if data.trace:
             cmd.append('--trace')
 
-        if len(data.dpi) > 0:
-            raise Exception("DPI not supported in VLT")
+        for dpi in data.dpi:
+            dir = os.path.dirname(dpi)
+            lib = os.path.splitext(os.path.basename(dpi))[0]
+
+            if lib.startswith('lib'):
+                lib = lib[3:]
+
+            cmd.append('-LDFLAGS')
+            cmd.append('-L%s' % dir)
+            cmd.append('-LDFLAGS')
+            cmd.append('-l%s' % lib)
+            cmd.append('-LDFLAGS')
+            cmd.append('-Wl,-rpath,%s' % dir)
+
+        if len(data.dpi):
+            cmd.extend(["-LDFLAGS", "-Wl,--export-dynamic"])
 
         if len(data.vpi) > 0:
             raise Exception("VPI not supported in VLT")

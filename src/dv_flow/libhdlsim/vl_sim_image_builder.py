@@ -39,6 +39,7 @@ class VlSimImageBuilder(object):
     runner : TaskRunCtxt
     input : Any = dc.field(default=None)
     markers : List = dc.field(default_factory=list)
+    output : List = dc.field(default_factory=list)
 
     _log : ClassVar = logging.getLogger("VlSimImage")
 
@@ -112,13 +113,15 @@ class VlSimImageBuilder(object):
         else:
             memento = VlTaskSimImageMemento(**memento)
 
+        self.output.append(FileSet(
+                src=input.name, 
+                filetype="simDir", 
+                basedir=input.rundir))
+
         return TaskDataResult(
             memento=memento if status == 0 else None,
             status=status,
-            output=[FileSet(
-                src=input.name, 
-                filetype="simDir", 
-                basedir=input.rundir)],
+            output=self.output,
             changed=in_changed,
             markers=self.markers
         )
