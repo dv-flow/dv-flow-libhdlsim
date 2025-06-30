@@ -124,6 +124,9 @@ package:
       trace:
         type: bool
 
+  - name: SimArgs
+    uses: hdlsim.SimCompileArgs
+
   types:
   - name: SimCompileArgs
     with:

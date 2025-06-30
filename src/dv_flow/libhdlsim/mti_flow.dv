@@ -27,6 +27,10 @@ package:
     uses: hdlsim.SimLib
     pytask: dv_flow.libhdlsim.mti_sim_lib.SimLib
 
+  - name: SimLibUVM
+    uses: hdlsim.SimLibUVM
+#    pytask: dv_flow.libhdlsim.mti_sim_lib.SimLibUVM
+
   - name: SimImage
     uses: hdlsim.SimImage
     pytask: dv_flow.libhdlsim.mti_sim_image.SimImage

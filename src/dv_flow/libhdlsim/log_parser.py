@@ -137,7 +137,18 @@ class LogParser(object):
                     self._path = "%s:%s" % (path[:p3_idx].strip(), line)
                     self._message = l[c2_idx+1:].strip()
                 self.emit_marker()
+            elif l.startswith("ERROR:") or l.startswith("WARNING:"):
+                self._kind = SeverityE.Warning if l.startswith("WARNING:") else SeverityE.Error
+                last_open = l.rfind('[')
+                first_colon = l.find(':')
 
+                if last_open != -1 and first_colon != -1:
+                    self._message = l[first_colon+1:last_open].strip()
+                    self._path = l[last_open+1:].strip()
+                    if self._path.endswith(']'):
+                        # Remove trailing ']'
+                        self._path = self._path[:-1].strip()
+                    self.emit_marker()
             else:
                 # Ignore
                 pass

@@ -30,6 +30,10 @@ package:
   - name: SimLib
     uses: hdlsim.SimLib
     passthrough: all
+
+  - name: SimLibUVM
+    uses: hdlsim.SimLibUVM
+    pytask: dv_flow.libhdlsim.xsm_sim_lib_uvm.SimLibUVM
   
   - name: SimRun
     uses: hdlsim.SimRun
