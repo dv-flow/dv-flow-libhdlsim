@@ -27,6 +27,11 @@ package:
     uses: hdlsim.SimLib
     passthrough: all 
 
+  - name: SimLibUVM
+    uses: hdlsim.SimLibUVM
+    shell: pytask
+    run: dv_flow.libhdlsim.xsm_sim_lib_uvm.SimLibUVM
+
   - name: SimImage
     uses: hdlsim.SimImage
     pytask: dv_flow.libhdlsim.xsm_sim_image.SimImage
