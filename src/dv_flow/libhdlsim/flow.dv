@@ -112,6 +112,7 @@ package:
     - filetype: systemVerilogDPI
     - filetype: verilogVPI
     - type: hdlsim.SimRunArgs
+    - type: simRunData
     with:
       args:
         type: list
