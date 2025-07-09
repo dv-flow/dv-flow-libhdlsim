@@ -40,7 +40,8 @@ class SimImageBuilder(VlSimImageBuilder):
         cmd = ['xvlog', '--sv']
 
         for incdir in data.incdirs:
-            cmd.extend(['-i', incdir])
+            if len(incdir.strip()) > 0:
+                cmd.extend(['-i', incdir])
 
         for define in data.defines:
             cmd.extend(['-d', define])
@@ -52,6 +53,8 @@ class SimImageBuilder(VlSimImageBuilder):
         cmd.extend(data.csource)
 
         status |= await self.runner.exec(cmd, logfile="xvlog.log")
+
+        self.parseLog(os.path.join(input.rundir, "xvlog.log"))
 
         # Now, run xelab
         if not status:

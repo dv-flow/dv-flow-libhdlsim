@@ -141,13 +141,15 @@ class VlSimImageBuilder(object):
                         self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))
                         data.csource.append(path)
                 elif fs.filetype == "verilogIncDir":
-                    data.incdirs.append(fs.basedir)
+                    if len(fs.basedir.strip()) > 0:
+                        data.incdirs.append(fs.basedir)
                 elif fs.filetype == "simLib":
                     if len(fs.files) > 0:
                         for file in fs.files:
                             path = os.path.join(fs.basedir, file)
                             self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))
-                            data.libs.append(path)
+                            if len(path.strip()) > 0:
+                                data.libs.append(path)
                     else:
                         data.libs.append(fs.basedir)
                     data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
@@ -170,7 +172,9 @@ class VlSimImageBuilder(object):
                     data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
             elif fs.type == "hdlsim.SimCompileArgs":
                 data.compargs.extend(fs.args)
-                data.incdirs.extend(fs.incdirs)
+                for inc in fs.incdirs:
+                    if len(inc.strip()) > 0:
+                        data.incdirs.append(inc)
                 data.defines.extend(fs.defines)
             elif fs.type == "hdlsim.SimElabArgs":
                 self._log.debug("fs.type=%s" % fs.type)
