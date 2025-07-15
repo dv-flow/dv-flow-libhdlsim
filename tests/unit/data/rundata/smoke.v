@@ -2,8 +2,11 @@
 module smoke;
 
     int fp;
-//    reg[7:0] data[0:255];
+`ifdef __ICARUS__
+    reg[128*8-1:0] data;
+`else
     string data;
+`endif
     initial begin
 
         fp = $fopen("smoke.dat", "r");

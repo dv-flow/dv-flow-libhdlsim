@@ -34,6 +34,7 @@ from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
 
 from svdep import FileCollection, TaskCheckUpToDate, TaskBuildFileCollection
 from dv_flow.libhdlsim.vl_sim_image_builder import VlTaskSimImageMemento
+from .util import merge_tokenize
 
 @dc.dataclass
 class VlSimLibBuilder(object):
@@ -69,9 +70,9 @@ class VlSimLibBuilder(object):
             in_changed, str(ex_memento), input.changed))
 
         data = VlSimImageData()
-        data.compargs.extend(input.params.args)
+        data.compargs.extend(merge_tokenize(input.params.args))
         data.incdirs.extend(input.params.incdirs)
-        data.defines.extend(input.params.defines)
+        data.defines.extend(merge_tokenize(input.params.defines))
         memento = ex_memento
 
         self._gatherSvSources(data, input)

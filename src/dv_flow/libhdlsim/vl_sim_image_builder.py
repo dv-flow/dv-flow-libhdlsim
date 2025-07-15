@@ -33,6 +33,7 @@ from dv_flow.libhdlsim.log_parser import LogParser
 from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
 
 from svdep import FileCollection, TaskCheckUpToDate, TaskBuildFileCollection
+from .util import merge_tokenize
 
 @dc.dataclass
 class VlSimImageBuilder(object):
@@ -68,11 +69,11 @@ class VlSimImageBuilder(object):
         self.input = input
         data = VlSimImageData()
         data.top.extend(input.params.top)
-        data.args.extend(input.params.args)
-        data.compargs.extend(input.params.compargs)
-        data.elabargs.extend(input.params.elabargs)
-        data.incdirs.extend(input.params.incdirs)
-        data.defines.extend(input.params.defines)
+        data.args.extend(merge_tokenize(input.params.args))
+        data.compargs.extend(merge_tokenize(input.params.compargs))
+        data.elabargs.extend(merge_tokenize(input.params.elabargs))
+        data.incdirs.extend(merge_tokenize(input.params.incdirs))
+        data.defines.extend(merge_tokenize(input.params.defines))
         data.vpi.extend(input.params.vpilibs)
         data.dpi.extend(input.params.dpilibs)
         data.trace = input.params.trace

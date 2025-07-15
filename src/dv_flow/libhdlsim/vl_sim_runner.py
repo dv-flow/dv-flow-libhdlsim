@@ -32,6 +32,7 @@ from dv_flow.libhdlsim.vl_sim_data import VlSimRunData
 
 from svdep import FileCollection, TaskCheckUpToDate, TaskBuildFileCollection
 from dv_flow.libhdlsim.vl_sim_image_builder import VlTaskSimImageMemento
+from .util import merge_tokenize
 
 @dc.dataclass
 class VLSimRunner(object):
@@ -75,9 +76,9 @@ class VLSimRunner(object):
                     sim_data.append(inp)
             elif inp.type == "hdlsim.SimRunArgs":
                 if inp.args:
-                    data.args.extend(inp.args)
+                    data.args.extend(merge_tokenize(inp.args))
                 if inp.plusargs:
-                    data.plusargs.extend(inp.plusargs)
+                    data.plusargs.extend(merge_tokenize(inp.plusargs))
                 if inp.vpilibs:
                     data.vpilibs.extend(inp.vpilibs)
                 if inp.dpilibs:
