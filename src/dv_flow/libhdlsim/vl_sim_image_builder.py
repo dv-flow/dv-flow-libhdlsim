@@ -172,14 +172,14 @@ class VlSimImageBuilder(object):
                         data.files.append(path)
                     data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
             elif fs.type == "hdlsim.SimCompileArgs":
-                data.compargs.extend(fs.args)
+                data.compargs.extend(merge_tokenize(fs.args))
                 for inc in fs.incdirs:
                     if len(inc.strip()) > 0:
                         data.incdirs.append(inc)
                 data.defines.extend(fs.defines)
             elif fs.type == "hdlsim.SimElabArgs":
                 self._log.debug("fs.type=%s" % fs.type)
-                data.elabargs.extend(fs.args)
+                data.elabargs.extend(merge_tokenize(fs.args))
                 data.vpi.extend(fs.vpilibs)
                 data.dpi.extend(fs.dpilibs)
 

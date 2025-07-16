@@ -152,7 +152,7 @@ class VlSimLibBuilder(object):
                         data.files.append(path)
                     data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
             elif fs.type == "hdlsim.SimCompileArgs":
-                data.compargs.extend(fs.args)
+                data.compargs.extend(merge_tokenize(fs.args))
                 data.incdirs.extend(fs.incdirs)
                 data.defines.extend(fs.defines)
 
