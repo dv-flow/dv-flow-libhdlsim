@@ -144,6 +144,8 @@ class VlSimImageBuilder(object):
                 elif fs.filetype == "verilogIncDir":
                     if len(fs.basedir.strip()) > 0:
                         data.incdirs.append(fs.basedir)
+                elif fs.filetype in ("verilogInclude", "systemVerilogInclude"):
+                    data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
                 elif fs.filetype == "simLib":
                     if len(fs.files) > 0:
                         for file in fs.files:

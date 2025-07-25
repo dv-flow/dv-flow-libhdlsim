@@ -135,6 +135,8 @@ class VlSimLibBuilder(object):
                 data.defines.extend(fs.defines)
                 if fs.filetype == "verilogIncDir":
                     data.incdirs.append(fs.basedir)
+                elif fs.filetype in ("verilogInclude", "systemVerilogInclude"):
+                    data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
                 elif fs.filetype == "simLib":
                     if len(fs.files) > 0:
                         for file in fs.files:

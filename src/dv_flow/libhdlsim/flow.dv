@@ -29,7 +29,9 @@ package:
     passthrough: unused
     consumes:
     - filetype: simLib
+    - filetype: systemVerilogInclude 
     - filetype: systemVerilogSource 
+    - filetype: verilogInclude 
     - filetype: verilogIncDir 
     - filetype: verilogSource 
     - type: hdlsim.SimCompileArgs
@@ -77,9 +79,11 @@ package:
     consumes:
     - filetype: cSource
     - filetype: cppSource
+    - filetype: systemVerilogInclude 
     - filetype: systemVerilogSource 
     - filetype: simLib
     - filetype: verilogIncDir 
+    - filetype: verilogInclude 
     - filetype: verilogSource 
     - filetype: systemVerilogDPI
     - filetype: verilogVPI
