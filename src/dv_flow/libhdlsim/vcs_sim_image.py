@@ -61,6 +61,10 @@ class SimImageBuilder(VlSimImageBuilder):
 
             cmd.extend(data.files)
 
+            with open(os.path.join(input.rundir, 'vlogan.f'), 'w') as fh:
+                for elem in cmd[1:]:
+                    fh.write("%s\n" % elem)
+
             status |= await self.runner.exec(cmd, logfile="vlogan.log")
 
             self.parseLog(os.path.join(input.rundir, 'vlogan.log'))

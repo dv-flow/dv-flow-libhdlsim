@@ -32,6 +32,7 @@ from dv_flow.libhdlsim.vl_sim_data import VlSimRunData
 
 from svdep import FileCollection, TaskCheckUpToDate, TaskBuildFileCollection
 from dv_flow.libhdlsim.vl_sim_image_builder import VlTaskSimImageMemento
+from .util import merge_tokenize
 
 @dc.dataclass
 class VLSimRunner(object):
@@ -52,6 +53,8 @@ class VLSimRunner(object):
         data.dpilibs.extend(input.params.dpilibs)
         data.vpilibs.extend(input.params.vpilibs)
 
+        sim_data = []
+
         for inp in input.inputs:
             if inp.type == "std.FileSet":
                 if inp.filetype == "simDir":
@@ -69,21 +72,28 @@ class VLSimRunner(object):
                 elif inp.filetype == "verilogVPI":
                     for f in inp.files:
                         data.vpilibs.append(os.path.join(inp.basedir, f))
+                elif inp.filetype == "simRunData":
+                    sim_data.append(inp)
             elif inp.type == "hdlsim.SimRunArgs":
                 if inp.args:
-                    data.args.extend(inp.args)
+                    data.args.extend(merge_tokenize(inp.args))
                 if inp.plusargs:
-                    data.plusargs.extend(inp.plusargs)
+                    data.plusargs.extend(merge_tokenize(inp.plusargs))
                 if inp.vpilibs:
                     data.vpilibs.extend(inp.vpilibs)
                 if inp.dpilibs:
                     data.dpilibs.extend(inp.dpilibs)
+
 
         if data.imgdir is None:
             self.markers.append(TaskMarker(
                 severity=SeverityE.Error,
                 msg="No simDir input"))
             status = 1
+
+        # Handle simRunData inputs
+        self.copy_sim_data(sim_data)
+
 
         if not status:
             status |= await self.runsim(data)
@@ -102,4 +112,15 @@ class VLSimRunner(object):
             severity=SeverityE.Error,
             msg="No runsim implemenetation"))
         return 1
+    
+    def copy_sim_data(self, sim_data : List[FileSet]):
+        for ds in sim_data:
+            for f in ds.files:
+                src_f = os.path.join(ds.basedir, f)
+                dst_f = os.path.join(self.rundir, f)
+                dst_d = os.path.dirname(dst_f)
+                if not os.path.exists(dst_d):
+                    os.makedirs(dst_d)
+                shutil.copy2(src_f, dst_f)
+                logging.info(f"Copied {src_f} to {dst_f}")
     

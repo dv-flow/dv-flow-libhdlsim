@@ -33,6 +33,7 @@ from dv_flow.libhdlsim.log_parser import LogParser
 from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
 
 from svdep import FileCollection, TaskCheckUpToDate, TaskBuildFileCollection
+from .util import merge_tokenize
 
 @dc.dataclass
 class VlSimImageBuilder(object):
@@ -68,11 +69,11 @@ class VlSimImageBuilder(object):
         self.input = input
         data = VlSimImageData()
         data.top.extend(input.params.top)
-        data.args.extend(input.params.args)
-        data.compargs.extend(input.params.compargs)
-        data.elabargs.extend(input.params.elabargs)
-        data.incdirs.extend(input.params.incdirs)
-        data.defines.extend(input.params.defines)
+        data.args.extend(merge_tokenize(input.params.args))
+        data.compargs.extend(merge_tokenize(input.params.compargs))
+        data.elabargs.extend(merge_tokenize(input.params.elabargs))
+        data.incdirs.extend(merge_tokenize(input.params.incdirs))
+        data.defines.extend(merge_tokenize(input.params.defines))
         data.vpi.extend(input.params.vpilibs)
         data.dpi.extend(input.params.dpilibs)
         data.trace = input.params.trace
@@ -143,6 +144,8 @@ class VlSimImageBuilder(object):
                 elif fs.filetype == "verilogIncDir":
                     if len(fs.basedir.strip()) > 0:
                         data.incdirs.append(fs.basedir)
+                elif fs.filetype in ("verilogInclude", "systemVerilogInclude"):
+                    data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
                 elif fs.filetype == "simLib":
                     if len(fs.files) > 0:
                         for file in fs.files:
@@ -171,14 +174,14 @@ class VlSimImageBuilder(object):
                         data.files.append(path)
                     data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
             elif fs.type == "hdlsim.SimCompileArgs":
-                data.compargs.extend(fs.args)
+                data.compargs.extend(merge_tokenize(fs.args))
                 for inc in fs.incdirs:
                     if len(inc.strip()) > 0:
                         data.incdirs.append(inc)
                 data.defines.extend(fs.defines)
             elif fs.type == "hdlsim.SimElabArgs":
                 self._log.debug("fs.type=%s" % fs.type)
-                data.elabargs.extend(fs.args)
+                data.elabargs.extend(merge_tokenize(fs.args))
                 data.vpi.extend(fs.vpilibs)
                 data.dpi.extend(fs.dpilibs)
 

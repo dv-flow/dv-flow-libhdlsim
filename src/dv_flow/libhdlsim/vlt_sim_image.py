@@ -83,6 +83,10 @@ class SimImageBuilder(VlSimImageBuilder):
         for top in input.params.top:
             cmd.extend(['--top-module', top])
 
+        with open(os.path.join(input.rundir, "build.f"), "w") as fp:
+            for elem in cmd[1:]:
+                fp.write("%s\n" % elem)
+
         status |= await self.runner.exec(cmd, logfile="build.log")
 
         # Parse the log for warnings and error

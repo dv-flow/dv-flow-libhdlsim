@@ -159,6 +159,7 @@ Consumes
 * systemVerilogDPI
 * verilogVPI
 * hdlsim.SimRunArgs
+* simRunData -- Files to copy to the run directory
 
 
 Produces
