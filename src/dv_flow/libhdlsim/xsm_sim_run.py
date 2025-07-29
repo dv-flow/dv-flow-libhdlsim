@@ -40,8 +40,11 @@ class SimRunner(VLSimRunner):
 
         cmd.extend(data.args)
 
-        if len(data.dpilibs):
-            raise Exception("DPI libraries not supported yet")
+        # for dpi in data.dpilibs:
+        #     dpi = os.path.splitext(dpi)[0]  # Remove file extension
+        #     cmd.extend([
+        #         '--sv_root', os.path.dirname(dpi), 
+        #         '--sv_lib', os.path.basename(dpi)])
 
         if len(data.vpilibs):
             raise Exception("VPI libraries not supported by xsim")

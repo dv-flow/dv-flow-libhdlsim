@@ -12,6 +12,8 @@ class VlSimImageData(object):
     libs : List[str] = dc.field(default_factory=list)
     dpi : List[str] = dc.field(default_factory=list)
     vpi : List[str] = dc.field(default_factory=list)
+    csource : List[str] = dc.field(default_factory=list)
+    cincdirs : List[str] = dc.field(default_factory=list)
     top : List[str] = dc.field(default_factory=list)
     trace : bool = dc.field(default=False)
 

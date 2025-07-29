@@ -23,19 +23,18 @@ package:
   name: hdlsim.xsm
 
   tasks:
-  - name: SimLib
-    uses: hdlsim.SimLib
-    passthrough: all 
-
-  - name: SimLibUVM
-    uses: hdlsim.SimLibUVM
-    shell: pytask
-    run: dv_flow.libhdlsim.xsm_sim_lib_uvm.SimLibUVM
-
   - name: SimImage
     uses: hdlsim.SimImage
     pytask: dv_flow.libhdlsim.xsm_sim_image.SimImage
+  
+  - name: SimLib
+    uses: hdlsim.SimLib
+    passthrough: all
 
+  - name: SimLibUVM
+    uses: hdlsim.SimLibUVM
+    pytask: dv_flow.libhdlsim.xsm_sim_lib_uvm.SimLibUVM
+  
   - name: SimRun
     uses: hdlsim.SimRun
     pytask: dv_flow.libhdlsim.xsm_sim_run.SimRun

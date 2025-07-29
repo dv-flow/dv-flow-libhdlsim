@@ -75,6 +75,8 @@ package:
 
   - name: SimImage
     consumes:
+    - filetype: cSource
+    - filetype: cppSource
     - filetype: systemVerilogSource 
     - filetype: simLib
     - filetype: verilogIncDir 
@@ -121,6 +123,9 @@ package:
         type: list
       trace:
         type: bool
+
+  - name: SimArgs
+    uses: hdlsim.SimCompileArgs
 
   types:
   - name: SimCompileArgs
