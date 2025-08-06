@@ -28,6 +28,7 @@ from typing import List
 from dv_flow.libhdlsim.vl_sim_lib_builder import VlSimLibBuilder
 from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
 from dv_flow.mgr.task_data import TaskMarker, TaskMarkerLoc
+from .vcs_log_parser import VcsLogParser
 
 class SimLibBuilder(VlSimLibBuilder):
 
@@ -40,6 +41,7 @@ class SimLibBuilder(VlSimLibBuilder):
     async def build(self, input, data : VlSimImageData):
 
         status = 0
+        changed = input.changed
 
         if not os.path.isdir(os.path.join(input.rundir, input.params.libname)):
             os.makedirs(os.path.join(input.rundir, input.params.libname), exist_ok=True)
@@ -48,7 +50,8 @@ class SimLibBuilder(VlSimLibBuilder):
         data.libs.insert(0, os.path.join(input.rundir, input.params.libname))
         self.runner.create("synopsys_sim.setup", 
                            "\n".join(("%s: %s\n" % (os.path.basename(lib), lib)) for lib in data.libs))
-        cmd = ['vlogan', '-full64', '-sverilog', '-work', input.params.libname]
+        cmd = ['vlogan', '-full64', '-sverilog', '-incr_vlogan',
+               '-work', input.params.libname]
 
         for incdir in data.incdirs:
             cmd.append('+incdir+%s' % incdir)
@@ -60,8 +63,17 @@ class SimLibBuilder(VlSimLibBuilder):
 
         cmd.extend(data.files)
 
+        def notify_parsing():
+            nonlocal changed
+            changed = True
 
-        status |= await self.runner.exec(cmd, logfile="vlogan.log")
+        status |= await self.runner.exec(
+            cmd, 
+            logfile="vlogan.log",
+            logfilter=VcsLogParser(
+                notify=lambda m: self.ctxt.add_marker(m),
+                notify_parsing=notify_parsing
+            ).line)
 
         # Pull in error/warning markers
         self.parseLog(os.path.join(input.rundir, 'vlogan.log'))
@@ -69,7 +81,7 @@ class SimLibBuilder(VlSimLibBuilder):
         if not status:
             Path(os.path.join(input.rundir, 'simlib.d')).touch()
 
-        return status
+        return (status, changed)
 
 async def SimLib(runner, input):
     builder = SimLibBuilder(runner)

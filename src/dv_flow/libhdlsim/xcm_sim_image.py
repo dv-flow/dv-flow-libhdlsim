@@ -20,7 +20,7 @@
 #*
 #****************************************************************************
 import os
-from typing import List
+from typing import List, Tuple
 from dv_flow.mgr import Task, TaskData
 from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImage
 from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
@@ -33,9 +33,10 @@ class SimImage(VlSimImage):
         else:
             raise Exception("simv_opt.d file (%s) does not exist" % os.path.join(rundir, 'simv_opt.d'))
     
-    async def build(self, data : VlSimImageData):
+    async def build(self, data : VlSimImageData) -> Tuple[int,bool]:
         cmd = []
         status = 0
+        changed = False
 
         cmd = ['xmvlog', '-sv', '-64bit']
 
@@ -50,9 +51,11 @@ class SimImage(VlSimImage):
 
         cmd.extend(data.files)
 
-        status |= await self.runnner.exec(cmd, logfile="xmvlog.log")
+        status |= await self.runnner.exec(
+            cmd, 
+            logfile="xmvlog.log")
 
-        # Now, run vopt
+        # Now, run elaboration
         if not status:
             cmd = ['xmelab', '-64bit', '-snap', 'simv:snap']
             for top in self.params.top:
@@ -63,4 +66,4 @@ class SimImage(VlSimImage):
 
             status |= await self.runner.exec(cmd, logfile="xmelab.log")
 
-        return status
+        return (status, changed)

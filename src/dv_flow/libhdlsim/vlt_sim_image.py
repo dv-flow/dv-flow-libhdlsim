@@ -27,6 +27,7 @@ from dv_flow.mgr import TaskDataResult, TaskRunCtxt
 from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder
 from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
 from dv_flow.mgr.task_data import TaskMarker, TaskMarkerLoc
+from .vlt_log_parser import VltLogParser
 
 class SimImageBuilder(VlSimImageBuilder):
 
@@ -40,6 +41,7 @@ class SimImageBuilder(VlSimImageBuilder):
 
     async def build(self, input, data : VlSimImageData):
         status = 0
+        changed = True
         cmd = ['verilator', '--binary', '-o', 'simv', '-Wno-fatal']
 
         cmd.extend(['-j', '0'])
@@ -87,14 +89,24 @@ class SimImageBuilder(VlSimImageBuilder):
             for elem in cmd[1:]:
                 fp.write("%s\n" % elem)
 
-        status |= await self.runner.exec(cmd, logfile="build.log")
+        def no_changes():
+            nonlocal changed
+            changed = False
+
+        status |= await self.ctxt.exec(
+            cmd, 
+            logfile="build.log",
+            logfilter=VltLogParser(
+                notify=lambda m: self.ctxt.add_marker(m),
+                no_changes=no_changes
+            ).line)
 
         # Parse the log for warnings and error
         self.parseLog(os.path.join(input.rundir, 'build.log'))
 
-        return status
+        return (status, changed)
 
-async def SimImage(runner, input) -> TaskDataResult:
-    builder = SimImageBuilder(runner)
-    return await builder.run(runner, input)
+async def SimImage(ctxt, input) -> TaskDataResult:
+    builder = SimImageBuilder(ctxt)
+    return await builder.run(ctxt, input)
 

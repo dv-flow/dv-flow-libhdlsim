@@ -126,6 +126,7 @@ def test_define_simimg_compargs(tmpdir, request, sim):
     out_l = asyncio.run(runner.run([sim_run]))
 
     assert runner.status == 0
+    assert sim_img.result.changed
 
     for out in out_l:
         rundir_fs = None

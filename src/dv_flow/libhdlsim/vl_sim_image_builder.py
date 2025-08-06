@@ -32,22 +32,22 @@ from typing import Any, ClassVar, List, Tuple
 from dv_flow.libhdlsim.log_parser import LogParser
 from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
 
-from svdep import FileCollection, TaskCheckUpToDate, TaskBuildFileCollection
 from .util import merge_tokenize
 
 @dc.dataclass
 class VlSimImageBuilder(object):
-    runner : TaskRunCtxt
+    ctxt : TaskRunCtxt
     input : Any = dc.field(default=None)
     markers : List = dc.field(default_factory=list)
     output : List = dc.field(default_factory=list)
+    memento : Any = dc.field(default=None)
 
     _log : ClassVar = logging.getLogger("VlSimImage")
 
     def getRefTime(self, rundir):
         raise NotImplementedError()
 
-    async def build(self, input, data : VlSimImageData):
+    async def build(self, input, data : VlSimImageData) -> Tuple[int,bool]:
         raise NotImplementedError()
 
     def parseLog(self, log):
@@ -56,15 +56,10 @@ class VlSimImageBuilder(object):
             for line in fp.readlines():
                 parser.line(line)
 
-    async def run(self, runner, input) -> TaskDataResult:
+    async def run(self, ctxt, input) -> TaskDataResult:
         for f in os.listdir(input.rundir):
             self._log.debug("sub-elem: %s" % f)
         status = 0
-        ex_memento = input.memento
-        in_changed = (ex_memento is None or input.changed)
-
-        self._log.debug("in_changed: %s ; ex_memento: %s input.changed: %s" % (
-            in_changed, str(ex_memento), input.changed))
 
         self.input = input
         data = VlSimImageData()
@@ -77,42 +72,14 @@ class VlSimImageBuilder(object):
         data.vpi.extend(input.params.vpilibs)
         data.dpi.extend(input.params.dpilibs)
         data.trace = input.params.trace
-        memento = ex_memento
 
         self._gatherSvSources(data, input)
 
-        self._log.debug("files: %s in_changed=%s" % (str(data.files), in_changed))
+        self._log.debug("files: %s" % str(data.files))
 
-        if not in_changed:
-            try:
-                ref_mtime = self.getRefTime(input.rundir)
-                info = FileCollection.from_dict(ex_memento["svdeps"])
-                in_changed = not TaskCheckUpToDate(data.files, data.incdirs).check(info, ref_mtime)
-            except Exception as e:
-                self._log.warning("Unexpected output-directory format (%s). Rebuilding" % str(e))
-                shutil.rmtree(input.rundir)
-                os.makedirs(input.rundir)
-                in_changed = True
+        status,in_changed = await self.build(input, data)
 
-        self._log.debug("in_changed=%s" % in_changed)
-        if in_changed:
-            memento = VlTaskSimImageMemento()
 
-            # First, create dependency information
-            try:
-                info = TaskBuildFileCollection(data.files, data.incdirs).build()
-                memento.svdeps = info.to_dict()
-            except Exception as e:
-                self._log.error("Failed to build file collection: %s" % str(e))
-                self.markers.append(TaskMarker(
-                    severity="error",
-                    msg="Dependency-checking failed: %s" % str(e)))
-                status = 1
-
-            if status == 0:
-                status = await self.build(input, data) 
-        else:
-            memento = VlTaskSimImageMemento(**memento)
 
         self.output.append(FileSet(
                 src=input.name, 
@@ -120,7 +87,7 @@ class VlSimImageBuilder(object):
                 basedir=input.rundir))
 
         return TaskDataResult(
-            memento=memento if status == 0 else None,
+            memento=self.memento if status == 0 else None,
             status=status,
             output=self.output,
             changed=in_changed,

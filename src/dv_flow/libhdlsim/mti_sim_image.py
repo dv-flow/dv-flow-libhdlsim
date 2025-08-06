@@ -25,6 +25,7 @@ from typing import List
 from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder
 from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
 from dv_flow.mgr import FileSet
+from .mti_log_parser import MtiLogParser
 
 class SimImageBuilder(VlSimImageBuilder):
 
@@ -37,14 +38,15 @@ class SimImageBuilder(VlSimImageBuilder):
     async def build(self, input, data : VlSimImageData):
         cmd = []
         status = 0
+        changed = False
 
         if not os.path.isdir(os.path.join(input.rundir, 'work')):
             cmd = ['vlib', 'work']
-            status |= await self.runner.exec(cmd, logfile="vlib.log")
+            status |= await self.ctxt.exec(cmd, logfile="vlib.log")
 
         if not status and (len(data.files) > 0 or len(data.csource) > 0):
             # Now, run vlog
-            cmd = ['vlog', '-sv']
+            cmd = ['vlog', '-sv', '-incr']
 
             for incdir in data.incdirs:
                 cmd.append('+incdir+%s' % incdir)
@@ -58,7 +60,17 @@ class SimImageBuilder(VlSimImageBuilder):
 
             cmd.extend(data.csource)
 
-            status |= await self.runner.exec(cmd, logfile="build.log")
+            def notify_comp():
+                nonlocal changed
+                changed = True
+
+            status |= await self.ctxt.exec(
+                cmd, 
+                logfile="build.log",
+                logfilter=MtiLogParser(
+                    notify=lambda m: self.ctxt.add_marker(m),
+                    notify_comp=notify_comp
+                ).line)
 
         # Now, run vopt
         if not status:
@@ -77,7 +89,7 @@ class SimImageBuilder(VlSimImageBuilder):
             
             self._log.debug("vopt cmd: %s" % str(cmd))
 
-            status |= await self.runner.exec(cmd, logfile="vopt.log")
+            status |= await self.ctxt.exec(cmd, logfile="vopt.log")
 
         if not status:
             with open(os.path.join(input.rundir, 'simv_opt.d'), "w") as fp:
@@ -91,8 +103,8 @@ class SimImageBuilder(VlSimImageBuilder):
                     filetype="systemVerilogDPI"
                 ))
 
-        return status
+        return (status, changed)
 
-async def SimImage(runner, input):
-    builder = SimImageBuilder(runner)
-    return await builder.run(runner, input)
+async def SimImage(ctxt, input):
+    builder = SimImageBuilder(ctxt)
+    return await builder.run(ctxt, input)

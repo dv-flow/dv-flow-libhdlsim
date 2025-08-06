@@ -25,10 +25,9 @@ import logging
 import shutil
 import dataclasses as dc
 from pydantic import BaseModel
-from toposort import toposort
 from dv_flow.mgr import FileSet, TaskDataResult, TaskRunCtxt
 from dv_flow.mgr.task_data import TaskMarker, TaskMarkerLoc, SeverityE
-from typing import ClassVar, List, Tuple
+from typing import Any, ClassVar, List, Tuple
 from dv_flow.libhdlsim.log_parser import LogParser
 from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
 
@@ -40,6 +39,7 @@ from .util import merge_tokenize
 class VlSimLibBuilder(object):
     runner : TaskRunCtxt
     markers : List = dc.field(default_factory=list)
+    memento : Any = dc.field(default=None)
 
     _log : ClassVar = logging.getLogger("VlSimLib")
 
@@ -130,32 +130,51 @@ class VlSimLibBuilder(object):
         # references must support transitivity
 
         for fs in input.inputs:
-            if fs.type == "std.FileSet":
-                self._log.debug("fs.basedir=%s" % fs.basedir)
-                data.defines.extend(fs.defines)
-                if fs.filetype == "verilogIncDir":
-                    data.incdirs.append(fs.basedir)
-                elif fs.filetype in ("verilogInclude", "systemVerilogInclude"):
-                    data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
-                elif fs.filetype == "simLib":
-                    if len(fs.files) > 0:
-                        for file in fs.files:
-                            path = os.path.join(fs.basedir, file)
-                            self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))
-                            data.libs.append(path)
-                    else:
-                        data.libs.append(fs.basedir)
-                    data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
-                else:
+            self._processDataset(data, fs)
+
+    def _processDataset(self, data : VlSimImageData, fs):
+        if fs.type == "std.FileSet":
+            self._log.debug("fs.basedir=%s" % fs.basedir)
+            data.defines.extend(fs.defines)
+            if fs.filetype == "verilogIncDir":
+                data.incdirs.append(fs.basedir)
+            elif fs.filetype in ("verilogInclude", "systemVerilogInclude"):
+                data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
+            elif fs.filetype == "simLib":
+                if len(fs.files) > 0:
                     for file in fs.files:
                         path = os.path.join(fs.basedir, file)
                         self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))
-                        dir = os.path.dirname(path)
-                        data.files.append(path)
-                    data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
-            elif fs.type == "hdlsim.SimCompileArgs":
-                data.compargs.extend(merge_tokenize(fs.args))
-                data.incdirs.extend(fs.incdirs)
-                data.defines.extend(fs.defines)
+                        data.libs.append(path)
+                else:
+                    data.libs.append(fs.basedir)
+                data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
+            else:
+                for file in fs.files:
+                    path = os.path.join(fs.basedir, file)
+                    self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))
+                    dir = os.path.dirname(path)
+                    data.files.append(path)
+                data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
+        elif fs.type == "hdlsim.SimCompileArgs":
+            data.compargs.extend(merge_tokenize(fs.args))
+            data.incdirs.extend(fs.incdirs)
+            data.defines.extend(fs.defines)
+        pass
+
+class at(object):
+
+    @staticmethod
+    def sync(T):
+        pass
+
+@dc.dataclass
+class Counter(Module):
+    param : Param[T]
+    count : Output[Logic[4]] = zsp.field(reset=lambda self: self.param)
+
+    @at.sync
+    def counter(self):
+        self.count = se
 
 

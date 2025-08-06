@@ -24,6 +24,7 @@ from typing import List
 from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder
 from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
 from dv_flow.mgr import FileSet
+from .xsm_log_parser import XsmLogParser
 
 class SimImageBuilder(VlSimImageBuilder):
 
@@ -36,8 +37,9 @@ class SimImageBuilder(VlSimImageBuilder):
     async def build(self, input, data : VlSimImageData):
         cmd = []
         status = 0
+        changed = False
 
-        cmd = ['xvlog', '--sv']
+        cmd = ['xvlog', '--sv', '--incr']
 
         for incdir in data.incdirs:
             if len(incdir.strip()) > 0:
@@ -52,7 +54,17 @@ class SimImageBuilder(VlSimImageBuilder):
         cmd.extend(data.files)
         cmd.extend(data.csource)
 
-        status |= await self.runner.exec(cmd, logfile="xvlog.log")
+        def file_analyzed():
+            nonlocal changed
+            changed = True
+
+        status |= await self.ctxt.exec(
+            cmd, 
+            logfile="xvlog.log",
+            logfilter=XsmLogParser(
+                notify=lambda m: self.ctxt.add_marker(m),
+                notify_analyze=file_analyzed
+            ).line)
 
         self.parseLog(os.path.join(input.rundir, "xvlog.log"))
 
@@ -75,7 +87,7 @@ class SimImageBuilder(VlSimImageBuilder):
             if len(data.vpi) > 0:
                 raise Exception("VPI not supported in xsim")
 
-            status |= await self.runner.exec(cmd, logfile="xelab.log")
+            status |= await self.ctxt.exec(cmd, logfile="xelab.log")
 
         if not status:
             with open(os.path.join(input.rundir, 'simv_opt.d'), "w") as fp:
@@ -89,7 +101,7 @@ class SimImageBuilder(VlSimImageBuilder):
                     filetype="systemVerilogDPI"
                 ))
 
-        return status
+        return (status, changed)
 
-async def SimImage(runner, input):
-    return await SimImageBuilder(runner).run(runner, input)
+async def SimImage(ctxt, input):
+    return await SimImageBuilder(ctxt).run(ctxt, input)

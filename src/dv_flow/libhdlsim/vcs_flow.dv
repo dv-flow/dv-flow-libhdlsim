@@ -25,17 +25,21 @@ package:
   tasks:
   - name: SimImage
     uses: hdlsim.SimImage
-    pytask: dv_flow.libhdlsim.vcs_sim_image.SimImage
+    shell: pytask
+    run: dv_flow.libhdlsim.vcs_sim_image.SimImage
 
   - name: SimLib
     uses: hdlsim.SimLib
-    pytask: dv_flow.libhdlsim.vcs_sim_lib.SimLib
+    shell: pytask
+    run: dv_flow.libhdlsim.vcs_sim_lib.SimLib
 
   - name: SimLibUVM
     uses: hdlsim.SimLibUVM
-    pytask: dv_flow.libhdlsim.vcs_sim_lib_uvm.SimLibUVM
+    shell: pytask
+    run: dv_flow.libhdlsim.vcs_sim_lib_uvm.SimLibUVM
 
   - name: SimRun
     uses: hdlsim.SimRun
-    pytask: dv_flow.libhdlsim.vcs_sim_run.SimRun
+    shell: pytask
+    run: dv_flow.libhdlsim.vcs_sim_run.SimRun
 
