@@ -25,6 +25,7 @@ import json
 from typing import List
 from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder
 from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
+from .vcs_log_parser import VcsLogParser
 
 class SimImageBuilder(VlSimImageBuilder):
 
@@ -37,6 +38,7 @@ class SimImageBuilder(VlSimImageBuilder):
     async def build(self, input, data : VlSimImageData):
 
         status = 0
+        changed = False
 
         if len(data.files):
             data.libs.append(os.path.join(input.rundir, 'work'))
@@ -65,7 +67,16 @@ class SimImageBuilder(VlSimImageBuilder):
                 for elem in cmd[1:]:
                     fh.write("%s\n" % elem)
 
-            status |= await self.ctxt.exec(cmd, logfile="vlogan.log")
+            def file_parsed():
+                nonlocal changed
+                changed = True
+
+            status |= await self.ctxt.exec(
+                cmd, 
+                logfile="vlogan.log",
+                logfilter=VcsLogParser(
+                    notify=lambda m: self.ctxt.add_marker(m),
+                    notify_parsing=file_parsed).line)
 
             self.parseLog(os.path.join(input.rundir, 'vlogan.log'))
 
@@ -96,12 +107,14 @@ class SimImageBuilder(VlSimImageBuilder):
 
                 self._log.debug("VCS command: %s" % str(cmd))
 
-            status |= await self.ctxt.exec(cmd, logfile="vcs.log")
+            status |= await self.ctxt.exec(
+                cmd, 
+                logfile="vcs.log")
 
             # Pull in error/warning markers
             self.parseLog(os.path.join(input.rundir, 'vcs.log'))
 
-        return status
+        return (status,changed)
 
 async def SimImage(ctxt, input):
     builder = SimImageBuilder(ctxt)
