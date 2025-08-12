@@ -41,17 +41,20 @@ class SimLibBuilder(VlSimLibBuilder):
     async def build(self, input, data : VlSimImageData):
 
         status = 0
-        changed = input.changed
+        changed = False
 
-        if not os.path.isdir(os.path.join(input.rundir, input.params.libname)):
-            os.makedirs(os.path.join(input.rundir, input.params.libname), exist_ok=True)
+        rundir = input.rundir
+        libname = input.params.libname
+
+        if not os.path.isdir(os.path.join(rundir, libname)):
+            os.makedirs(os.path.join(rundir, libname), exist_ok=True)
 
         # Create a library map
-        data.libs.insert(0, os.path.join(input.rundir, input.params.libname))
+        data.libs.insert(0, os.path.join(rundir, libname))
         self.runner.create("synopsys_sim.setup", 
                            "\n".join(("%s: %s\n" % (os.path.basename(lib), lib)) for lib in data.libs))
         cmd = ['vlogan', '-full64', '-sverilog', '-incr_vlogan',
-               '-work', input.params.libname]
+               '-work', libname]
 
         for incdir in data.incdirs:
             cmd.append('+incdir+%s' % incdir)
@@ -60,7 +63,6 @@ class SimLibBuilder(VlSimLibBuilder):
 
         cmd.extend(data.args)
         cmd.extend(data.compargs)
-
         cmd.extend(data.files)
 
         def notify_parsing():
@@ -75,15 +77,11 @@ class SimLibBuilder(VlSimLibBuilder):
                 notify_parsing=notify_parsing
             ).line)
 
-        # Pull in error/warning markers
-        self.parseLog(os.path.join(input.rundir, 'vlogan.log'))
-
         if not status:
-            Path(os.path.join(input.rundir, 'simlib.d')).touch()
+            Path(os.path.join(rundir, 'simlib.d')).touch()
 
         return (status, changed)
 
 async def SimLib(runner, input):
     builder = SimLibBuilder(runner)
     return await builder.run(runner, input)
-

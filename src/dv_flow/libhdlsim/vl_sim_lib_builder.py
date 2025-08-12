@@ -57,53 +57,23 @@ class VlSimLibBuilder(object):
 
     async def run(self, runner, input) -> TaskDataResult:
         self.markers.clear()
-        
+
         for f in os.listdir(input.rundir):
             self._log.debug("sub-elem: %s" % f)
-        ex_memento = input.memento
-        in_changed = (ex_memento is None or input.changed)
 
         if input.params.libname is None or input.params.libname == "":
             input.params.libname = input.name.replace(".", "_")
-
-        self._log.debug("in_changed: %s ; ex_memento: %s input.changed: %s" % (
-            in_changed, str(ex_memento), input.changed))
 
         data = VlSimImageData()
         data.compargs.extend(merge_tokenize(input.params.args))
         data.incdirs.extend(input.params.incdirs)
         data.defines.extend(merge_tokenize(input.params.defines))
-        memento = ex_memento
 
         self._gatherSvSources(data, input)
 
-        self._log.debug("files: %s in_changed=%s" % (str(data.files), in_changed))
+        self._log.debug("files: %s" % str(data.files))
 
-        if not in_changed:
-            try:
-                ref_mtime = self.getRefTime(input.rundir)
-                info = FileCollection.from_dict(ex_memento["svdeps"])
-                in_changed = not TaskCheckUpToDate(data.files, data.incdirs).check(info, ref_mtime)
-            except Exception as e:
-                self._log.warning("Unexpected output-directory format (%s). Rebuilding" % str(e))
-                shutil.rmtree(input.rundir)
-                os.makedirs(input.rundir)
-                in_changed = True
-
-        self._log.debug("in_changed=%s" % in_changed)
-        status = 0
-        if in_changed:
-            memento = VlTaskSimImageMemento()
-
-            # First, create dependency information
-            info = TaskBuildFileCollection(data.files, data.incdirs).build()
-            memento.svdeps = info.to_dict()
-
-            status = await self.build(input, data) 
-        else:
-            memento = VlTaskSimImageMemento(**memento)
-
-        self._log.debug("%s status: %d" % (input.name, status))
+        status, in_changed = await self.build(input, data)
 
         for m in self.markers:
             if m.severity == "error":
@@ -114,7 +84,7 @@ class VlSimLibBuilder(object):
                 m.severity = SeverityE.Info
 
         return TaskDataResult(
-            memento=memento if status == 0 else None,
+            memento=self.memento if status == 0 else None,
             output=[FileSet(
                 src=input.name, 
                 filetype="simLib", 
@@ -161,4 +131,3 @@ class VlSimLibBuilder(object):
             data.incdirs.extend(fs.incdirs)
             data.defines.extend(fs.defines)
         pass
-

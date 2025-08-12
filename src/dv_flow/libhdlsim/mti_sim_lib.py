@@ -35,15 +35,16 @@ class SimLibBuilder(VlSimLibBuilder):
             raise Exception("simv_opt.d file (%s) does not exist" % os.path.join(rundir, 'simv_opt.d'))
     
     async def build(self, input, data : VlSimImageData):
-        cmd = []
-
         status = 0
+        changed = False
 
+        rundir = input.rundir
         libname = input.params.libname
-        if not os.path.isdir(os.path.join(input.rundir, libname)):
-            cmd = ['vlib', libname]
 
+        if not os.path.isdir(os.path.join(rundir, libname)):
+            cmd = ['vlib', libname]
             status |= await self.runner.exec(cmd, logfile="vlib.log")
+            changed = True
 
         if not status:
             cmd = ['vlog', '-sv', '-work', libname]
@@ -55,12 +56,24 @@ class SimLibBuilder(VlSimLibBuilder):
 
             cmd.extend(data.args)
             cmd.extend(data.compargs)
-
             cmd.extend(data.files)
 
-            status |= await self.runner.exec(cmd, logfile="build.log")
-        
-        return status
+            def notify_parsing():
+                nonlocal changed
+                changed = True
+
+            # Use logfilter to detect changes and collect markers
+            from .mti_log_parser import MtiLogParser
+            status |= await self.runner.exec(
+                cmd,
+                logfile="build.log",
+                logfilter=MtiLogParser(
+                    notify=lambda m: self.ctxt.add_marker(m),
+                    notify_comp=notify_parsing
+                ).line
+            )
+
+        return (status, changed)
 
 async def SimLib(runner, input):
     builder = SimLibBuilder(runner)
