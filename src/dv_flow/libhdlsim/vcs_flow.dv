@@ -27,6 +27,13 @@ package:
     uses: hdlsim.SimImage
     shell: pytask
     run: dv_flow.libhdlsim.vcs_sim_image.SimImage
+    with:
+      partcomp:
+        type: bool
+        value: true
+      fastpartcomp:
+        type: int
+        value: 4
 
   - name: SimLib
     uses: hdlsim.SimLib

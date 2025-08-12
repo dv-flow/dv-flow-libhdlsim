@@ -9,7 +9,7 @@ class VcsLogParser(LogParser):
 
     def line(self, l):
 
-        if not self.notified and "Parsing " in l:
+        if not self.notified and ("Parsing " in l or "recompiling" in l):
             if self.notify_parsing is not None:
                 self.notify_parsing()
             self.notified = True

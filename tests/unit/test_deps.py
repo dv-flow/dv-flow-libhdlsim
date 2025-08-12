@@ -3,6 +3,7 @@ import pytest
 import shutil
 import asyncio
 import sys
+import time
 from dv_flow.mgr import TaskListenerLog, TaskSetRunner, TaskSpec, ExtRgy, PackageLoader
 from dv_flow.mgr.task_graph_builder import TaskGraphBuilder
 from dv_flow.mgr.util import loadProjPkgDef
@@ -65,6 +66,9 @@ def test_simple_1(tmpdir, request,sim):
     #     print("status: %s %s" % (s[0].name, s[0].output.changed))
     assert status[-2][0].output.changed == True
     status.clear()
+
+    time.sleep(2)
+
     out_2 = run(status)
     # for s in status:
     #     print("status: %s %s" % (s[0].name, s[0].output.changed))

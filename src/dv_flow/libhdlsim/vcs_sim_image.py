@@ -81,7 +81,12 @@ class SimImageBuilder(VlSimImageBuilder):
             self.parseLog(os.path.join(input.rundir, 'vlogan.log'))
 
         if status == 0:
-            cmd = ['vcs', '-full64', '-partcomp', '-fastpartcomp=j4']
+            cmd = ['vcs', '-full64']
+            
+            if input.params.partcomp:
+                cmd.append('-partcomp')
+                if input.params.fastpartcomp > 0:
+                    cmd.append('-fastpartcomp=j%d' % input.params.fastpartcomp)
             cmd.extend(data.args)
             cmd.extend(data.elabargs)
 
