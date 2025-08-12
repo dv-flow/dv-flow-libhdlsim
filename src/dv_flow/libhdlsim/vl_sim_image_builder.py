@@ -99,6 +99,10 @@ class VlSimImageBuilder(object):
         # references must support transitivity
 
         for fs in input.inputs:
+            self._log.debug("Processing dataset of type %s from task %s" % (
+                fs.type,
+                fs.src
+            ))
             if fs.type == "std.FileSet":
                 self._log.debug("fs.filetype=%s fs.basedir=%s" % (fs.filetype, fs.basedir))
                 data.defines.extend(fs.defines)
@@ -112,7 +116,7 @@ class VlSimImageBuilder(object):
                     if len(fs.basedir.strip()) > 0:
                         data.incdirs.append(fs.basedir)
                 elif fs.filetype in ("verilogInclude", "systemVerilogInclude"):
-                    data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
+                    self._addIncDirs(data, fs.basedir, fs.incdirs)
                 elif fs.filetype == "simLib":
                     if len(fs.files) > 0:
                         for file in fs.files:
@@ -122,7 +126,7 @@ class VlSimImageBuilder(object):
                                 data.libs.append(path)
                     else:
                         data.libs.append(fs.basedir)
-                    data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
+                    self._addIncDirs(data, fs.basedir, fs.incdirs)
                 elif fs.filetype == "systemVerilogDPI":
                     for file in fs.files:
                         path = os.path.join(fs.basedir, file)
@@ -139,7 +143,7 @@ class VlSimImageBuilder(object):
                         self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))
                         dir = os.path.dirname(path)
                         data.files.append(path)
-                    data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
+                    self._addIncDirs(data, fs.basedir, fs.incdirs)
             elif fs.type == "hdlsim.SimCompileArgs":
                 data.compargs.extend(merge_tokenize(fs.args))
                 for inc in fs.incdirs:
@@ -151,6 +155,11 @@ class VlSimImageBuilder(object):
                 data.elabargs.extend(merge_tokenize(fs.args))
                 data.vpi.extend(fs.vpilibs)
                 data.dpi.extend(fs.dpilibs)
+
+    def _addIncDirs(self, data, basedir, incdirs):
+        self._log.debug("_addIncDirs base=%s incdirs=%s" % (basedir, incdirs))
+        data.incdirs.extend([os.path.join(basedir, i) for i in incdirs])
+        self._log.debug("data.incdirs: %s" % data.incdirs)
 
 
 class VlTaskSimImageMemento(BaseModel):
