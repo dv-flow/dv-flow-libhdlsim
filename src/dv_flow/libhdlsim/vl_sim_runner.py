@@ -48,7 +48,7 @@ class VLSimRunner(object):
         data = VlSimRunData()
 
         data.plusargs = input.params.plusargs.copy()
-        data.args = input.params.args.copy()
+        data.args = merge_tokenize(input.params.args)
         data.trace = input.params.trace
         data.dpilibs.extend(input.params.dpilibs)
         data.vpilibs.extend(input.params.vpilibs)

@@ -47,7 +47,10 @@ class SimImageBuilder(VlSimImageBuilder):
             cmd = ['vlog', '-sv']
 
             for incdir in data.incdirs:
-                cmd.append('+incdir+%s' % incdir)
+                if incdir.strip() != "":
+                    cmd.append('+incdir+%s' % incdir)
+                else:
+                    self._log.warning("Empty incdir")
             for define in data.defines:
                 cmd.append('+define+%s' % define)
 
