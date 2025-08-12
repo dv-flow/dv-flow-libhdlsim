@@ -42,7 +42,7 @@ class SimImageBuilder(VlSimImageBuilder):
             data.libs.append(os.path.join(input.rundir, 'work'))
 
         # Create the library map
-        self.runner.create("synopsys_sim.setup", 
+        self.ctxt.create("synopsys_sim.setup", 
                            "\n".join(("%s: %s" % (os.path.basename(lib), lib)) for lib in data.libs))
 
         # If source is provided, then compile that to a 'work' library
@@ -65,7 +65,7 @@ class SimImageBuilder(VlSimImageBuilder):
                 for elem in cmd[1:]:
                     fh.write("%s\n" % elem)
 
-            status |= await self.runner.exec(cmd, logfile="vlogan.log")
+            status |= await self.ctxt.exec(cmd, logfile="vlogan.log")
 
             self.parseLog(os.path.join(input.rundir, 'vlogan.log'))
 
@@ -96,14 +96,14 @@ class SimImageBuilder(VlSimImageBuilder):
 
                 self._log.debug("VCS command: %s" % str(cmd))
 
-            status |= await self.runner.exec(cmd, logfile="vcs.log")
+            status |= await self.ctxt.exec(cmd, logfile="vcs.log")
 
             # Pull in error/warning markers
             self.parseLog(os.path.join(input.rundir, 'vcs.log'))
 
         return status
 
-async def SimImage(runner, input):
-    builder = SimImageBuilder(runner)
-    return await builder.run(runner, input)
+async def SimImage(ctxt, input):
+    builder = SimImageBuilder(ctxt)
+    return await builder.run(ctxt, input)
 
