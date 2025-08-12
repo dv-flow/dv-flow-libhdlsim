@@ -162,19 +162,3 @@ class VlSimLibBuilder(object):
             data.defines.extend(fs.defines)
         pass
 
-class at(object):
-
-    @staticmethod
-    def sync(T):
-        pass
-
-@dc.dataclass
-class Counter(Module):
-    param : Param[T]
-    count : Output[Logic[4]] = zsp.field(reset=lambda self: self.param)
-
-    @at.sync
-    def counter(self):
-        self.count = se
-
-
