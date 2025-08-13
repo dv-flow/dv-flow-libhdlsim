@@ -225,9 +225,15 @@ class LogParser(object):
             pos=-1
             if len(elems) > 1:
                 self._log.debug("elems[1]: %s" % elems[1])
-                line = int(elems[1])
+                try:
+                    line = int(elems[1])
+                except Exception as e:
+                    pass
             if len(elems) > 2:
-                pos = int(elems[2])
+                try:
+                    pos = int(elems[2])
+                except Exception as e:
+                    pass
             loc = TaskMarkerLoc(path=elems[0], line=line, pos=pos)
         self._log.debug("Message: %s" % self._message)
 
