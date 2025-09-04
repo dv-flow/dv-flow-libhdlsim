@@ -40,7 +40,7 @@ class VlSimLibBuilder(object):
     runner : TaskRunCtxt
     markers : List = dc.field(default_factory=list)
     memento : Any = dc.field(default=None)
-    ctxt : TaskRunCtxt
+    ctxt : TaskRunCtxt = None
 
     _log : ClassVar = logging.getLogger("VlSimLib")
 
