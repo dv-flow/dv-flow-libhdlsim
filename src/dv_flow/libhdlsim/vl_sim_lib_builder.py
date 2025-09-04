@@ -40,6 +40,7 @@ class VlSimLibBuilder(object):
     runner : TaskRunCtxt
     markers : List = dc.field(default_factory=list)
     memento : Any = dc.field(default=None)
+    ctxt : TaskRunCtxt
 
     _log : ClassVar = logging.getLogger("VlSimLib")
 
@@ -57,6 +58,7 @@ class VlSimLibBuilder(object):
 
     async def run(self, runner, input) -> TaskDataResult:
         self.markers.clear()
+        self.ctxt = runner
 
         for f in os.listdir(input.rundir):
             self._log.debug("sub-elem: %s" % f)
