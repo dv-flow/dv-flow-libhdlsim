@@ -45,6 +45,9 @@ package:
         type: list
       defines:
         type: list
+      propagate_incdirs:
+        type: bool
+        value: true
 
   - name: SimLibVPI
     consumes:

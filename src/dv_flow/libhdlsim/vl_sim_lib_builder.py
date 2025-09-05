@@ -91,7 +91,8 @@ class VlSimLibBuilder(object):
                 src=input.name, 
                 filetype="simLib", 
                 basedir=input.rundir,
-                files=[input.params.libname])],
+                files=[input.params.libname],
+                incdirs=(data.incdirs if input.params.propagate_incdirs else []))],
             changed=in_changed,
             markers=self.markers,
             status=status
