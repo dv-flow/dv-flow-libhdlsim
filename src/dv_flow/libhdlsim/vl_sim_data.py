@@ -3,6 +3,7 @@ from typing import List
 
 @dc.dataclass
 class VlSimImageData(object):
+    sysv : bool = dc.field(default=False)
     files : List[str] = dc.field(default_factory=list)
     incdirs : List[str] = dc.field(default_factory=list)
     defines : List[str] = dc.field(default_factory=list)

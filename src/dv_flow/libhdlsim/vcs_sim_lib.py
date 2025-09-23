@@ -53,8 +53,10 @@ class SimLibBuilder(VlSimLibBuilder):
         data.libs.insert(0, os.path.join(rundir, libname))
         self.runner.create("synopsys_sim.setup", 
                            "\n".join(("%s: %s\n" % (os.path.basename(lib), lib)) for lib in data.libs))
-        cmd = ['vlogan', '-full64', '-sverilog', '-incr_vlogan',
-               '-work', libname]
+        cmd = ['vlogan', '-full64', '-incr_vlogan', '-work', libname]
+
+        if data.sysv:
+            cmd.append("-sverilog")
 
         for incdir in data.incdirs:
             cmd.append('+incdir+%s' % incdir)

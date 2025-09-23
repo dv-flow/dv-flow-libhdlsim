@@ -123,6 +123,7 @@ class VlSimLibBuilder(object):
                     data.libs.append(fs.basedir)
                 data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
             else:
+                data.sysv |= (fs.filetype == "systemVerilogSource")
                 for file in fs.files:
                     path = os.path.join(fs.basedir, file)
                     self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))
