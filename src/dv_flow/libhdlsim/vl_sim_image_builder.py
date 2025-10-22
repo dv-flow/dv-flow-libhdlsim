@@ -138,6 +138,7 @@ class VlSimImageBuilder(object):
                         self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))
                         data.vpi.append(path)
                 else:
+                    data.sysv |= (fs.filetype == "systemVerilogSource")
                     for file in fs.files:
                         path = os.path.join(fs.basedir, file)
                         self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))

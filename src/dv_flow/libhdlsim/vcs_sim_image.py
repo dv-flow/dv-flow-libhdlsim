@@ -51,7 +51,10 @@ class SimImageBuilder(VlSimImageBuilder):
         if len(data.files):
             self._log.debug("Building source files: %s" % str(data.files))
 
-            cmd = ['vlogan', '-full64', '-sverilog', '-incr_vlogan', '-work', 'work']
+            cmd = ['vlogan', '-full64', '-incr_vlogan', '-work', 'work']
+
+            if data.sysv:
+                cmd.append("-sverilog")
 
             for incdir in data.incdirs:
                 cmd.append('+incdir+%s' % incdir)

@@ -40,6 +40,7 @@ class VlSimLibBuilder(object):
     runner : TaskRunCtxt
     markers : List = dc.field(default_factory=list)
     memento : Any = dc.field(default=None)
+    ctxt : TaskRunCtxt = None
 
     _log : ClassVar = logging.getLogger("VlSimLib")
 
@@ -57,6 +58,7 @@ class VlSimLibBuilder(object):
 
     async def run(self, runner, input) -> TaskDataResult:
         self.markers.clear()
+        self.ctxt = runner
 
         for f in os.listdir(input.rundir):
             self._log.debug("sub-elem: %s" % f)
@@ -89,7 +91,8 @@ class VlSimLibBuilder(object):
                 src=input.name, 
                 filetype="simLib", 
                 basedir=input.rundir,
-                files=[input.params.libname])],
+                files=[input.params.libname],
+                incdirs=(data.incdirs if input.params.propagate_incdirs else []))],
             changed=in_changed,
             markers=self.markers,
             status=status
@@ -120,6 +123,7 @@ class VlSimLibBuilder(object):
                     data.libs.append(fs.basedir)
                 data.incdirs.extend([os.path.join(fs.basedir, i) for i in fs.incdirs])
             else:
+                data.sysv |= (fs.filetype == "systemVerilogSource")
                 for file in fs.files:
                     path = os.path.join(fs.basedir, file)
                     self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))
