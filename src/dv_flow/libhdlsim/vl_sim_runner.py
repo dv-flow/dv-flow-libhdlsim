@@ -52,6 +52,7 @@ class VLSimRunner(object):
         data.trace = input.params.trace
         data.dpilibs.extend(input.params.dpilibs)
         data.vpilibs.extend(input.params.vpilibs)
+        data.valgrind = input.params.valgrind
 
         sim_data = []
 

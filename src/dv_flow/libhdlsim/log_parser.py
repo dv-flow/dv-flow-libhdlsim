@@ -23,7 +23,7 @@ import os
 import dataclasses as dc
 import enum
 import logging
-from typing import Callable, ClassVar
+from typing import Callable, ClassVar, Optional
 from dv_flow.mgr.task_data import TaskMarker, TaskMarkerLoc, SeverityE
 
 class ParseState(enum.Enum):
@@ -32,10 +32,10 @@ class ParseState(enum.Enum):
 
 @dc.dataclass
 class LogParser(object):
-    notify : Callable = dc.field(default=None)
+    notify : Optional[Callable[[TaskMarker], None]] = dc.field(default=None)
     _state : ParseState = dc.field(default=ParseState.Init)
     _message : str = dc.field(default="")
-    _kind : str = dc.field(default="")
+    _kind : Optional[SeverityE] = dc.field(default=None)
     _path : str = dc.field(default="")
     _log : ClassVar = logging.getLogger("LogParser")
     _tmp : str = dc.field(default="")
@@ -51,7 +51,7 @@ class LogParser(object):
             # Reset so we get a clean try
             self._state = ParseState.Init
             self._message = ""
-            self._kind = ""
+            self._kind = None
             self._path = ""
 
     def close(self):
@@ -84,7 +84,7 @@ class LogParser(object):
                 # %Kind: <Short Desc>
                 #   <Indented Description Lines> (Ignore)
                 self._log.debug("Verilator-style message")
-                self._kind = "warning" if l.startswith("%Warning") else "error"
+                self._kind = SeverityE.Warning if l.startswith("%Warning") else SeverityE.Error
                 c1_idx = l.find(":")
                 s2_idx = l.find(" ", c1_idx+2)
                 self._log.debug("c1_idx=%d s2_idx=%d" % (c1_idx, s2_idx))
@@ -107,7 +107,7 @@ class LogParser(object):
                 # Questa-style message:
                 # ** <Kind>: (<Code>) <Path>(<Line>): <Short Desc>
                 # ** <Kind> (suppressible): <Path>(<Line>): (<Code>) <Short Desc>
-                self._kind = "warning" if l.startswith("** Warning") else "error"
+                self._kind = SeverityE.Warning if l.startswith("** Warning") else SeverityE.Error
                 c1_idx = l.find(":")
                 if l[c1_idx-1] == ")":
                     # Style-2 message
@@ -131,12 +131,63 @@ class LogParser(object):
                         self._log.debug("No optional code")
                     c2_idx = l.find(":", p2_idx)
 
+                    if c2_idx == -1:
+                        # Header-only line (eg include-chain prefix). Defer to '** at ' continuation.
+                        return
+
                     path = l[p2_idx+1:c2_idx].strip()
                     p3_idx = path.find("(")
                     line = path[p3_idx+1:-1]
                     self._path = "%s:%s" % (path[:p3_idx].strip(), line)
                     self._message = l[c2_idx+1:].strip()
                 self.emit_marker()
+            elif l.startswith("** at "):
+                # Questa include-chain continuation line with actual location and message
+                self._log.debug("Questa-style 'at' continuation")
+                # Default to Error if prior kind not set
+                self._kind = self._kind if self._kind is not None else SeverityE.Error
+                s = l[len("** at "):].strip()
+                c_idx = s.find(":")
+                if c_idx != -1:
+                    path_part = s[:c_idx].strip()
+                    msg_part = s[c_idx+1:].strip()
+                    # Strip leading (vlog-XXXX)
+                    if msg_part.startswith("("):
+                        rpar = msg_part.find(")")
+                        if rpar != -1:
+                            msg_part = msg_part[rpar+1:].strip()
+                    # Parse path(line[:pos])
+                    p_open = path_part.rfind("(")
+                    p_close = path_part.rfind(")")
+                    line = -1
+                    pos = -1
+                    if p_open != -1 and p_close == len(path_part)-1:
+                        linepos = path_part[p_open+1:p_close]
+                        if "," in linepos:
+                            a, b = [t.strip() for t in linepos.split(",", 1)]
+                            try:
+                                line = int(a)
+                                pos = int(b)
+                            except Exception:
+                                pass
+                        elif ":" in linepos:
+                            a, b = [t.strip() for t in linepos.split(":", 1)]
+                            try:
+                                line = int(a)
+                                pos = int(b)
+                            except Exception:
+                                pass
+                        else:
+                            try:
+                                line = int(linepos)
+                            except Exception:
+                                pass
+                        path0 = path_part[:p_open].strip()
+                        self._path = f"{path0}:{line}" if line != -1 else path0
+                    else:
+                        self._path = path_part
+                    self._message = msg_part
+                    self.emit_marker()
             elif l.startswith("ERROR:") or l.startswith("WARNING:"):
                 self._kind = SeverityE.Warning if l.startswith("WARNING:") else SeverityE.Error
                 last_open = l.rfind('[')
@@ -216,7 +267,7 @@ class LogParser(object):
         pass
 
     def emit_marker(self):
-        loc : TaskMarkerLoc = None
+        loc : Optional[TaskMarkerLoc] = None
         
         if self._path != "":
             elems = self._path.split(":")
@@ -237,17 +288,19 @@ class LogParser(object):
             loc = TaskMarkerLoc(path=elems[0], line=line, pos=pos)
         self._log.debug("Message: %s" % self._message)
 
+        sev = self._kind if self._kind is not None else SeverityE.Error
+
         if loc is not None:
             marker = TaskMarker(
-                severity=self._kind,
+                severity=sev,
                 msg=self._message,
                 loc=loc)
         else:
             marker = TaskMarker(
-                severity=self._kind,
+                severity=sev,
                 msg=self._message)
 
-        self._kind = ""
+        self._kind = None
         self._message = ""
         self._path = ""
         if self.notify is not None:

@@ -41,6 +41,9 @@ class SimRunner(VLSimRunner):
             os.path.join(data.imgdir, 'work')
         ]
 
+        if data.valgrind:
+            cmd.extend(["-valgrind", "--tool=memcheck"])
+
         for pli in data.vpilibs:
             cmd.extend(['-pli', pli])
         

@@ -217,3 +217,26 @@ hdl_top, "uart_if sio_bus( .clock (clk),  .reset (rst));"
     assert markers[0].loc.line == 75
     assert markers[0].loc.pos == -1
     assert markers[0].loc.path == "/a/b/c/d/hdl_top.sv"
+
+def test_parse_mti_include_chain_anonymized():
+    markers = []
+
+    def notify(m):
+        nonlocal markers
+        markers.append(m)
+
+    input = """
+** Error: ** while parsing file included at /p/q/r/pyhdl_uvm.sv(13)
+** at /p/q/r/pyhdl_uvm_object_rgy.svh(70): (vlog-2730) Undefined variable: 'wrapper'.
+"""
+    parser = LogParser(notify=notify)
+    for l in input.splitlines():
+        parser.line(l)
+
+    assert len(markers) == 1
+    assert markers[0].severity == SeverityE.Error
+    assert markers[0].msg == "Undefined variable: 'wrapper'."
+    assert markers[0].loc is not None
+    assert markers[0].loc.line == 70
+    assert markers[0].loc.pos == -1
+    assert markers[0].loc.path == "/p/q/r/pyhdl_uvm_object_rgy.svh"

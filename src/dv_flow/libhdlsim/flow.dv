@@ -131,6 +131,8 @@ package:
         type: list
       trace:
         type: bool
+      valgrind:
+        type: bool
 
   - name: SimArgs
     uses: hdlsim.SimCompileArgs

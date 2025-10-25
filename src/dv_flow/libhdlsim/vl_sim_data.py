@@ -26,4 +26,5 @@ class VlSimRunData(object):
     dpilibs : List[str] = dc.field(default_factory=list)
     vpilibs : List[str] = dc.field(default_factory=list)
     trace : bool = dc.field(default=False)
+    valgrind : bool = dc.field(default=False)
 
