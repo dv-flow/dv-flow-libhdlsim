@@ -229,3 +229,61 @@ For example, the full name of the `VCS` SimImage task is `hdlsim.vcs.SimImage`.
     All trademarks are the property of their respective owners
 
 
+
+
+
+Feature support matrix
+=======================
+
+The following summarizes supported features by simulator package, based on the current implementation.
+
+ivl (Icarus Verilog)
+--------------------
+- DPI: Not supported (SimRun errors if dpilibs provided)
+- VPI: Not supported
+- Trace: Not exposed
+- Valgrind: Not exposed
+- Incremental compile: Yes (file-dependency cache/memento)
+- Special parameters: None
+
+vlt (Verilator)
+---------------
+- DPI: Supported (link prebuilt libraries via -LDFLAGS, and/or compile C sources)
+- VPI: Not supported
+- Trace: Supported (SimImage --trace; SimRun adds +verilator+debug when trace=true)
+- Valgrind: Not exposed
+- Incremental compile: Yes (tool reports "Nothing to be done" to skip)
+- Special parameters: None
+
+mti (Siemens Questa/ModelSim)
+-----------------------------
+- DPI: Supported (compile C sources via vlog; runtime -sv_lib)
+- VPI: Supported (runtime -pli)
+- Trace: Not currently exposed by tasks
+- Valgrind: Supported (-valgrind --tool=memcheck)
+- Incremental compile: Yes (vlog -incr; detected via log parsing)
+- Special parameters: None
+
+vcs (Synopsys VCS)
+------------------
+- DPI: Not supported by SimImage (building); runtime load of prebuilt libs via -sv_lib supported in SimRun
+- VPI: Supported (+vpi/-debug_access and -load <lib>)
+- Trace: Not currently exposed by tasks
+- Valgrind: Not exposed
+- Incremental compile: Yes (vlogan -incr_vlogan; detected via log parsing)
+- Special parameters: partcomp (bool), fastpartcomp (int)
+
+xsm (AMD Xilinx XSIM)
+---------------------
+- DPI: Supported (xelab --sv_root/--sv_lib)
+- VPI: Not supported
+- Trace: Not currently exposed by tasks
+- Valgrind: Not exposed
+- Incremental compile: Yes (xvlog --incr; detected via log parsing)
+- Special parameters: plusargs passed via --testplusarg at runtime
+
+xcm (Cadence Xcelium)
+---------------------
+- Status: Experimental/incomplete in this repository; functionality may be outdated
+- DPI/VPI/Trace/Valgrind/Incremental: TBD
+- Special parameters: TBD
