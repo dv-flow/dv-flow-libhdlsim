@@ -48,6 +48,9 @@ class SimImageBuilder(VlSimImageBuilder):
             # Now, run vlog
             cmd = ['vlog', '-sv', '-incr']
 
+            if getattr(input.params, 'full64', True):
+                cmd.append('-64')
+
             for incdir in data.incdirs:
                 if incdir.strip() != "":
                     cmd.append('+incdir+%s' % incdir)

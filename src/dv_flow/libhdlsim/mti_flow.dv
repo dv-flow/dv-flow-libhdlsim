@@ -34,8 +34,16 @@ package:
   - name: SimImage
     uses: hdlsim.SimImage
     pytask: dv_flow.libhdlsim.mti_sim_image.SimImage
+    with:
+      full64: 
+        type: bool
+        value: true
 
   - name: SimRun
     uses: hdlsim.SimRun
     pytask: dv_flow.libhdlsim.mti_sim_run.SimRun
+    with:
+      full64: 
+        type: bool
+        value: true
 

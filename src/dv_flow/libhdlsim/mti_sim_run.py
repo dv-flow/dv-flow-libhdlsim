@@ -44,6 +44,9 @@ class SimRunner(VLSimRunner):
         if data.valgrind:
             cmd.extend(["-valgrind", "--tool=memcheck"])
 
+        if data.full64:
+            cmd.append('-64')
+
         for pli in data.vpilibs:
             cmd.extend(['-pli', pli])
         

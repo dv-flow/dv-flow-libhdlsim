@@ -54,6 +54,9 @@ class VLSimRunner(object):
         data.vpilibs.extend(input.params.vpilibs)
         data.valgrind = input.params.valgrind
 
+        if getattr(input.params, 'full64', True):
+            data.full64 = True
+
         sim_data = []
 
         for inp in input.inputs:
