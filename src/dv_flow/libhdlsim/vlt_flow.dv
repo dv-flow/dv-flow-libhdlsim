@@ -34,7 +34,10 @@ package:
       Verilator doesn't have a notion of a pre-compiled library.
       Consequently, this notion is implemented as a passthrough.
 
+  - name: SimLibUVM
+    uses: hdlsim.SimLibUVM
+    pytask: dv_flow.libhdlsim.vlt_sim_lib_uvm.SimLibUVM
+
   - name: SimRun
     uses: hdlsim.SimRun
     pytask: dv_flow.libhdlsim.vlt_sim_run.SimRun
-

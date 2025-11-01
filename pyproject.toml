@@ -19,5 +19,12 @@ license = {file = "LICENSE" }
 [project.entry-points."dv_flow.mgr"]
 libhdlsim = "dv_flow.libhdlsim.__ext__"
 
+[tool.setuptools]
+include-package-data = true
+
 [tool.setuptools.package-data]
-"dv_flow.libhdlsim" = ['**/flow.dv']
+"dv_flow.libhdlsim" = ["**/flow.dv", "share/uvm_src.tar.bz2"]
+
+[tool.setuptools.cmdclass]
+build_py = "build_uvm_src.BuildPy"
+sdist = "build_uvm_src.Sdist"

@@ -172,4 +172,5 @@ cython_debug/
 
 packages/
 _build/
+src/dv_flow/libhdlsim/share/
 

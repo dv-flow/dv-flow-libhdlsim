@@ -23,6 +23,36 @@ propagates the input sources
 Example
 -------
 
+... code-block:: yaml
+
+    package:
+      name: lib_example
+
+      tasks:
+        - name: inc
+          uses: std.FileSet
+          with:
+            type: verilogIncDir
+            include: "include"
+
+        - name: rtl
+          uses: std.FileSet
+          with:
+            type: systemVerilogSource
+            include: "*.sv"
+
+        - name: lib
+          uses: hdlsim.vlt.SimLib
+          with:
+            libname: work
+          needs: [rtl, inc]
+
+        - name: sim-image
+          uses: hdlsim.vlt.SimImage
+          with:
+            top: [top]
+          needs: [lib]
+
 Consumes
 --------
 
