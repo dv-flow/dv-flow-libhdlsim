@@ -42,7 +42,12 @@ class SimImageBuilder(VlSimImageBuilder):
     async def build(self, input, data : VlSimImageData):
         status = 0
         changed = True
-        cmd = ['verilator', '--binary', '-o', 'simv', '-Wno-fatal']
+        cmd = []
+
+#        cmd.extend(["valgrind", "--tool=memcheck", "--trace-children=yes"])
+        
+        cmd.extend(['verilator', '--binary', '-o', 'simv', '-Wno-fatal'])
+
 
         cmd.extend(['-j', '0'])
 

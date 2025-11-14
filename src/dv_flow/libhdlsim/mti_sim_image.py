@@ -81,6 +81,10 @@ class SimImageBuilder(VlSimImageBuilder):
         # Now, run vopt
         if not status:
             cmd = ['vopt', '-o', 'simv_opt']
+
+            if getattr(input.params, 'full64', True):
+                cmd.append('-64')
+
             for top in input.params.top:
                 cmd.append(top)
 
