@@ -42,41 +42,45 @@ async def SimLibUVM(ctxt: TaskRunCtxt, input):
     changed = False
     markers: List[TaskMarker] = []
 
-    # Locate archive relative to this file
-    share_dir = Path(__file__).resolve().parent / "share"
-    candidates = [share_dir / "uvm_src.tar.gz", share_dir / "uvm_src.tar.bz2"]
-    archive = next((p for p in candidates if p.is_file()), None)
+    if "UVM_HOME" in ctxt.env.keys():
+        uvm_home = ctxt.env["UVM_HOME"]
+    else:
+        # Locate archive relative to this file
+        share_dir = Path(__file__).resolve().parent / "share"
+        candidates = [share_dir / "uvm_src.tar.gz", share_dir / "uvm_src.tar.bz2"]
+        archive = next((p for p in candidates if p.is_file()), None)
 
-    if archive is None:
-        markers.append(TaskMarker(
-            severity=SeverityE.Error,
-            msg=f"UVM source archive not found in {share_dir} (expected uvm_src.tar.gz or uvm_src.tar.bz2)"
-        ))
-        return TaskDataResult(status=1, changed=False, output=[], markers=markers)
-
-    rundir = Path(input.rundir)
-    dst_src = rundir / "src"
-    uvm_pkg = dst_src / "uvm_pkg.sv"
-
-    # Extract when needed
-    if input.changed or not uvm_pkg.exists():
-        try:
-            rundir.mkdir(parents=True, exist_ok=True)
-            with tarfile.open(archive, mode="r:*") as tf:
-                tf.extractall(path=rundir)
-            changed = True
-            _log.debug("Extracted %s into %s", archive, rundir)
-        except Exception as e:
+        if archive is None:
             markers.append(TaskMarker(
                 severity=SeverityE.Error,
-                msg=f"Failed to extract {archive}: {e}"
+                msg=f"UVM source archive not found in {share_dir} (expected uvm_src.tar.gz or uvm_src.tar.bz2)"
             ))
             return TaskDataResult(status=1, changed=False, output=[], markers=markers)
+
+        rundir = Path(input.rundir)
+        dst_src = rundir / "src"
+        uvm_pkg = dst_src / "uvm_pkg.sv"
+
+        # Extract when needed
+        if input.changed or not uvm_pkg.exists():
+            try:
+                rundir.mkdir(parents=True, exist_ok=True)
+                with tarfile.open(archive, mode="r:*") as tf:
+                    tf.extractall(path=rundir)
+                changed = True
+                _log.debug("Extracted %s into %s", archive, rundir)
+            except Exception as e:
+                markers.append(TaskMarker(
+                    severity=SeverityE.Error,
+                    msg=f"Failed to extract {archive}: {e}"
+                ))
+                return TaskDataResult(status=1, changed=False, output=[], markers=markers)
+        uvm_home = rundir
 
     # Forward UVM fileset with required incdir and define
     fs = FileSet(
         filetype="systemVerilogSource",
-        basedir=str(rundir),
+        basedir=uvm_home,
         files=["src/uvm_pkg.sv"],
         incdirs=["src"],
         defines=["UVM_NO_DPI"]
