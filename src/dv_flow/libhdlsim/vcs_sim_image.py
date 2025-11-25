@@ -25,6 +25,7 @@ import json
 from typing import List
 from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder
 from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
+from dv_flow.mgr import FileSet
 from .vcs_log_parser import VcsLogParser
 
 class SimImageBuilder(VlSimImageBuilder):
@@ -100,7 +101,12 @@ class SimImageBuilder(VlSimImageBuilder):
                     cmd.extend(["-load", lib])
 
             if len(data.dpi):
-                raise Exception("DPI not yet supported") 
+                for dpi in data.dpi:
+                    self.output.append(FileSet(
+                        basedir=os.path.dirname(dpi),
+                        files=[os.path.basename(dpi)],
+                        filetype="systemVerilogDPI"
+                    ))
 
             cmd.extend(self.input.params.args)
 
