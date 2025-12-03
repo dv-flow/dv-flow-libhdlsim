@@ -51,7 +51,8 @@ class VLSimRunner(object):
         data.args = merge_tokenize(input.params.args)
         data.trace = input.params.trace
         data.dpilibs.extend(input.params.dpilibs)
-        data.vpilibs.extend(input.params.vpilibs)
+        # Convert vpilibs from params (strings) to tuples (path, None)
+        data.vpilibs.extend([(vpi, None) for vpi in input.params.vpilibs])
         data.valgrind = input.params.valgrind
 
         if getattr(input.params, 'full64', True):
@@ -74,8 +75,15 @@ class VLSimRunner(object):
                     for f in inp.files:
                         data.dpilibs.append(os.path.join(inp.basedir, f))
                 elif inp.filetype == "verilogVPI":
+                    # Extract entrypoint from attributes if present
+                    entrypoint = None
+                    for attr in inp.attributes:
+                        if attr.startswith("entrypoint="):
+                            entrypoint = attr.split("=", 1)[1]
+                            break
+                    
                     for f in inp.files:
-                        data.vpilibs.append(os.path.join(inp.basedir, f))
+                        data.vpilibs.append((os.path.join(inp.basedir, f), entrypoint))
                 elif inp.filetype == "simRunData":
                     sim_data.append(inp)
             elif inp.type == "hdlsim.SimRunArgs":
@@ -84,7 +92,8 @@ class VLSimRunner(object):
                 if inp.plusargs:
                     data.plusargs.extend(merge_tokenize(inp.plusargs))
                 if inp.vpilibs:
-                    data.vpilibs.extend(inp.vpilibs)
+                    # Convert vpilibs from SimRunArgs (strings) to tuples (path, None)
+                    data.vpilibs.extend([(vpi, None) for vpi in inp.vpilibs])
                 if inp.dpilibs:
                     data.dpilibs.extend(inp.dpilibs)
 

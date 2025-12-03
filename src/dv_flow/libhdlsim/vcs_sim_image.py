@@ -97,8 +97,11 @@ class SimImageBuilder(VlSimImageBuilder):
             if len(data.vpi):
                 cmd.extend(["+vpi", "-debug_access"])
 
-                for lib in data.vpi:
-                    cmd.extend(["-load", lib])
+                for lib_path, entrypoint in data.vpi:
+                    if entrypoint:
+                        cmd.extend(["-load", f"{lib_path}:{entrypoint}"])
+                    else:
+                        cmd.extend(["-load", lib_path])
 
             if len(data.dpi):
                 for dpi in data.dpi:

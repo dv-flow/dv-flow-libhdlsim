@@ -47,8 +47,11 @@ class SimRunner(VLSimRunner):
         if data.full64:
             cmd.append('-64')
 
-        for pli in data.vpilibs:
-            cmd.extend(['-pli', pli])
+        for pli_path, entrypoint in data.vpilibs:
+            if entrypoint:
+                cmd.extend(['-pli', f'{pli_path}:{entrypoint}'])
+            else:
+                cmd.extend(['-pli', pli_path])
         
         for dpi in data.dpilibs:
             dpi_libdir = os.path.dirname(dpi)
