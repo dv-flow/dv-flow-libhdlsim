@@ -69,7 +69,8 @@ class VlSimImageBuilder(object):
         data.elabargs.extend(merge_tokenize(input.params.elabargs))
         data.incdirs.extend(merge_tokenize(input.params.incdirs))
         data.defines.extend(merge_tokenize(input.params.defines))
-        data.vpi.extend(input.params.vpilibs)
+        # Convert vpilibs from params (strings) to tuples (path, None)
+        data.vpi.extend([(vpi, None) for vpi in input.params.vpilibs])
         data.dpi.extend(input.params.dpilibs)
         data.trace = input.params.trace
 
@@ -133,10 +134,17 @@ class VlSimImageBuilder(object):
                         self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))
                         data.dpi.append(path)
                 elif fs.filetype == "verilogVPI":
+                    # Extract entrypoint from attributes if present
+                    entrypoint = None
+                    for attr in fs.attributes:
+                        if attr.startswith("entrypoint="):
+                            entrypoint = attr.split("=", 1)[1]
+                            break
+                    
                     for file in fs.files:
                         path = os.path.join(fs.basedir, file)
-                        self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))
-                        data.vpi.append(path)
+                        self._log.debug("path: basedir=%s fullpath=%s entrypoint=%s" % (fs.basedir, path, entrypoint))
+                        data.vpi.append((path, entrypoint))
                 else:
                     data.sysv |= (fs.filetype == "systemVerilogSource")
                     for file in fs.files:
@@ -154,7 +162,8 @@ class VlSimImageBuilder(object):
             elif fs.type == "hdlsim.SimElabArgs":
                 self._log.debug("fs.type=%s" % fs.type)
                 data.elabargs.extend(merge_tokenize(fs.args))
-                data.vpi.extend(fs.vpilibs)
+                # Convert vpilibs from SimElabArgs (strings) to tuples (path, None)
+                data.vpi.extend([(vpi, None) for vpi in fs.vpilibs])
                 data.dpi.extend(fs.dpilibs)
 
     def _addIncDirs(self, data, basedir, incdirs):

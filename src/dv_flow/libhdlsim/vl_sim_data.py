@@ -1,5 +1,5 @@
 import dataclasses as dc
-from typing import List
+from typing import List, Optional, Tuple
 
 @dc.dataclass
 class VlSimImageData(object):
@@ -12,7 +12,7 @@ class VlSimImageData(object):
     elabargs : List[str] = dc.field(default_factory=list)
     libs : List[str] = dc.field(default_factory=list)
     dpi : List[str] = dc.field(default_factory=list)
-    vpi : List[str] = dc.field(default_factory=list)
+    vpi : List[Tuple[str, Optional[str]]] = dc.field(default_factory=list)
     csource : List[str] = dc.field(default_factory=list)
     cincdirs : List[str] = dc.field(default_factory=list)
     top : List[str] = dc.field(default_factory=list)
@@ -25,7 +25,7 @@ class VlSimRunData(object):
     args : List[str] = dc.field(default_factory=list)
     plusargs : List[str] = dc.field(default_factory=list)
     dpilibs : List[str] = dc.field(default_factory=list)
-    vpilibs : List[str] = dc.field(default_factory=list)
+    vpilibs : List[Tuple[str, Optional[str]]] = dc.field(default_factory=list)
     trace : bool = dc.field(default=False)
     full64 : bool = dc.field(default=True)
     valgrind : bool = dc.field(default=False)
