@@ -120,6 +120,7 @@ package:
     - filetype: verilogVPI
     - filetype: simRunData
     - type: hdlsim.SimRunArgs
+    uptodate: false
     with:
       args:
         type: list

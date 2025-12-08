@@ -32,9 +32,13 @@ class SimRunner(VLSimRunner):
     async def runsim(self, data : VlSimRunData):
         status = 0
 
-        cmd = [
-            os.path.join(data.imgdir, 'obj_dir/simv'),
-        ]
+        cmd = []
+
+#        cmd.extend(['valgrind', '--tool=memcheck'])
+
+        cmd.append(os.path.join(data.imgdir, 'obj_dir/simv'))
+
+#        cmd.extend(['-CFLAGS', '-g'])
 
         cmd.extend(data.args)
 
