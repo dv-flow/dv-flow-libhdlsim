@@ -20,20 +20,20 @@
 #*
 #****************************************************************************
 import os
-from typing import List, Tuple
-from dv_flow.mgr import Task, TaskData
-from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImage
+from typing import List, Tuple                                                                                                                         
+from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder
 from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
-
-class SimImage(VlSimImage):
-
+from dv_flow.mgr import FileSet                                                                                                                        
+    
+class SimImageBuilder(VlSimImageBuilder):                                                                                                              
+    
     def getRefTime(self, rundir):
         if os.path.isfile(os.path.join(rundir, 'simv_opt.d')):
             return os.path.getmtime(os.path.join(rundir, 'simv_opt.d'))
         else:
             raise Exception("simv_opt.d file (%s) does not exist" % os.path.join(rundir, 'simv_opt.d'))
-    
-    async def build(self, data : VlSimImageData) -> Tuple[int,bool]:
+                
+    async def build(self, input, data : VlSimImageData) -> Tuple[int,bool]:
         cmd = []
         status = 0
         changed = False
@@ -51,19 +51,33 @@ class SimImage(VlSimImage):
 
         cmd.extend(data.files)
 
-        status |= await self.runnner.exec(
+        status |= await self.ctxt.exec(
             cmd, 
             logfile="xmvlog.log")
 
         # Now, run elaboration
         if not status:
             cmd = ['xmelab', '-64bit', '-snap', 'simv:snap']
-            for top in self.params.top:
+            for top in input.params.top:
                 cmd.append(top)
 
             cmd.extend(data.args)
             cmd.extend(data.elabargs)
 
-            status |= await self.runner.exec(cmd, logfile="xmelab.log")
+            status |= await self.ctxt.exec(cmd, logfile="xmelab.log")
+
+        if len(data.dpi):
+            for dpi in data.dpi:
+                self.output.append(FileSet(
+                    basedir=os.path.dirname(dpi),
+                    files=[os.path.basename(dpi)],
+                    filetype="systemVerilogDPI"
+                ))
 
         return (status, changed)
+
+async def SimImage(ctxt, input):
+  builder = SimImageBuilder(ctxt)
+  return await builder.run(ctxt, input)
+
+
