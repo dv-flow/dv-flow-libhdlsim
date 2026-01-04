@@ -103,6 +103,9 @@ package:
         type: list
       trace:
         type: bool
+      timing:
+        type: bool
+        value: true
       dpilibs:
         type: list
       vpilibs:

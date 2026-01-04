@@ -73,6 +73,7 @@ class VlSimImageBuilder(object):
         data.vpi.extend([(vpi, None) for vpi in input.params.vpilibs])
         data.dpi.extend(input.params.dpilibs)
         data.trace = input.params.trace
+        data.timing = input.params.timing if hasattr(input.params, 'timing') else True
 
         self._gatherSvSources(data, input)
 

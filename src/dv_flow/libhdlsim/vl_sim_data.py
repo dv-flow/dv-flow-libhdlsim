@@ -17,6 +17,7 @@ class VlSimImageData(object):
     cincdirs : List[str] = dc.field(default_factory=list)
     top : List[str] = dc.field(default_factory=list)
     trace : bool = dc.field(default=False)
+    timing : bool = dc.field(default=True)
     full64 : bool = dc.field(default=True)
 
 @dc.dataclass

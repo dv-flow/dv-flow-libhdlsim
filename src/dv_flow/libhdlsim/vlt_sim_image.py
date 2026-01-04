@@ -48,6 +48,9 @@ class SimImageBuilder(VlSimImageBuilder):
         
         cmd.extend(['verilator', '--binary', '-o', 'simv', '-Wno-fatal'])
 
+        # Add --timing flag if timing parameter is True (default)
+        if data.timing:
+            cmd.append('--timing')
 
         cmd.extend(['-j', '0'])
 
