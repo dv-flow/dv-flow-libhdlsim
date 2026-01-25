@@ -21,23 +21,160 @@
 #****************************************************************************
 package:
   name: hdlsim.vlt
+  desc: Verilator open-source simulator integration for fast HDL simulation
 
   tasks:
   - name: SimImage
     uses: hdlsim.SimImage
     pytask: dv_flow.libhdlsim.vlt_sim_image.SimImage
+    desc: Compiles HDL sources into a Verilator simulation executable
+    doc: |
+      Compiles SystemVerilog/Verilog sources using Verilator into a C++
+      simulation executable. Verilator converts the HDL into optimized
+      C++ code which is then compiled with a C++ compiler.
+      
+      Example:
+      ```yaml
+      - name: build
+        uses: hdlsim.vlt.SimImage
+        needs: [rtl]
+        with:
+          top: [my_module]
+          trace: true  # Enable FST waveform dump
+      ```
+      
+      Common issues:
+      - "Unsupported" errors: Verilator doesn't support all SV constructs
+      - Slow compile: Use VERILATOR_JOBS env var for parallel C++ compilation
 
   - name: SimLib
     uses: hdlsim.SimLib
     passthrough: all
+    desc: Passthrough for Verilator (no pre-compiled library support)
     doc: |
       Verilator doesn't have a notion of a pre-compiled library.
-      Consequently, this notion is implemented as a passthrough.
+      Consequently, this task is implemented as a passthrough that
+      forwards all input data to the output unchanged.
 
   - name: SimLibUVM
     uses: hdlsim.SimLibUVM
     pytask: dv_flow.libhdlsim.vlt_sim_lib_uvm.SimLibUVM
+    desc: Provides UVM library support for Verilator
+    doc: |
+      Provides the UVM library configured for Verilator simulation.
+      Uses the built-in UVM library or a user-specified UVM installation.
+      
+      Example:
+      ```yaml
+      tasks:
+        - name: uvm
+          uses: hdlsim.vlt.SimLibUVM
+        - name: build
+          uses: hdlsim.vlt.SimImage
+          needs: [rtl, uvm, tb]
+      ```
 
   - name: SimRun
     uses: hdlsim.SimRun
     pytask: dv_flow.libhdlsim.vlt_sim_run.SimRun
+    desc: Executes a Verilator simulation
+    doc: |
+      Runs a previously compiled Verilator simulation executable.
+      
+      Example:
+      ```yaml
+      - name: run
+        uses: hdlsim.vlt.SimRun
+        needs: [build]
+        with:
+          plusargs: [UVM_TESTNAME=my_test]
+          trace: true
+      ```
+
+  types:
+  - name: AgentSkill
+    uses: std.DataItem
+    tags:
+      - std.AgentSkillTag
+    doc: Verilator simulation skill for LLM agent discovery
+    with:
+      name:
+        type: str
+        value: "verilator-simulation"
+      desc:
+        type: str
+        value: "Compile and run simulations with Verilator"
+      skill_doc:
+        type: str
+        value: |
+          # Verilator Simulation (hdlsim.vlt)
+          
+          Open-source SystemVerilog simulator that compiles HDL to optimized C++.
+          Best for unit-level verification and high-performance simulation.
+          
+          ## Features
+          - Fast compilation and execution
+          - FST waveform tracing
+          - Linting and code quality checks
+          - Open source (no license required)
+          
+          ## Limitations
+          - No dynamic process support (fork/join)
+          - Limited assertion support
+          - No timing simulation
+          
+          ## Quick Start
+          
+          ```yaml
+          package:
+            name: my_sim
+            
+            imports:
+              - name: hdlsim.vlt
+                as: sim
+            
+            tasks:
+              - name: rtl
+                uses: std.FileSet
+                with:
+                  type: systemVerilogSource
+                  include: "src/**/*.sv"
+              
+              - name: build
+                uses: sim.SimImage
+                needs: [rtl]
+                with:
+                  top: [my_module]
+                  trace: true
+              
+              - name: run
+                uses: sim.SimRun
+                needs: [build]
+          ```
+          
+          ## With UVM
+          
+          ```yaml
+          tasks:
+            - name: uvm
+              uses: sim.SimLibUVM
+            
+            - name: tb
+              uses: std.FileSet
+              with:
+                type: systemVerilogSource
+                include: "tb/**/*.sv"
+            
+            - name: build
+              uses: sim.SimImage
+              needs: [rtl, uvm, tb]
+              with:
+                top: [tb_top]
+          ```
+          
+          ## Tasks
+          
+          - `SimImage`: Compile HDL to simulation executable
+          - `SimRun`: Execute the simulation
+          - `SimLib`: Passthrough (no pre-compiled library support)
+          - `SimLibUVM`: UVM library support

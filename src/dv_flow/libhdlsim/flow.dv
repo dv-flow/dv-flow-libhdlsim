@@ -23,9 +23,18 @@
 
 package:
   name: hdlsim
+  desc: HDL simulation package providing tasks for compiling and running simulations with various simulators
 
   tasks:
   - name: SimLib
+    desc: Creates a pre-compiled simulation library
+    doc: |
+      SimLib compiles HDL source files into a pre-compiled simulation library
+      that can be reused across multiple simulation builds. This improves 
+      compilation time for large designs with shared libraries.
+      
+      The library is created with the specified libname and includes all
+      consumed source files. Use `needs` to specify source file dependencies.
     passthrough: unused
     consumes:
     - filetype: simLib
@@ -37,48 +46,101 @@ package:
     - type: hdlsim.SimCompileArgs
     with:
       args:
+        doc: Additional compiler arguments
         type: list
       libname:
+        doc: Name of the library to create
         type: str
         value: ""
       incdirs:
+        doc: Include directories for compilation
         type: list
       defines:
+        doc: Preprocessor defines
         type: list
       propagate_incdirs:
+        doc: Whether to propagate include directories to consumers
         type: bool
         value: true
 
   - name: SimLibVPI
+    desc: Creates a VPI (Verilog Procedural Interface) library
+    doc: |
+      SimLibVPI compiles C/C++ source files into a VPI library that can be
+      loaded by the simulator at runtime. VPI provides programmatic access
+      to simulation objects.
     consumes:
     - filetype: cSource
     - filetype: cppSource
     with:
       libname:
+        doc: Name of the VPI library
         type: str
         value: ""
       incdirs:
+        doc: Include directories for C/C++ compilation
         type: list
       defines:
+        doc: Preprocessor defines
         type: list
 
   - name: SimLibDPI
+    desc: Creates a DPI (Direct Programming Interface) library
+    doc: |
+      SimLibDPI compiles C/C++ source files into a DPI library. DPI provides
+      a standard interface between SystemVerilog and C/C++ code.
     consumes:
     - filetype: cSource
     - filetype: cppSource
     with:
       libname:
+        doc: Name of the DPI library
         type: str
         value: ""
       incdirs:
+        doc: Include directories for C/C++ compilation
         type: list
       defines:
+        doc: Preprocessor defines
         type: list
 
   - name: SimLibUVM
+    desc: Provides UVM (Universal Verification Methodology) library support
+    doc: |
+      SimLibUVM provides the UVM library for the target simulator. Each
+      simulator package provides its own implementation that configures
+      the appropriate UVM library paths and compilation settings.
+      
+      Example:
+      ```yaml
+      tasks:
+        - name: uvm
+          uses: sim.SimLibUVM
+        - name: build
+          uses: sim.SimImage
+          needs: [rtl, uvm, tb]
+      ```
     with: {}
 
   - name: SimImage
+    desc: Compiles HDL sources into a simulation executable
+    doc: |
+      SimImage compiles SystemVerilog/Verilog source files into a simulation
+      executable (or image). This is the main compilation task for simulation.
+      
+      The task consumes source files from its dependencies and produces a
+      simulation directory containing the compiled executable.
+      
+      Example:
+      ```yaml
+      tasks:
+        - name: build
+          uses: sim.SimImage
+          needs: [rtl, tb]
+          with:
+            top: [tb_top]
+            trace: true
+      ```
     consumes:
     - filetype: cSource
     - filetype: cppSource
@@ -94,29 +156,54 @@ package:
     - type: hdlsim.SimCompileArgs
     with:
       top:
+        doc: Top-level module name(s)
         type: list
       args:
+        doc: Additional compiler/elaborator arguments
         type: list
       compargs:
+        doc: Compilation-specific arguments
         type: list
       elabargs:
+        doc: Elaboration-specific arguments
         type: list
       trace:
+        doc: Enable waveform tracing
         type: bool
       timing:
+        doc: Enable timing simulation
         type: bool
         value: true
       dpilibs:
+        doc: DPI libraries to link
         type: list
       vpilibs:
+        doc: VPI libraries to link
         type: list
       incdirs:
+        doc: Include directories
         type: list
       defines:
+        doc: Preprocessor defines
         type: list
 
 
   - name: SimRun
+    desc: Executes a compiled simulation
+    doc: |
+      SimRun executes a previously compiled simulation image. It consumes the
+      simulation directory from SimImage and runs the simulation with the
+      specified arguments.
+      
+      Example:
+      ```yaml
+      tasks:
+        - name: run
+          uses: sim.SimRun
+          needs: [build]
+          with:
+            plusargs: [UVM_TESTNAME=my_test]
+      ```
     consumes:
     - filetype: simDir
     - filetype: systemVerilogDPI
@@ -126,48 +213,199 @@ package:
     uptodate: false
     with:
       args:
+        doc: Runtime arguments
         type: list
       plusargs:
+        doc: Simulation plusargs (e.g., UVM_TESTNAME=test)
         type: list
       dpilibs:
+        doc: DPI libraries to load at runtime
         type: list
       vpilibs:
+        doc: VPI libraries to load at runtime
         type: list
       trace:
+        doc: Enable runtime tracing
         type: bool
       valgrind:
+        doc: Run simulation under valgrind for memory checking
         type: bool
 
   - name: SimArgs
     uses: hdlsim.SimCompileArgs
 
   types:
+  - name: AgentSkill
+    uses: std.DataItem
+    tags:
+      - std.AgentSkillTag
+    doc: |
+      HDL simulation package skill for LLM agent discovery.
+    with:
+      name:
+        type: str
+        value: "hdl-simulation"
+      desc:
+        type: str
+        value: "Configure and run HDL simulations with various simulators"
+      skill_doc:
+        type: str
+        value: |
+          # HDL Simulation Package (hdlsim)
+          
+          The hdlsim package provides tasks for compiling and running HDL simulations
+          with various commercial and open-source simulators.
+          
+          ## Supported Simulators
+          
+          | Package | Simulator | License |
+          |---------|-----------|---------|
+          | `hdlsim.vlt` | Verilator | Open Source |
+          | `hdlsim.vcs` | Synopsys VCS | Commercial |
+          | `hdlsim.xsm` | Cadence Xcelium | Commercial |
+          | `hdlsim.mti` | Siemens Questa | Commercial |
+          
+          ## Quick Start
+          
+          ```yaml
+          package:
+            name: my_sim
+            
+            imports:
+              - name: hdlsim.vlt  # Or hdlsim.vcs, hdlsim.xsm, hdlsim.mti
+                as: sim
+            
+            tasks:
+              - name: rtl
+                uses: std.FileSet
+                with:
+                  type: systemVerilogSource
+                  include: "src/**/*.sv"
+              
+              - name: build
+                uses: sim.SimImage
+                needs: [rtl]
+                with:
+                  top: [my_top]
+              
+              - name: run
+                uses: sim.SimRun
+                needs: [build]
+          ```
+          
+          ## Core Tasks
+          
+          ### SimImage
+          Compiles HDL sources into a simulation executable.
+          - `top`: Top-level module names
+          - `trace`: Enable waveform tracing
+          - `timing`: Enable timing simulation
+          - `args`: Additional compiler arguments
+          
+          ### SimRun
+          Executes a compiled simulation.
+          - `plusargs`: Simulation plusargs (e.g., UVM_TESTNAME=test)
+          - `args`: Runtime arguments
+          - `trace`: Enable runtime tracing
+          
+          ### SimLib
+          Creates a pre-compiled simulation library.
+          - `libname`: Library name
+          - `args`: Compilation arguments
+          
+          ### SimLibUVM
+          Provides UVM library support for the simulator.
+          
+          ## With UVM
+          
+          ```yaml
+          tasks:
+            - name: uvm
+              uses: sim.SimLibUVM
+            
+            - name: tb
+              uses: std.FileSet
+              with:
+                type: systemVerilogSource
+                include: "tb/**/*.sv"
+                attributes: [testbench, uvm]
+            
+            - name: build
+              uses: sim.SimImage
+              needs: [rtl, uvm, tb]
+              with:
+                top: [tb_top]
+          ```
+          
+          ## Multi-Simulator Support
+          
+          Use package parameters to select the simulator at build time:
+          
+          ```yaml
+          package:
+            name: my_project
+            
+            with:
+              simulator:
+                type: str
+                value: vlt
+            
+            imports:
+              - name: hdlsim.{simulator}  # Use variable reference syntax
+                as: sim
+            
+            configs:
+              - name: verilator
+                with:
+                  simulator:
+                    value: vlt
+              - name: vcs
+                with:
+                  simulator:
+                    value: vcs
+          ```
+          
+          Usage: `dfm run build -c vcs`
+
   - name: SimCompileArgs
+    doc: Additional compilation arguments for SimImage
     with:
       args:
+        doc: Compiler arguments
         type: list
       incdirs:
+        doc: Include directories
         type: list
       defines:
+        doc: Preprocessor defines
         type: list
 
   - name: SimElabArgs
+    doc: Additional elaboration arguments for SimImage
     with:
       args:
+        doc: Elaboration arguments
         type: list
       dpilibs:
+        doc: DPI libraries to link
         type: list
       vpilibs:
+        doc: VPI libraries to link
         type: list
       
   - name: SimRunArgs
+    doc: Additional runtime arguments for SimRun
     with: 
       plusargs:
+        doc: Simulation plusargs
         type: list
       args:
+        doc: Runtime arguments
         type: list
       dpilibs:
+        doc: DPI libraries to load
         type: list
       vpilibs:
+        doc: VPI libraries to load
         type: list
       

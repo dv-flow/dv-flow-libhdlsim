@@ -21,21 +21,106 @@
 #****************************************************************************
 package:
   name: hdlsim.xsm
+  desc: Cadence Xcelium simulator integration with full SystemVerilog support
 
   tasks:
   - name: SimImage
     uses: hdlsim.SimImage
     pytask: dv_flow.libhdlsim.xsm_sim_image.SimImage
+    desc: Compiles HDL sources into a Xcelium simulation executable
+    doc: |
+      Compiles SystemVerilog/Verilog sources using Cadence Xcelium.
+      Uses a two-stage compile/elaborate flow.
+      
+      Example:
+      ```yaml
+      - name: build
+        uses: hdlsim.xsm.SimImage
+        needs: [rtl, tb]
+        with:
+          top: [tb_top]
+      ```
   
   - name: SimLib
     uses: hdlsim.SimLib
     passthrough: all
+    desc: Passthrough for Xcelium (uses inline compilation)
+    doc: |
+      Xcelium SimLib is implemented as a passthrough. Libraries are
+      compiled inline with the main simulation build.
 
   - name: SimLibUVM
     uses: hdlsim.SimLibUVM
     pytask: dv_flow.libhdlsim.xsm_sim_lib_uvm.SimLibUVM
+    desc: Provides UVM library support for Xcelium
+    doc: |
+      Provides the UVM library configured for Xcelium simulation.
   
   - name: SimRun
     uses: hdlsim.SimRun
     pytask: dv_flow.libhdlsim.xsm_sim_run.SimRun
+    desc: Executes a Xcelium simulation
+    doc: |
+      Runs a previously compiled Xcelium simulation.
+
+  types:
+  - name: AgentSkill
+    uses: std.DataItem
+    tags:
+      - std.AgentSkillTag
+    doc: Xcelium simulation skill for LLM agent discovery
+    with:
+      name:
+        type: str
+        value: "xcelium-simulation"
+      desc:
+        type: str
+        value: "Compile and run simulations with Cadence Xcelium"
+      skill_doc:
+        type: str
+        value: |
+          # Xcelium Simulation (hdlsim.xsm)
+          
+          Commercial simulator from Cadence with full SystemVerilog/UVM support.
+          
+          ## Features
+          - Full SystemVerilog/UVM support
+          - Two-stage compile/elaborate flow
+          - Coverage collection
+          - Debug with SimVision
+          
+          ## Quick Start
+          
+          ```yaml
+          package:
+            name: my_sim
+            
+            imports:
+              - name: hdlsim.xsm
+                as: sim
+            
+            tasks:
+              - name: rtl
+                uses: std.FileSet
+                with:
+                  type: systemVerilogSource
+                  include: "src/**/*.sv"
+              
+              - name: build
+                uses: sim.SimImage
+                needs: [rtl]
+                with:
+                  top: [my_module]
+              
+              - name: run
+                uses: sim.SimRun
+                needs: [build]
+          ```
+          
+          ## Tasks
+          
+          - `SimImage`: Compile HDL to simulation executable
+          - `SimRun`: Execute the simulation
+          - `SimLib`: Passthrough (inline compilation)
+          - `SimLibUVM`: UVM library support
 

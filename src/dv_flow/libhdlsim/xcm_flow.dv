@@ -20,7 +20,8 @@
 #*
 #****************************************************************************
 package:
-  name: hdlsim.xcm                                                                                                                                     
+  name: hdlsim.xcm
+  desc: Cadence Xcelium single-command simulator integration
 
   tasks:
   - name: SimImage                                                                                                                                     

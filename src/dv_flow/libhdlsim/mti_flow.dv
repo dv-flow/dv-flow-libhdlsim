@@ -21,29 +21,127 @@
 #****************************************************************************
 package:
   name: hdlsim.mti
+  desc: Siemens Questa simulator integration with library-based compilation
 
   tasks:
   - name: SimLib
     uses: hdlsim.SimLib
     pytask: dv_flow.libhdlsim.mti_sim_lib.SimLib
+    desc: Creates a Questa pre-compiled library
+    doc: |
+      Creates a pre-compiled simulation library using Questa's
+      library-based compilation model.
 
   - name: SimLibUVM
     uses: hdlsim.SimLibUVM
+    desc: Provides UVM library support for Questa
+    doc: |
+      Provides the UVM library configured for Questa simulation.
 #    pytask: dv_flow.libhdlsim.mti_sim_lib.SimLibUVM
 
   - name: SimImage
     uses: hdlsim.SimImage
     pytask: dv_flow.libhdlsim.mti_sim_image.SimImage
+    desc: Compiles HDL sources into a Questa simulation executable
+    doc: |
+      Compiles SystemVerilog/Verilog sources using Siemens Questa.
+      Uses a library-based compilation model.
+      
+      Example:
+      ```yaml
+      - name: build
+        uses: hdlsim.mti.SimImage
+        needs: [rtl, tb]
+        with:
+          top: [tb_top]
+          full64: true
+      ```
     with:
-      full64: 
+      full64:
+        doc: Enable 64-bit simulation mode
         type: bool
         value: true
 
   - name: SimRun
     uses: hdlsim.SimRun
     pytask: dv_flow.libhdlsim.mti_sim_run.SimRun
+    desc: Executes a Questa simulation
+    doc: |
+      Runs a previously compiled Questa simulation.
     with:
-      full64: 
+      full64:
+        doc: Enable 64-bit simulation mode
         type: bool
         value: true
+
+  types:
+  - name: AgentSkill
+    uses: std.DataItem
+    tags:
+      - std.AgentSkillTag
+    doc: Questa simulation skill for LLM agent discovery
+    with:
+      name:
+        type: str
+        value: "questa-simulation"
+      desc:
+        type: str
+        value: "Compile and run simulations with Siemens Questa"
+      skill_doc:
+        type: str
+        value: |
+          # Questa Simulation (hdlsim.mti)
+          
+          Commercial simulator from Siemens with full SystemVerilog/UVM support.
+          
+          ## Features
+          - Full SystemVerilog/UVM support
+          - Library-based compilation model
+          - Coverage collection
+          - Debug with Questa GUI
+          - 64-bit simulation support
+          
+          ## Quick Start
+          
+          ```yaml
+          package:
+            name: my_sim
+            
+            imports:
+              - name: hdlsim.mti
+                as: sim
+            
+            tasks:
+              - name: rtl
+                uses: std.FileSet
+                with:
+                  type: systemVerilogSource
+                  include: "src/**/*.sv"
+              
+              - name: build
+                uses: sim.SimImage
+                needs: [rtl]
+                with:
+                  top: [my_module]
+                  full64: true
+              
+              - name: run
+                uses: sim.SimRun
+                needs: [build]
+          ```
+          
+          ## Questa-Specific Parameters
+          
+          ### SimImage
+          - `full64`: Enable 64-bit mode (default: true)
+          
+          ### SimRun
+          - `full64`: Enable 64-bit mode (default: true)
+          
+          ## Tasks
+          
+          - `SimImage`: Compile HDL to simulation executable
+          - `SimRun`: Execute the simulation
+          - `SimLib`: Create pre-compiled library
+          - `SimLibUVM`: UVM library support
 

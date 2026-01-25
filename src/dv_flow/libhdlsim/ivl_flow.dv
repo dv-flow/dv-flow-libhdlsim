@@ -21,6 +21,7 @@
 #****************************************************************************
 package:
   name: hdlsim.ivl
+  desc: Icarus Verilog open-source simulator integration
 
   tasks:
   - name: SimImage
