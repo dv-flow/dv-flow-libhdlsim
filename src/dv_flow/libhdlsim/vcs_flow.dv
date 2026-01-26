@@ -21,17 +21,35 @@
 #****************************************************************************
 package:
   name: hdlsim.vcs
+  desc: Synopsys VCS simulator integration with partitioned compilation support
 
   tasks:
   - name: SimImage
     uses: hdlsim.SimImage
     shell: pytask
     run: dv_flow.libhdlsim.vcs_sim_image.SimImage
+    desc: Compiles HDL sources into a VCS simulation executable
+    doc: |
+      Compiles SystemVerilog/Verilog sources using Synopsys VCS.
+      Supports partitioned compilation for faster incremental builds.
+      
+      Example:
+      ```yaml
+      - name: build
+        uses: hdlsim.vcs.SimImage
+        needs: [rtl, tb]
+        with:
+          top: [tb_top]
+          partcomp: true
+          fastpartcomp: 8
+      ```
     with:
       partcomp:
+        doc: Enable partitioned compilation for incremental builds
         type: bool
         value: true
       fastpartcomp:
+        doc: Number of parallel jobs for partitioned compilation
         type: int
         value: 4
 
@@ -39,14 +57,103 @@ package:
     uses: hdlsim.SimLib
     shell: pytask
     run: dv_flow.libhdlsim.vcs_sim_lib.SimLib
+    desc: Creates a VCS pre-compiled library
+    doc: |
+      Creates a pre-compiled simulation library that can be reused
+      across multiple simulation builds.
 
   - name: SimLibUVM
     uses: hdlsim.SimLibUVM
     shell: pytask
     run: dv_flow.libhdlsim.vcs_sim_lib_uvm.SimLibUVM
+    desc: Provides UVM library support for VCS
+    doc: |
+      Provides the UVM library configured for VCS simulation.
 
   - name: SimRun
     uses: hdlsim.SimRun
     shell: pytask
     run: dv_flow.libhdlsim.vcs_sim_run.SimRun
+    desc: Executes a VCS simulation
+    doc: |
+      Runs a previously compiled VCS simulation executable.
 
+  types:
+  - name: AgentSkill
+    uses: std.DataItem
+    tags:
+      - std.AgentSkillTag
+    doc: VCS simulation skill for LLM agent discovery
+    with:
+      name:
+        type: str
+        value: "vcs-simulation"
+      desc:
+        type: str
+        value: "Compile and run simulations with Synopsys VCS"
+      skill_doc:
+        type: str
+        value: |
+          # VCS Simulation (hdlsim.vcs)
+          
+          Commercial simulator from Synopsys with full SystemVerilog/UVM support.
+          
+          ## Features
+          - Full SystemVerilog/UVM support
+          - Partitioned compilation for fast incremental builds
+          - Coverage collection (line, branch, condition, FSM, toggle)
+          - Debug with Verdi
+          - High performance
+          
+          ## Quick Start
+          
+          ```yaml
+          package:
+            name: my_sim
+            
+            imports:
+              - name: hdlsim.vcs
+                as: sim
+            
+            tasks:
+              - name: rtl
+                uses: std.FileSet
+                with:
+                  type: systemVerilogSource
+                  include: "src/**/*.sv"
+              
+              - name: build
+                uses: sim.SimImage
+                needs: [rtl]
+                with:
+                  top: [my_module]
+                  partcomp: true
+              
+              - name: run
+                uses: sim.SimRun
+                needs: [build]
+          ```
+          
+          ## VCS-Specific Parameters
+          
+          ### SimImage
+          - `partcomp`: Enable partitioned compilation (default: true)
+          - `fastpartcomp`: Number of parallel jobs (default: 4)
+          
+          ## Coverage Example
+          
+          ```yaml
+          - name: build
+            uses: hdlsim.vcs.SimImage
+            needs: [rtl, tb]
+            with:
+              top: [tb_top]
+              args: [-cm, line+cond+fsm+tgl+branch]
+          ```
+          
+          ## Tasks
+          
+          - `SimImage`: Compile HDL to simulation executable
+          - `SimRun`: Execute the simulation
+          - `SimLib`: Create pre-compiled library
+          - `SimLibUVM`: UVM library support
