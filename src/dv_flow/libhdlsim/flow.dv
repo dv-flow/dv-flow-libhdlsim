@@ -26,7 +26,7 @@ package:
   desc: HDL simulation package providing tasks for compiling and running simulations with various simulators
 
   tasks:
-  - name: SimLib
+  - export: SimLib
     desc: Creates a pre-compiled simulation library
     doc: |
       SimLib compiles HDL source files into a pre-compiled simulation library
@@ -63,7 +63,7 @@ package:
         type: bool
         value: true
 
-  - name: SimLibVPI
+  - export: SimLibVPI
     desc: Creates a VPI (Verilog Procedural Interface) library
     doc: |
       SimLibVPI compiles C/C++ source files into a VPI library that can be
@@ -84,7 +84,7 @@ package:
         doc: Preprocessor defines
         type: list
 
-  - name: SimLibDPI
+  - export: SimLibDPI
     desc: Creates a DPI (Direct Programming Interface) library
     doc: |
       SimLibDPI compiles C/C++ source files into a DPI library. DPI provides
@@ -104,7 +104,7 @@ package:
         doc: Preprocessor defines
         type: list
 
-  - name: SimLibUVM
+  - export: SimLibUVM
     desc: Provides UVM (Universal Verification Methodology) library support
     doc: |
       SimLibUVM provides the UVM library for the target simulator. Each
@@ -122,7 +122,7 @@ package:
       ```
     with: {}
 
-  - name: SimImage
+  - export: SimImage
     desc: Compiles HDL sources into a simulation executable
     doc: |
       SimImage compiles SystemVerilog/Verilog source files into a simulation
@@ -188,7 +188,7 @@ package:
         type: list
 
 
-  - name: SimRun
+  - export: SimRun
     desc: Executes a compiled simulation
     doc: |
       SimRun executes a previously compiled simulation image. It consumes the
@@ -231,7 +231,7 @@ package:
         doc: Run simulation under valgrind for memory checking
         type: bool
 
-  - name: SimArgs
+  - export: SimArgs
     uses: hdlsim.SimCompileArgs
 
   types:

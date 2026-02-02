@@ -23,13 +23,16 @@ package:
   name: hdlsim.xcm
   desc: Cadence Xcelium single-command simulator integration
 
+  imports:
+  - name: hdlsim
+
   tasks:
-  - name: SimImage                                                                                                                                     
+  - export: SimImage
     uses: hdlsim.SimImage
     shell: pytask                                                                                                                                      
     run: dv_flow.libhdlsim.xcm_sim_image.SimImage                                                                                                      
         
-  - name: SimRun
+  - export: SimRun
     uses: hdlsim.SimRun
     shell: pytask
     run: dv_flow.libhdlsim.xcm_sim_run.SimRun 

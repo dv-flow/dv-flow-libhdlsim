@@ -23,19 +23,22 @@ package:
   name: hdlsim.ivl
   desc: Icarus Verilog open-source simulator integration
 
+  imports:
+  - name: hdlsim
+
   tasks:
-  - name: SimImage
+  - export: SimImage
     uses: hdlsim.SimImage
     pytask: dv_flow.libhdlsim.ivl_sim_image.SimImage
 
-  - name: SimLib
+  - export: SimLib
     uses: hdlsim.SimLib
     passthrough: all
     doc: |
       Icarus Verilog doesn't have a notion of a pre-compiled library.
       Consequently, this notion is implemented as a passthrough.
 
-  - name: SimRun
+  - export: SimRun
     uses: hdlsim.SimRun
     pytask: dv_flow.libhdlsim.ivl_sim_run.SimRun
 

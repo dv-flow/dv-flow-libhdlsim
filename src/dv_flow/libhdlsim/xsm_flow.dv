@@ -23,8 +23,11 @@ package:
   name: hdlsim.xsm
   desc: Cadence Xcelium simulator integration with full SystemVerilog support
 
+  imports:
+  - name: hdlsim
+
   tasks:
-  - name: SimImage
+  - export: SimImage
     uses: hdlsim.SimImage
     pytask: dv_flow.libhdlsim.xsm_sim_image.SimImage
     desc: Compiles HDL sources into a Xcelium simulation executable
@@ -41,7 +44,7 @@ package:
           top: [tb_top]
       ```
   
-  - name: SimLib
+  - export: SimLib
     uses: hdlsim.SimLib
     passthrough: all
     desc: Passthrough for Xcelium (uses inline compilation)
@@ -49,14 +52,14 @@ package:
       Xcelium SimLib is implemented as a passthrough. Libraries are
       compiled inline with the main simulation build.
 
-  - name: SimLibUVM
+  - export: SimLibUVM
     uses: hdlsim.SimLibUVM
     pytask: dv_flow.libhdlsim.xsm_sim_lib_uvm.SimLibUVM
     desc: Provides UVM library support for Xcelium
     doc: |
       Provides the UVM library configured for Xcelium simulation.
   
-  - name: SimRun
+  - export: SimRun
     uses: hdlsim.SimRun
     pytask: dv_flow.libhdlsim.xsm_sim_run.SimRun
     desc: Executes a Xcelium simulation

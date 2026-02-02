@@ -23,8 +23,11 @@ package:
   name: hdlsim.vlt
   desc: Verilator open-source simulator integration for fast HDL simulation
 
+  imports:
+  - name: hdlsim
+
   tasks:
-  - name: SimImage
+  - export: SimImage
     uses: hdlsim.SimImage
     pytask: dv_flow.libhdlsim.vlt_sim_image.SimImage
     desc: Compiles HDL sources into a Verilator simulation executable
@@ -47,7 +50,7 @@ package:
       - "Unsupported" errors: Verilator doesn't support all SV constructs
       - Slow compile: Use VERILATOR_JOBS env var for parallel C++ compilation
 
-  - name: SimLib
+  - export: SimLib
     uses: hdlsim.SimLib
     passthrough: all
     desc: Passthrough for Verilator (no pre-compiled library support)
@@ -56,7 +59,7 @@ package:
       Consequently, this task is implemented as a passthrough that
       forwards all input data to the output unchanged.
 
-  - name: SimLibUVM
+  - export: SimLibUVM
     uses: hdlsim.SimLibUVM
     pytask: dv_flow.libhdlsim.vlt_sim_lib_uvm.SimLibUVM
     desc: Provides UVM library support for Verilator
@@ -74,7 +77,7 @@ package:
           needs: [rtl, uvm, tb]
       ```
 
-  - name: SimRun
+  - export: SimRun
     uses: hdlsim.SimRun
     pytask: dv_flow.libhdlsim.vlt_sim_run.SimRun
     desc: Executes a Verilator simulation

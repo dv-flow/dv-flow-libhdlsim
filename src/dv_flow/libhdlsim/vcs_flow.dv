@@ -23,8 +23,11 @@ package:
   name: hdlsim.vcs
   desc: Synopsys VCS simulator integration with partitioned compilation support
 
+  imports:
+  - name: hdlsim
+
   tasks:
-  - name: SimImage
+  - export: SimImage
     uses: hdlsim.SimImage
     shell: pytask
     run: dv_flow.libhdlsim.vcs_sim_image.SimImage
@@ -53,7 +56,7 @@ package:
         type: int
         value: 4
 
-  - name: SimLib
+  - export: SimLib
     uses: hdlsim.SimLib
     shell: pytask
     run: dv_flow.libhdlsim.vcs_sim_lib.SimLib
@@ -62,7 +65,7 @@ package:
       Creates a pre-compiled simulation library that can be reused
       across multiple simulation builds.
 
-  - name: SimLibUVM
+  - export: SimLibUVM
     uses: hdlsim.SimLibUVM
     shell: pytask
     run: dv_flow.libhdlsim.vcs_sim_lib_uvm.SimLibUVM
@@ -70,7 +73,7 @@ package:
     doc: |
       Provides the UVM library configured for VCS simulation.
 
-  - name: SimRun
+  - export: SimRun
     uses: hdlsim.SimRun
     shell: pytask
     run: dv_flow.libhdlsim.vcs_sim_run.SimRun

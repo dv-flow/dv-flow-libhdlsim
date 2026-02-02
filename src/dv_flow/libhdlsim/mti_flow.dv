@@ -23,8 +23,11 @@ package:
   name: hdlsim.mti
   desc: Siemens Questa simulator integration with library-based compilation
 
+  imports:
+  - name: hdlsim
+
   tasks:
-  - name: SimLib
+  - export: SimLib
     uses: hdlsim.SimLib
     pytask: dv_flow.libhdlsim.mti_sim_lib.SimLib
     desc: Creates a Questa pre-compiled library
@@ -32,14 +35,14 @@ package:
       Creates a pre-compiled simulation library using Questa's
       library-based compilation model.
 
-  - name: SimLibUVM
+  - export: SimLibUVM
     uses: hdlsim.SimLibUVM
     desc: Provides UVM library support for Questa
     doc: |
       Provides the UVM library configured for Questa simulation.
 #    pytask: dv_flow.libhdlsim.mti_sim_lib.SimLibUVM
 
-  - name: SimImage
+  - export: SimImage
     uses: hdlsim.SimImage
     pytask: dv_flow.libhdlsim.mti_sim_image.SimImage
     desc: Compiles HDL sources into a Questa simulation executable
@@ -62,7 +65,7 @@ package:
         type: bool
         value: true
 
-  - name: SimRun
+  - export: SimRun
     uses: hdlsim.SimRun
     pytask: dv_flow.libhdlsim.mti_sim_run.SimRun
     desc: Executes a Questa simulation
