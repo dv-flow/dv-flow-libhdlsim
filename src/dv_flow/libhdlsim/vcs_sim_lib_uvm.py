@@ -84,6 +84,10 @@ async def SimLibUVM(ctxt : TaskRunCtxt, input):
                 basedir=os.path.join(input.rundir, "uvm"),
                 filetype="simLib"),
             ctxt.mkDataItem(
+                type="hdlsim.SimCompileArgs",
+                args=["-ntb_opts", "uvm-1.2"]
+            ),
+            ctxt.mkDataItem(
                 type="hdlsim.SimElabArgs",
                 args=["-ntb_opts", "uvm-1.2"]
             )
