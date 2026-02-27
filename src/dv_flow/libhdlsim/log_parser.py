@@ -23,7 +23,7 @@ import os
 import dataclasses as dc
 import enum
 import logging
-from typing import Callable, ClassVar, Optional
+from typing import Callable, ClassVar, List, Optional
 from dv_flow.mgr.task_data import TaskMarker, TaskMarkerLoc, SeverityE
 
 class ParseState(enum.Enum):
@@ -33,9 +33,11 @@ class ParseState(enum.Enum):
 @dc.dataclass
 class LogParser(object):
     notify : Optional[Callable[[TaskMarker], None]] = dc.field(default=None)
+    suppress : List[str] = dc.field(default_factory=list)
     _state : ParseState = dc.field(default=ParseState.Init)
     _message : str = dc.field(default="")
     _kind : Optional[SeverityE] = dc.field(default=None)
+    _code : str = dc.field(default="")
     _path : str = dc.field(default="")
     _log : ClassVar = logging.getLogger("LogParser")
     _tmp : str = dc.field(default="")
@@ -72,6 +74,12 @@ class LogParser(object):
                 l = l.strip()
                 self._kind = SeverityE.Warning if l.startswith("Warning") else SeverityE.Error
 
+                # Extract code from [CODE] bracket
+                ob = l.find("[")
+                cb = l.find("]", ob) if ob != -1 else -1
+                if ob != -1 and cb != -1:
+                    self._code = l[ob+1:cb]
+
                 if l.find("Syntax error") == -1:
                     self._tmp = l
 
@@ -86,6 +94,10 @@ class LogParser(object):
                 self._log.debug("Verilator-style message")
                 self._kind = SeverityE.Warning if l.startswith("%Warning") else SeverityE.Error
                 c1_idx = l.find(":")
+                # Extract code from between '-' and ':' (e.g. %Warning-PINCONNECTS:)
+                dash_idx = l.find("-")
+                if 0 < dash_idx < c1_idx:
+                    self._code = l[dash_idx+1:c1_idx]
                 s2_idx = l.find(" ", c1_idx+2)
                 self._log.debug("c1_idx=%d s2_idx=%d" % (c1_idx, s2_idx))
                 if s2_idx != -1 and l[s2_idx-1] == ':':
@@ -117,7 +129,12 @@ class LogParser(object):
                     p1_idx = path.find("(")
                     line = path[p1_idx+1:-1]
                     self._path = "%s:%s" % (path[:p1_idx].strip(), line)
-                    c3_idx = l.find(')', c2_idx+1)
+                    # Extract code from (CODE) after second colon
+                    code_open = l.find('(', c2_idx+1)
+                    code_close = l.find(')', code_open+1) if code_open != -1 else -1
+                    if code_open != -1 and code_close != -1:
+                        self._code = l[code_open+1:code_close]
+                    c3_idx = code_close if code_close != -1 else c2_idx
                     self._message = l[c3_idx+1:].strip()
                 else:
                     # Style-1 message
@@ -125,7 +142,8 @@ class LogParser(object):
                     if l[c1_idx+2] == '(':
                         # Optional code is present
                         p2_idx = l.find(")", c1_idx+2) # End of (<Code>)
-                        self._log.debug("Skipping optional code")
+                        self._code = l[c1_idx+3:p2_idx]
+                        self._log.debug("Extracted code: %s" % self._code)
                     else:
                         p2_idx = c1_idx+1
                         self._log.debug("No optional code")
@@ -151,10 +169,11 @@ class LogParser(object):
                 if c_idx != -1:
                     path_part = s[:c_idx].strip()
                     msg_part = s[c_idx+1:].strip()
-                    # Strip leading (vlog-XXXX)
+                    # Extract and strip leading (vlog-XXXX) code
                     if msg_part.startswith("("):
                         rpar = msg_part.find(")")
                         if rpar != -1:
+                            self._code = msg_part[1:rpar]
                             msg_part = msg_part[rpar+1:].strip()
                     # Parse path(line[:pos])
                     p_open = path_part.rfind("(")
@@ -199,6 +218,10 @@ class LogParser(object):
                     if self._path.endswith(']'):
                         # Remove trailing ']'
                         self._path = self._path[:-1].strip()
+                    # Extract code from [CODE] at end of line
+                    last_close = l.rfind(']')
+                    if last_open != -1 and last_close != -1:
+                        self._code = l[last_open+1:last_close].strip()
                     self.emit_marker()
             else:
                 # Ignore
@@ -286,20 +309,33 @@ class LogParser(object):
                 except Exception as e:
                     pass
             loc = TaskMarkerLoc(path=elems[0], line=line, pos=pos)
-        self._log.debug("Message: %s" % self._message)
 
         sev = self._kind if self._kind is not None else SeverityE.Error
+
+        # Suppress warnings (not errors) whose code is in the suppress list
+        code = self._code
+        if code and sev == SeverityE.Warning and code in self.suppress:
+            self._code = ""
+            self._kind = None
+            self._message = ""
+            self._path = ""
+            return
+
+        # Prepend [CODE] to message so users can identify the code to suppress
+        msg = ("[%s] %s" % (code, self._message)).strip() if code else self._message
+        self._log.debug("Message: %s" % msg)
 
         if loc is not None:
             marker = TaskMarker(
                 severity=sev,
-                msg=self._message,
+                msg=msg,
                 loc=loc)
         else:
             marker = TaskMarker(
                 severity=sev,
-                msg=self._message)
+                msg=msg)
 
+        self._code = ""
         self._kind = None
         self._message = ""
         self._path = ""

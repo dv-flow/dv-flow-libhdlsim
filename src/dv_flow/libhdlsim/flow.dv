@@ -44,6 +44,7 @@ package:
     - filetype: verilogIncDir 
     - filetype: verilogSource 
     - type: hdlsim.SimCompileArgs
+    - type: hdlsim.SuppressWarnings
     with:
       args:
         doc: Additional compiler arguments
@@ -62,6 +63,9 @@ package:
         doc: Whether to propagate include directories to consumers
         type: bool
         value: true
+      suppress_warnings:
+        doc: Warning codes to suppress from becoming markers (e.g., [TFIPC, vlog-2623])
+        type: list
 
   - export: SimLibVPI
     desc: Creates a VPI (Verilog Procedural Interface) library
@@ -154,6 +158,7 @@ package:
     - filetype: verilogVPI
     - type: hdlsim.SimElabArgs
     - type: hdlsim.SimCompileArgs
+    - type: hdlsim.SuppressWarnings
     with:
       top:
         doc: Top-level module name(s)
@@ -185,6 +190,9 @@ package:
         type: list
       defines:
         doc: Preprocessor defines
+        type: list
+      suppress_warnings:
+        doc: Warning codes to suppress from becoming markers (e.g., [TFIPC, vlog-2623])
         type: list
 
 
@@ -378,6 +386,27 @@ package:
         type: list
       defines:
         doc: Preprocessor defines
+        type: list
+
+  - name: SuppressWarnings
+    doc: |
+      A dataset carrying warning codes to suppress as markers.
+      Connect to SimImage or SimLib via needs/dataflow to suppress
+      specific simulator warnings project-wide.
+      
+      Example:
+      ```yaml
+      - name: suppress
+        uses: hdlsim.SuppressWarnings
+        with:
+          codes: [TFIPC, MAXX]
+      - name: build
+        uses: sim.SimImage
+        needs: [rtl, tb, suppress]
+      ```
+    with:
+      codes:
+        doc: Warning codes to suppress (e.g., TFIPC, vlog-2623, PINCONNECTS)
         type: list
 
   - name: SimElabArgs

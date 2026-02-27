@@ -41,6 +41,7 @@ class VlSimImageBuilder(object):
     markers : List = dc.field(default_factory=list)
     output : List = dc.field(default_factory=list)
     memento : Any = dc.field(default=None)
+    suppress : List = dc.field(default_factory=list)
 
     _log : ClassVar = logging.getLogger("VlSimImage")
 
@@ -51,7 +52,7 @@ class VlSimImageBuilder(object):
         raise NotImplementedError()
 
     def parseLog(self, log):
-        parser = LogParser(notify=lambda m: self.markers.append(m))
+        parser = LogParser(notify=lambda m: self.markers.append(m), suppress=self.suppress)
         with open(log, "r") as fp:
             for line in fp.readlines():
                 parser.line(line)
@@ -78,6 +79,12 @@ class VlSimImageBuilder(object):
         self._gatherSvSources(data, input)
 
         self._log.debug("files: %s" % str(data.files))
+
+        # Assemble suppress list from task params and connected SuppressWarnings datasets
+        self.suppress = list(merge_tokenize(input.params.suppress_warnings)) if hasattr(input.params, 'suppress_warnings') else []
+        for fs in input.inputs:
+            if fs.type == "hdlsim.SuppressWarnings":
+                self.suppress.extend(fs.codes)
 
         status,in_changed = await self.build(input, data)
 

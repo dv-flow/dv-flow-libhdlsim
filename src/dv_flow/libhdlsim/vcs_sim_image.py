@@ -80,7 +80,8 @@ class SimImageBuilder(VlSimImageBuilder):
                 logfile="vlogan.log",
                 logfilter=VcsLogParser(
                     notify=lambda m: self.ctxt.add_marker(m),
-                    notify_parsing=file_parsed).line)
+                    notify_parsing=file_parsed,
+                    suppress=self.suppress).line)
 
             self.parseLog(os.path.join(input.rundir, 'vlogan.log'))
 

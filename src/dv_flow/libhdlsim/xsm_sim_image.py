@@ -63,7 +63,8 @@ class SimImageBuilder(VlSimImageBuilder):
             logfile="xvlog.log",
             logfilter=XsmLogParser(
                 notify=lambda m: self.ctxt.add_marker(m),
-                notify_analyze=file_analyzed
+                notify_analyze=file_analyzed,
+                suppress=self.suppress
             ).line)
 
         self.parseLog(os.path.join(input.rundir, "xvlog.log"))

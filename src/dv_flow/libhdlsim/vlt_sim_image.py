@@ -106,7 +106,8 @@ class SimImageBuilder(VlSimImageBuilder):
             logfile="build.log",
             logfilter=VltLogParser(
                 notify=lambda m: self.ctxt.add_marker(m),
-                no_changes=no_changes
+                no_changes=no_changes,
+                suppress=self.suppress
             ).line)
 
         # Parse the log for warnings and error

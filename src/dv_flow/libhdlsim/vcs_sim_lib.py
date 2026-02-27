@@ -76,7 +76,8 @@ class SimLibBuilder(VlSimLibBuilder):
             logfile="vlogan.log",
             logfilter=VcsLogParser(
                 notify=lambda m: self.ctxt.add_marker(m),
-                notify_parsing=notify_parsing
+                notify_parsing=notify_parsing,
+                suppress=self.suppress
             ).line)
 
         if not status:

@@ -75,7 +75,8 @@ class SimImageBuilder(VlSimImageBuilder):
                 logfile="build.log",
                 logfilter=MtiLogParser(
                     notify=lambda m: self.ctxt.add_marker(m),
-                    notify_comp=notify_comp
+                    notify_comp=notify_comp,
+                    suppress=self.suppress
                 ).line)
 
         # Now, run vopt
