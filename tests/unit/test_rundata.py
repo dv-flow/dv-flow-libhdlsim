@@ -36,6 +36,7 @@ def test_smoke(tmpdir, request, sim):
     builder = TaskGraphBuilder(
         PackageLoader(marker_listeners=[marker_listener]).load_rgy(['std', 'hdlsim.%s' % sim]),
         os.path.join(tmpdir, 'rundir'))
+    runner.builder = builder
 
     top = builder.mkTaskNode(
         'std.FileSet',
@@ -95,6 +96,7 @@ def test_smoke_1(tmpdir, request, sim):
     builder = TaskGraphBuilder(
         PackageLoader(marker_listeners=[marker_listener]).load_rgy(['std', 'hdlsim.%s' % sim]),
         os.path.join(tmpdir, 'rundir'))
+    runner.builder = builder
 
     top = builder.mkTaskNode(
         'std.FileSet',

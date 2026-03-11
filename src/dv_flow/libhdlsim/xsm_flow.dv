@@ -30,6 +30,7 @@ package:
   - export: SimImage
     uses: hdlsim.SimImage
     pytask: dv_flow.libhdlsim.xsm_sim_image.SimImage
+    uptodate: xsm_sim_image.py::check_uptodate
     desc: Compiles HDL sources into a Xcelium simulation executable
     doc: |
       Compiles SystemVerilog/Verilog sources using Cadence Xcelium.

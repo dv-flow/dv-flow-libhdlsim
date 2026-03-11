@@ -30,6 +30,7 @@ package:
   - export: SimImage
     uses: hdlsim.SimImage
     pytask: dv_flow.libhdlsim.vlt_sim_image.SimImage
+    uptodate: vlt_sim_image.py::check_uptodate
     desc: Compiles HDL sources into a Verilator simulation executable
     doc: |
       Compiles SystemVerilog/Verilog sources using Verilator into a C++

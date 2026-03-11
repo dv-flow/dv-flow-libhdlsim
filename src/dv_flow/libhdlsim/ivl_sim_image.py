@@ -23,7 +23,7 @@ import os
 import shutil
 from typing import List
 from dv_flow.mgr import TaskData, TaskMarker
-from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder, VlTaskSimImageMemento
+from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder, VlTaskSimImageMemento, check_sim_image_uptodate
 from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
 from svdep import FileCollection, TaskCheckUpToDate, TaskBuildFileCollection
 
@@ -40,64 +40,43 @@ class SimImageBuilder(VlSimImageBuilder):
         status = 0
         cmd = ['iverilog', '-o', 'simv.vpp', '-g2012']
 
-        ex_memento = input.memento
-        in_changed = (ex_memento is None or input.changed)
+        self.memento = VlTaskSimImageMemento()
 
-        self._log.debug("in_changed: %s ; ex_memento: %s input.changed: %s" % (
-            in_changed, str(ex_memento), input.changed))
+        # Build svdep collection for future uptodate checks
+        try:
+            info = TaskBuildFileCollection(data.files, data.incdirs).build()
+            self.memento.svdeps = info.to_dict()
+        except Exception as e:
+            self._log.error("Failed to build file collection: %s" % str(e))
+            self.markers.append(TaskMarker(
+                severity="error",
+                msg="Dependency-checking failed: %s" % str(e)))
+            status = 1
 
-        memento = ex_memento
-        
-        if not in_changed:
-            try:
-                ref_mtime = self.getRefTime(input.rundir)
-                info = FileCollection.from_dict(ex_memento["svdeps"])
-                in_changed = not TaskCheckUpToDate(data.files, data.incdirs).check(info, ref_mtime)
-            except Exception as e:
-                self._log.warning("Unexpected output-directory format (%s). Rebuilding" % str(e))
-                shutil.rmtree(input.rundir)
-                os.makedirs(input.rundir)
-                in_changed = True
+        if status == 0:
+            for incdir in data.incdirs:
+                cmd.extend(['-I', incdir])
 
-        self._log.debug("in_changed=%s" % in_changed)
-        if in_changed:
-            self.memento = VlTaskSimImageMemento()
+            for define in data.defines:
+                cmd.extend(['-D', define])
 
-            # First, create dependency information
-            try:
-                info = TaskBuildFileCollection(data.files, data.incdirs).build()
-                self.memento.svdeps = info.to_dict()
-            except Exception as e:
-                self._log.error("Failed to build file collection: %s" % str(e))
-                self.markers.append(TaskMarker(
-                    severity="error",
-                    msg="Dependency-checking failed: %s" % str(e)))
-                status = 1
+            cmd.extend(data.args)
+            cmd.extend(data.compargs)
+            cmd.extend(data.elabargs)
 
-            if status == 0:
-                for incdir in data.incdirs:
-                    cmd.extend(['-I', incdir])
+            cmd.extend(data.files)
 
-                for define in data.defines:
-                    cmd.extend(['-D', define])
+            for top in data.top:
+                cmd.extend(['-s', top])
 
-                cmd.extend(data.args)
-                cmd.extend(data.compargs)
-                cmd.extend(data.elabargs)
+            print("Compiling", flush=True)
+            status |= await self.ctxt.exec(cmd, logfile="iverilog.log")
 
-                cmd.extend(data.files)
+        return (status, True)
 
-                for top in data.top:
-                    cmd.extend(['-s', top])
-
-                print("Compiling", flush=True)
-                status |= await self.ctxt.exec(cmd, logfile="iverilog.log")
-                in_changed = True
-        else:
-            self.memento = VlTaskSimImageMemento(**memento)
-
-
-        return (status, in_changed)
+async def check_uptodate(ctxt) -> bool:
+    ref_path = os.path.join(ctxt.rundir, 'simv.vpp')
+    return await check_sim_image_uptodate(ctxt, ref_path)
 
 async def SimImage(ctxt, input):
     return await SimImageBuilder(ctxt).run(ctxt, input)

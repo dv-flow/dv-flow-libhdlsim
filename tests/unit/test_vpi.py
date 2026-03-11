@@ -33,6 +33,7 @@ def test_vpi_entrypoint(tmpdir, sim):
     builder = TaskGraphBuilder(
         PackageLoader(marker_listeners=[marker_listener]).load_rgy(['std', f'hdlsim.{sim}']),
         os.path.join(tmpdir, 'rundir'))
+    runner.builder = builder
 
     # Create source fileset
     top = builder.mkTaskNode(

@@ -24,9 +24,10 @@ import os
 import logging
 from typing import ClassVar, List
 from dv_flow.mgr import TaskDataResult, TaskRunCtxt
-from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder
+from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder, VlTaskSimImageMemento, check_sim_image_uptodate
 from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
 from dv_flow.mgr.task_data import TaskMarker, TaskMarkerLoc
+from svdep import TaskBuildFileCollection
 from .vlt_log_parser import VltLogParser
 
 class SimImageBuilder(VlSimImageBuilder):
@@ -113,7 +114,18 @@ class SimImageBuilder(VlSimImageBuilder):
         # Parse the log for warnings and error
         self.parseLog(os.path.join(input.rundir, 'build.log'))
 
+        if status == 0:
+            try:
+                info = TaskBuildFileCollection(data.files, data.incdirs).build()
+                self.memento = VlTaskSimImageMemento(svdeps=info.to_dict())
+            except Exception as e:
+                self._log.warning("Failed to build svdep collection: %s" % e)
+
         return (status, changed)
+
+async def check_uptodate(ctxt) -> bool:
+    ref_path = os.path.join(ctxt.rundir, 'obj_dir', 'simv')
+    return await check_sim_image_uptodate(ctxt, ref_path)
 
 async def SimImage(ctxt, input) -> TaskDataResult:
     builder = SimImageBuilder(ctxt)

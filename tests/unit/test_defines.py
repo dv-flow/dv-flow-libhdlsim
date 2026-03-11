@@ -48,6 +48,7 @@ def test_define_fs(tmpdir, request, sim):
     builder = TaskGraphBuilder(
         PackageLoader(marker_listeners=[marker_listener]).load_rgy(['std', 'hdlsim.%s' % sim]),
         os.path.join(tmpdir, 'rundir'))
+    runner.builder = builder
 
     top = builder.mkTaskNode(
         'std.FileSet',
@@ -100,6 +101,7 @@ def test_define_simimg_compargs(tmpdir, request, sim):
     builder = TaskGraphBuilder(
         PackageLoader(marker_listeners=[marker_listener]).load_rgy(['std', 'hdlsim.%s' % sim]),
         os.path.join(tmpdir, 'rundir'))
+    runner.builder = builder
 
     top = builder.mkTaskNode(
         'std.FileSet',
@@ -155,6 +157,7 @@ def test_define_dataitem_compargs(tmpdir, request, sim):
     builder = TaskGraphBuilder(
         PackageLoader(marker_listeners=[marker_listener]).load_rgy(['std', 'hdlsim.%s' % sim]),
         os.path.join(tmpdir, 'rundir'))
+    runner.builder = builder
 
     top = builder.mkTaskNode(
         'std.FileSet',

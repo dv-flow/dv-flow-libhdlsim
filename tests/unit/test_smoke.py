@@ -36,6 +36,7 @@ def test_simple(tmpdir, request,sim):
     builder = TaskGraphBuilder(
         PackageLoader(marker_listeners=[marker_listener]).load_rgy(['std', 'hdlsim.%s' % sim]),
         os.path.join(tmpdir, 'rundir'))
+    runner.builder = builder
 
     top_v = builder.mkTaskNode(
         'std.FileSet',
@@ -90,6 +91,7 @@ def test_simple_2(tmpdir, request,sim):
     builder = TaskGraphBuilder(
         PackageLoader(marker_listeners=[marker_listener]).load_rgy(['std', 'hdlsim.%s' % sim]),
         os.path.join(tmpdir, 'rundir'))
+    runner.builder = builder
 
     top_v = builder.mkTaskNode(
         "std.FileSet",
@@ -151,6 +153,7 @@ def test_passthrough_1(tmpdir, request,sim):
     builder = TaskGraphBuilder(
         PackageLoader(marker_listeners=[marker_listener]).load_rgy(['std', 'hdlsim.%s' % sim]),
         os.path.join(tmpdir, 'rundir'))
+    runner.builder = builder
 
     mod1 = builder.mkTaskNode(
         'std.FileSet',

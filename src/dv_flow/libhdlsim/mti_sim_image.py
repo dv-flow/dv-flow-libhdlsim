@@ -22,9 +22,10 @@
 import os
 import asyncio
 from typing import List
-from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder
+from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder, VlTaskSimImageMemento, check_sim_image_uptodate
 from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
 from dv_flow.mgr import FileSet
+from svdep import TaskBuildFileCollection
 from .mti_log_parser import MtiLogParser
 
 class SimImageBuilder(VlSimImageBuilder):
@@ -105,6 +106,11 @@ class SimImageBuilder(VlSimImageBuilder):
         if not status:
             with open(os.path.join(input.rundir, 'simv_opt.d'), "w") as fp:
                 fp.write("\n")
+            try:
+                info = TaskBuildFileCollection(data.files, data.incdirs).build()
+                self.memento = VlTaskSimImageMemento(svdeps=info.to_dict())
+            except Exception as e:
+                self._log.warning("Failed to build svdep collection: %s" % e)
 
         if len(data.dpi):
             for dpi in data.dpi:
@@ -115,6 +121,10 @@ class SimImageBuilder(VlSimImageBuilder):
                 ))
 
         return (status, changed)
+
+async def check_uptodate(ctxt) -> bool:
+    ref_path = os.path.join(ctxt.rundir, 'simv_opt.d')
+    return await check_sim_image_uptodate(ctxt, ref_path)
 
 async def SimImage(ctxt, input):
     builder = SimImageBuilder(ctxt)

@@ -45,6 +45,7 @@ package:
   - export: SimImage
     uses: hdlsim.SimImage
     pytask: dv_flow.libhdlsim.mti_sim_image.SimImage
+    uptodate: mti_sim_image.py::check_uptodate
     desc: Compiles HDL sources into a Questa simulation executable
     doc: |
       Compiles SystemVerilog/Verilog sources using Siemens Questa.

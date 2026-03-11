@@ -38,6 +38,7 @@ def test_mod1_top(tmpdir, request, sim):
     builder = TaskGraphBuilder(
         PackageLoader(marker_listeners=[marker_listener]).load_rgy(['std', 'hdlsim.%s' % sim]),
         os.path.join(tmpdir, 'rundir'))
+    runner.builder = builder
     
     mod1 = builder.mkTaskNode(
         "std.FileSet",

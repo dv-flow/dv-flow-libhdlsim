@@ -31,6 +31,7 @@ package:
     uses: hdlsim.SimImage
     shell: pytask                                                                                                                                      
     run: dv_flow.libhdlsim.xcm_sim_image.SimImage                                                                                                      
+    uptodate: xcm_sim_image.py::check_uptodate
         
   - export: SimRun
     uses: hdlsim.SimRun

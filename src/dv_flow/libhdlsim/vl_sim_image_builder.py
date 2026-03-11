@@ -31,8 +31,68 @@ from dv_flow.mgr import FileSet, TaskDataResult, TaskMarker, TaskRunCtxt
 from typing import Any, ClassVar, List, Tuple
 from dv_flow.libhdlsim.log_parser import LogParser
 from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
+from svdep import FileCollection, TaskCheckUpToDate
 
 from .util import merge_tokenize
+
+_log = logging.getLogger("vl_sim_image_builder")
+
+async def check_sim_image_uptodate(ctxt, ref_path: str) -> bool:
+    """Shared svdep-based uptodate check for all SimImage variants.
+
+    Returns True (task is up-to-date, skip build) or False (rebuild needed).
+    Called as a custom uptodate: callable from each simulator's flow definition.
+
+    ctxt  -- UpToDateCtxt provided by the framework
+    ref_path -- absolute path to the output binary / sentinel file
+    """
+    memento = ctxt.memento
+    if not memento or not memento.get("svdeps"):
+        _log.debug("check_sim_image_uptodate: no svdeps in memento, rebuilding")
+        return False
+
+    if not os.path.isfile(ref_path):
+        _log.debug("check_sim_image_uptodate: ref file missing (%s), rebuilding" % ref_path)
+        return False
+
+    try:
+        ref_mtime = os.path.getmtime(ref_path)
+    except OSError:
+        return False
+
+    # Gather SV source files and include dirs from task inputs (mirrors _gatherSvSources)
+    files = []
+    incdirs = []
+    for fs in ctxt.inputs:
+        if getattr(fs, "type", None) != "std.FileSet":
+            continue
+        ft = getattr(fs, "filetype", "")
+        basedir = getattr(fs, "basedir", "")
+        fs_incdirs = getattr(fs, "incdirs", [])
+        fs_files   = getattr(fs, "files", [])
+
+        if ft in ("systemVerilogSource", "verilogSource"):
+            files.extend(os.path.join(basedir, f) for f in fs_files)
+            # incdirs embedded in the FileSet (from incdirs= param)
+            incdirs.extend(os.path.join(basedir, d) for d in fs_incdirs)
+        elif ft == "verilogIncDir":
+            if basedir.strip():
+                incdirs.append(basedir)
+        elif ft in ("verilogInclude", "systemVerilogInclude"):
+            # basedir is the include dir itself when no explicit incdirs
+            if fs_incdirs:
+                incdirs.extend(os.path.join(basedir, d) for d in fs_incdirs)
+            elif basedir.strip():
+                incdirs.append(basedir)
+
+    try:
+        info = FileCollection.from_dict(memento["svdeps"])
+        uptodate = TaskCheckUpToDate(files, incdirs).check(info, ref_mtime)
+        _log.debug("check_sim_image_uptodate: %s" % ("uptodate" if uptodate else "rebuild needed"))
+        return uptodate
+    except Exception as e:
+        _log.debug("check_sim_image_uptodate: svdep check failed (%s), rebuilding" % e)
+        return False
 
 @dc.dataclass
 class VlSimImageBuilder(object):
