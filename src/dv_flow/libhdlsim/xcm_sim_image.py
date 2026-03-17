@@ -20,20 +20,21 @@
 #*
 #****************************************************************************
 import os
-from typing import List, Tuple                                                                                                                         
+import shutil
+from typing import List, Tuple
 from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder, VlTaskSimImageMemento, check_sim_image_uptodate
 from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
 from dv_flow.mgr import FileSet
-from svdep import TaskBuildFileCollection
-    
-class SimImageBuilder(VlSimImageBuilder):                                                                                                              
-    
+from svdep import TaskBuildFileCollection                                                                                                              
+
+class SimImageBuilder(VlSimImageBuilder):
+
     def getRefTime(self, rundir):
         if os.path.isfile(os.path.join(rundir, 'simv_opt.d')):
             return os.path.getmtime(os.path.join(rundir, 'simv_opt.d'))
         else:
             raise Exception("simv_opt.d file (%s) does not exist" % os.path.join(rundir, 'simv_opt.d'))
-                
+
     async def build(self, input, data : VlSimImageData) -> Tuple[int,bool]:
         cmd = []
         status = 0
@@ -43,7 +44,7 @@ class SimImageBuilder(VlSimImageBuilder):
 
         for incdir in data.incdirs:
             cmd.extend(['-incdir', incdir])
-        
+
         for define in data.defines:
             cmd.extend(['-define', define])
 
@@ -53,7 +54,7 @@ class SimImageBuilder(VlSimImageBuilder):
         cmd.extend(data.files)
 
         status |= await self.ctxt.exec(
-            cmd, 
+            cmd,
             logfile="xmvlog.log")
 
         # Now, run elaboration
@@ -66,6 +67,33 @@ class SimImageBuilder(VlSimImageBuilder):
             cmd.extend(data.elabargs)
 
             status |= await self.ctxt.exec(cmd, logfile="xmelab.log")
+
+        # Compile C/C++ DPI sources into a shared library
+        if not status and len(data.csource) > 0:
+            dpi_lib = os.path.join(input.rundir, 'libdpi.so')
+            cmd = ['gcc', '-shared', '-fPIC', '-m64', '-o', dpi_lib]
+
+            # Locate the Xcelium DPI header directory (svdpi.h)
+            xmvlog_path = shutil.which('xmvlog')
+            if xmvlog_path:
+                tools_root = os.path.dirname(os.path.dirname(xmvlog_path))
+                for candidate in [
+                    os.path.join(tools_root, 'include'),
+                    os.path.join(tools_root, 'inca', 'include'),
+                ]:
+                    if os.path.isfile(os.path.join(candidate, 'svdpi.h')):
+                        cmd.extend(['-I', candidate])
+                        break
+
+            cmd.extend(data.csource)
+            status |= await self.ctxt.exec(cmd, logfile="gcc_dpi.log")
+
+            if not status:
+                self.output.append(FileSet(
+                    basedir=input.rundir,
+                    files=['libdpi.so'],
+                    filetype="systemVerilogDPI"
+                ))
 
         if not status:
             with open(os.path.join(input.rundir, 'simv_opt.d'), "w") as fp:
@@ -93,5 +121,3 @@ async def check_uptodate(ctxt) -> bool:
 async def SimImage(ctxt, input):
   builder = SimImageBuilder(ctxt)
   return await builder.run(ctxt, input)
-
-
