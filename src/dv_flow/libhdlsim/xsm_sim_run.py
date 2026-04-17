@@ -40,19 +40,20 @@ class SimRunner(VLSimRunner):
 
         cmd.extend(data.args)
 
-        # for dpi in data.dpilibs:
-        #     dpi = os.path.splitext(dpi)[0]  # Remove file extension
-        #     cmd.extend([
-        #         '--sv_root', os.path.dirname(dpi), 
-        #         '--sv_lib', os.path.basename(dpi)])
-
         if len(data.vpilibs):
             raise Exception("VPI libraries not supported by xsim")
 
         for plusarg in data.plusargs:
             cmd.extend(["--testplusarg",  plusarg])
 
-        status |= await self.ctxt.exec(cmd, logfile="sim.log")
+        # xsim loads DPI shared libraries at runtime via LD_LIBRARY_PATH.
+        env = dict(os.environ)
+        if data.dpilibs:
+            extra_dirs = ":".join(os.path.dirname(lib) for lib in data.dpilibs)
+            existing = env.get("LD_LIBRARY_PATH", "")
+            env["LD_LIBRARY_PATH"] = (extra_dirs + ":" + existing) if existing else extra_dirs
+
+        status |= await self.ctxt.exec(cmd, logfile="sim.log", env=env)
 
         return status
     
