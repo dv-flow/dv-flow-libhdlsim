@@ -13,8 +13,6 @@ package:
       dep-set: default
     - name: dv-flow-mgr
       url: http://github.com/dv-flow/dv-flow-mgr.git
-    - name: dv-flow.github.io
-      url: http://github.com/dv-flow/dv-flow.github.io.git
     - name: pytest-dfm
       url: http://github.com/dv-flow/pytest-dfm.git
     - name: uvm
