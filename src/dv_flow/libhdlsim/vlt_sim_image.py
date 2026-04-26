@@ -22,7 +22,7 @@
 import asyncio
 import os
 import logging
-from typing import ClassVar, List
+from typing import ClassVar
 from dv_flow.mgr import TaskDataResult, TaskRunCtxt
 from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder, VlTaskSimImageMemento, check_sim_image_uptodate
 from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
@@ -43,13 +43,14 @@ class SimImageBuilder(VlSimImageBuilder):
     async def build(self, input, data : VlSimImageData):
         status = 0
         changed = True
-        cmd = []
 
-#        cmd.extend(["valgrind", "--tool=memcheck", "--trace-children=yes"])
-        
-        cmd.extend(['verilator', '--binary', '-o', 'simv', '-Wno-fatal'])
+        # Phase 1: verilator elaboration and C++ generation only (no link).
+        # DPI lib flags are intentionally omitted here; they are injected via
+        # VM_USER_LDLIBS in the explicit make phase below so that the DPI
+        # object file (V<top>__Dpi.o) can be listed as a direct link object
+        # before the shared library, without relying on -Wl,-u workarounds.
+        cmd = ['verilator', '--cc', '--exe', '--main', '-o', 'simv', '-Wno-fatal']
 
-        # Add --timing flag if timing parameter is True (default)
         if data.timing:
             cmd.append('--timing')
 
@@ -63,23 +64,6 @@ class SimImageBuilder(VlSimImageBuilder):
         if data.trace:
             cmd.append('--trace')
 
-        for dpi in data.dpi:
-            dir = os.path.dirname(dpi)
-            lib = os.path.splitext(os.path.basename(dpi))[0]
-
-            if lib.startswith('lib'):
-                lib = lib[3:]
-
-            cmd.append('-LDFLAGS')
-            cmd.append('-L%s' % dir)
-            cmd.append('-LDFLAGS')
-            cmd.append('-l%s' % lib)
-            cmd.append('-LDFLAGS')
-            cmd.append('-Wl,-rpath,%s' % dir)
-
-        if len(data.dpi):
-            cmd.extend(["-LDFLAGS", "-Wl,--export-dynamic"])
-
         if len(data.vpi) > 0:
             raise Exception("VPI not supported in VLT")
 
@@ -88,11 +72,15 @@ class SimImageBuilder(VlSimImageBuilder):
         cmd.extend(data.elabargs)
 
         cmd.extend(data.files)
-
         cmd.extend(data.csource)
 
         for top in input.params.top:
             cmd.extend(['--top-module', top])
+
+        # Phase 2: make command — deferred until after verilator runs so we can
+        # inspect obj_dir for the generated V<top>__Dpi.cpp.
+        top_module = input.params.top[0] if input.params.top else 'top'
+        mk_file = 'V%s.mk' % top_module
 
         with open(os.path.join(input.rundir, "build.f"), "w") as fp:
             for elem in cmd[1:]:
@@ -103,7 +91,7 @@ class SimImageBuilder(VlSimImageBuilder):
             changed = False
 
         status |= await self.ctxt.exec(
-            cmd, 
+            cmd,
             logfile="build.log",
             logfilter=VltLogParser(
                 notify=lambda m: self.ctxt.add_marker(m),
@@ -111,15 +99,74 @@ class SimImageBuilder(VlSimImageBuilder):
                 suppress=self.suppress
             ).line)
 
-        # Parse the log for warnings and error
         self.parseLog(os.path.join(input.rundir, 'build.log'))
 
-        if status == 0:
-            try:
-                info = TaskBuildFileCollection(data.files, data.incdirs).build()
-                self.memento = VlTaskSimImageMemento(svdeps=info.to_dict())
-            except Exception as e:
-                self._log.warning("Failed to build svdep collection: %s" % e)
+        if status:
+            return (status, changed)
+
+        make_cmd = ['make', '-C', 'obj_dir', '-f', mk_file, '-j']
+
+        if data.dpi:
+            # V<top>__Dpi.o is a standalone file only when Verilator uses
+            # parallel builds (VM_PARALLEL_BUILDS=1 in *_classes.mk).  For
+            # small designs VM_PARALLEL_BUILDS=0, meaning all generated .cpp
+            # files are merged into __ALL.cpp/__ALL.o; there is no separate
+            # __Dpi.o to list.  Read the generated classes.mk to decide.
+            classes_mk = os.path.join(input.rundir, 'obj_dir', 'V%s_classes.mk' % top_module)
+            parallel_builds = False
+            if os.path.isfile(classes_mk):
+                with open(classes_mk) as f:
+                    for line in f:
+                        if line.strip().startswith('VM_PARALLEL_BUILDS'):
+                            parallel_builds = '1' in line
+                            break
+
+            user_ldlibs = []
+            if parallel_builds:
+                # Explicitly list V<top>__Dpi.o as a direct link object so it
+                # is unconditionally included (not subject to archive
+                # dead-stripping).  It must come before -l<lib> so the DPI
+                # export stubs it defines are known to the linker when the
+                # shared library's undefined refs are checked, eliminating the
+                # need for -Wl,-u or --allow-shlib-undefined.
+                user_ldlibs.append('V%s__Dpi.o' % top_module)
+            # When VM_PARALLEL_BUILDS=0 the DPI stubs are compiled into
+            # __ALL.o (always linked), so no explicit listing is needed.
+            for dpi in data.dpi:
+                dpi_dir = os.path.dirname(dpi)
+                lib = os.path.splitext(os.path.basename(dpi))[0]
+                if lib.startswith('lib'):
+                    lib = lib[3:]
+                user_ldlibs.extend([
+                    '-L%s' % dpi_dir,
+                    '-Wl,-rpath,%s' % dpi_dir,
+                    '-l%s' % lib,
+                ])
+            # --export-dynamic is still needed so that Python extensions
+            # loaded at runtime can resolve symbols back into the binary.
+            user_ldlibs.append('-Wl,--export-dynamic')
+            make_cmd.append('VM_USER_LDLIBS=%s' % ' '.join(user_ldlibs))
+
+        with open(os.path.join(input.rundir, "build.f"), "a") as fp:
+            fp.write("\n# make phase:\n")
+            for elem in make_cmd:
+                fp.write("%s\n" % elem)
+
+        status |= await self.ctxt.exec(
+            make_cmd,
+            cwd=input.rundir,
+            logfile="build.log")
+
+        self.parseLog(os.path.join(input.rundir, 'build.log'))
+
+        if status:
+            return (status, changed)
+
+        try:
+            info = TaskBuildFileCollection(data.files, data.incdirs).build()
+            self.memento = VlTaskSimImageMemento(svdeps=info.to_dict())
+        except Exception as e:
+            self._log.warning("Failed to build svdep collection: %s" % e)
 
         return (status, changed)
 
@@ -130,4 +177,3 @@ async def check_uptodate(ctxt) -> bool:
 async def SimImage(ctxt, input) -> TaskDataResult:
     builder = SimImageBuilder(ctxt)
     return await builder.run(ctxt, input)
-
