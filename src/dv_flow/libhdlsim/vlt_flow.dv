@@ -60,6 +60,39 @@ package:
       Consequently, this task is implemented as a passthrough that
       forwards all input data to the output unchanged.
 
+
+  - export: ProtectLib
+    uses: hdlsim.SimImage
+    pytask: dv_flow.libhdlsim.vlt_protect_lib.ProtectLib
+    desc: Builds a Verilator --protect-lib DPI library + SV wrapper
+    doc: |
+      Compiles RTL sources into a Verilator --protect-lib output.
+      Produces two filesets:
+      - systemVerilogSource: the generated SV DPI wrapper
+      - systemVerilogDPI: the shared library (.so)
+      
+      The SV wrapper is a drop-in replacement module with the same ports
+      as the original RTL. VCS compiles the wrapper and links the .so at
+      elaboration time via -sv_lib.
+      
+      Example:
+      ```yaml
+      - name: vemb
+        uses: hdlsim.vlt.ProtectLib
+        needs: [rtl-sources]
+        with:
+          top: [my_module]
+          libname: verilated_my_module
+      ```
+    with:
+      libname:
+        doc: Name for the protect-lib output (default uses top module name)
+        type: str
+        value: ""
+      jobs:
+        doc: Parallel C++ compilation jobs (0 = auto-detect)
+        type: int
+        value: 0
   - export: SimLibUVM
     uses: hdlsim.SimLibUVM
     pytask: dv_flow.libhdlsim.vlt_sim_lib_uvm.SimLibUVM
