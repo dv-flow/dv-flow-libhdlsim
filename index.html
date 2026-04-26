@@ -32,32 +32,33 @@
           <div class="body" role="main">
             
   <section id="dv-flow-libhdlsim">
-<h1><a class="toc-backref" href="#id22" role="doc-backlink">DV Flow LibHDLSim</a><a class="headerlink" href="#dv-flow-libhdlsim" title="Link to this heading">¶</a></h1>
+<h1><a class="toc-backref" href="#id24" role="doc-backlink">DV Flow LibHDLSim</a><a class="headerlink" href="#dv-flow-libhdlsim" title="Link to this heading">¶</a></h1>
 <p>LibHDLSim is a DV-Flow library that provides tasks for working with HDL simulators.
 The library defines a set of tasks for compiling, elaborating, and running
 HDL simulators, as well as specific implementations for a variety of simulators.</p>
 <nav class="contents" id="contents">
 <p class="topic-title">Contents</p>
 <ul class="simple">
-<li><p><a class="reference internal" href="#dv-flow-libhdlsim" id="id22">DV Flow LibHDLSim</a></p>
+<li><p><a class="reference internal" href="#dv-flow-libhdlsim" id="id24">DV Flow LibHDLSim</a></p>
 <ul>
-<li><p><a class="reference internal" href="#task-simlib" id="id23">Task: SimLib</a></p></li>
-<li><p><a class="reference internal" href="#task-simlibuvm" id="id24">Task: SimLibUVM</a></p></li>
-<li><p><a class="reference internal" href="#task-simlibdpi" id="id25">Task: SimLibDPI</a></p></li>
-<li><p><a class="reference internal" href="#task-simlibvpi" id="id26">Task: SimLibVPI</a></p></li>
-<li><p><a class="reference internal" href="#task-simimage" id="id27">Task: SimImage</a></p></li>
-<li><p><a class="reference internal" href="#task-simrun" id="id28">Task: SimRun</a></p></li>
-<li><p><a class="reference internal" href="#type-simcompileargs" id="id29">Type: SimCompileArgs</a></p></li>
-<li><p><a class="reference internal" href="#type-simelabargs" id="id30">Type: SimElabArgs</a></p></li>
-<li><p><a class="reference internal" href="#type-simrunargs" id="id31">Type: SimRunArgs</a></p></li>
-<li><p><a class="reference internal" href="#simulator-support" id="id32">Simulator Support</a></p></li>
-<li><p><a class="reference internal" href="#feature-support-matrix" id="id33">Feature support matrix</a></p></li>
+<li><p><a class="reference internal" href="#task-simlib" id="id25">Task: SimLib</a></p></li>
+<li><p><a class="reference internal" href="#task-simlibuvm" id="id26">Task: SimLibUVM</a></p></li>
+<li><p><a class="reference internal" href="#task-simlibdpi" id="id27">Task: SimLibDPI</a></p></li>
+<li><p><a class="reference internal" href="#task-simlibvpi" id="id28">Task: SimLibVPI</a></p></li>
+<li><p><a class="reference internal" href="#task-simimage" id="id29">Task: SimImage</a></p></li>
+<li><p><a class="reference internal" href="#task-simrun" id="id30">Task: SimRun</a></p></li>
+<li><p><a class="reference internal" href="#type-simcompileargs" id="id31">Type: SimCompileArgs</a></p></li>
+<li><p><a class="reference internal" href="#type-simelabargs" id="id32">Type: SimElabArgs</a></p></li>
+<li><p><a class="reference internal" href="#type-simrunargs" id="id33">Type: SimRunArgs</a></p></li>
+<li><p><a class="reference internal" href="#type-suppresswarnings" id="id34">Type: SuppressWarnings</a></p></li>
+<li><p><a class="reference internal" href="#simulator-support" id="id35">Simulator Support</a></p></li>
+<li><p><a class="reference internal" href="#feature-support-matrix" id="id36">Feature support matrix</a></p></li>
 </ul>
 </li>
 </ul>
 </nav>
 <section id="task-simlib">
-<h2><a class="toc-backref" href="#id23" role="doc-backlink">Task: SimLib</a><a class="headerlink" href="#task-simlib" title="Link to this heading">¶</a></h2>
+<h2><a class="toc-backref" href="#id25" role="doc-backlink">Task: SimLib</a><a class="headerlink" href="#task-simlib" title="Link to this heading">¶</a></h2>
 <p>The SimLib task compiles HDL source into a pre-compiled library. If a specific
 toolchain does not support the notion of a pre-compiled library, the task
 propagates the input sources</p>
@@ -116,6 +117,7 @@ with:</p>
 <li><p>verilogIncDir</p></li>
 <li><p>verilogSource</p></li>
 <li><p>hdlsim.SimCompileArgs</p></li>
+<li><p>hdlsim.SuppressWarnings</p></li>
 </ul>
 </section>
 <section id="produces">
@@ -130,17 +132,18 @@ with:</p>
 <li><p><strong>libname</strong> - [Optional] Specifies the logical name of the library.</p></li>
 <li><p><strong>incdirs</strong> - [Optional] List of extra include directories</p></li>
 <li><p><strong>defines</strong> - [Optional] List of extra defines</p></li>
+<li><p><strong>suppress_warnings</strong> - [Optional] List of warning codes to suppress from becoming markers (e.g., TFIPC, vlog-2623)</p></li>
 </ul>
 </section>
 </section>
 <section id="task-simlibuvm">
-<h2><a class="toc-backref" href="#id24" role="doc-backlink">Task: SimLibUVM</a><a class="headerlink" href="#task-simlibuvm" title="Link to this heading">¶</a></h2>
+<h2><a class="toc-backref" href="#id26" role="doc-backlink">Task: SimLibUVM</a><a class="headerlink" href="#task-simlibuvm" title="Link to this heading">¶</a></h2>
 <p>Most simulators have a built-in mechanism for enabling UVM support. This task
 shall implement that mechanism and output appropriate data to support
 downstream compilation and elaboration tasks.</p>
 </section>
 <section id="task-simlibdpi">
-<h2><a class="toc-backref" href="#id25" role="doc-backlink">Task: SimLibDPI</a><a class="headerlink" href="#task-simlibdpi" title="Link to this heading">¶</a></h2>
+<h2><a class="toc-backref" href="#id27" role="doc-backlink">Task: SimLibDPI</a><a class="headerlink" href="#task-simlibdpi" title="Link to this heading">¶</a></h2>
 <p>The SimLibDPI task compiles a set of provided C/C++ sources and object files
 into a SystemVerilog DPI library using simulator-specific include directories</p>
 <section id="id3">
@@ -169,7 +172,7 @@ into a SystemVerilog DPI library using simulator-specific include directories</p
 </section>
 </section>
 <section id="task-simlibvpi">
-<h2><a class="toc-backref" href="#id26" role="doc-backlink">Task: SimLibVPI</a><a class="headerlink" href="#task-simlibvpi" title="Link to this heading">¶</a></h2>
+<h2><a class="toc-backref" href="#id28" role="doc-backlink">Task: SimLibVPI</a><a class="headerlink" href="#task-simlibvpi" title="Link to this heading">¶</a></h2>
 <p>The SimLibVPI task compiles a set of provided C/C++ sources and object files
 into a Verilog VPI library using simulator-specific include directories</p>
 <section id="id7">
@@ -198,7 +201,7 @@ into a Verilog VPI library using simulator-specific include directories</p>
 </section>
 </section>
 <section id="task-simimage">
-<h2><a class="toc-backref" href="#id27" role="doc-backlink">Task: SimImage</a><a class="headerlink" href="#task-simimage" title="Link to this heading">¶</a></h2>
+<h2><a class="toc-backref" href="#id29" role="doc-backlink">Task: SimImage</a><a class="headerlink" href="#task-simimage" title="Link to this heading">¶</a></h2>
 <p>The SimImage task elaborates HDL source and/or precompiled libraries into
 an executable simulation image</p>
 <section id="id11">
@@ -217,6 +220,7 @@ an executable simulation image</p>
 <li><p>verilogVPI</p></li>
 <li><p>hdlsim.SimCompileArgs</p></li>
 <li><p>hdlsim.SimElabArgs</p></li>
+<li><p>hdlsim.SuppressWarnings</p></li>
 </ul>
 </section>
 <section id="id13">
@@ -236,11 +240,12 @@ an executable simulation image</p>
 <li><p><strong>dpilibs</strong> - [Optional] List of DPI library paths to specify to the elaboration command</p></li>
 <li><p><strong>incdirs</strong> - [Optional] List of extra include directories</p></li>
 <li><p><strong>defines</strong> - [Optional] List of extra defines</p></li>
+<li><p><strong>suppress_warnings</strong> - [Optional] List of warning codes to suppress from becoming markers (e.g., TFIPC, vlog-2623)</p></li>
 </ul>
 </section>
 </section>
 <section id="task-simrun">
-<h2><a class="toc-backref" href="#id28" role="doc-backlink">Task: SimRun</a><a class="headerlink" href="#task-simrun" title="Link to this heading">¶</a></h2>
+<h2><a class="toc-backref" href="#id30" role="doc-backlink">Task: SimRun</a><a class="headerlink" href="#task-simrun" title="Link to this heading">¶</a></h2>
 <p>The SimRun task executes an elaborated simulation image.</p>
 <section id="id15">
 <h3>Example<a class="headerlink" href="#id15" title="Link to this heading">¶</a></h3>
@@ -270,7 +275,7 @@ an executable simulation image</p>
 </section>
 </section>
 <section id="type-simcompileargs">
-<h2><a class="toc-backref" href="#id29" role="doc-backlink">Type: SimCompileArgs</a><a class="headerlink" href="#type-simcompileargs" title="Link to this heading">¶</a></h2>
+<h2><a class="toc-backref" href="#id31" role="doc-backlink">Type: SimCompileArgs</a><a class="headerlink" href="#type-simcompileargs" title="Link to this heading">¶</a></h2>
 <p>The SimCompileArgs type can be used to provide dataflow compilation arguments.</p>
 <section id="id19">
 <h3>Parameters<a class="headerlink" href="#id19" title="Link to this heading">¶</a></h3>
@@ -282,7 +287,7 @@ an executable simulation image</p>
 </section>
 </section>
 <section id="type-simelabargs">
-<h2><a class="toc-backref" href="#id30" role="doc-backlink">Type: SimElabArgs</a><a class="headerlink" href="#type-simelabargs" title="Link to this heading">¶</a></h2>
+<h2><a class="toc-backref" href="#id32" role="doc-backlink">Type: SimElabArgs</a><a class="headerlink" href="#type-simelabargs" title="Link to this heading">¶</a></h2>
 <p>The SimElabArgs type can be used to provide dataflow elaboration arguments.</p>
 <section id="id20">
 <h3>Parameters<a class="headerlink" href="#id20" title="Link to this heading">¶</a></h3>
@@ -294,7 +299,7 @@ an executable simulation image</p>
 </section>
 </section>
 <section id="type-simrunargs">
-<h2><a class="toc-backref" href="#id31" role="doc-backlink">Type: SimRunArgs</a><a class="headerlink" href="#type-simrunargs" title="Link to this heading">¶</a></h2>
+<h2><a class="toc-backref" href="#id33" role="doc-backlink">Type: SimRunArgs</a><a class="headerlink" href="#type-simrunargs" title="Link to this heading">¶</a></h2>
 <p>The SimRunArgs type can be used to provide dataflow run arguments.</p>
 <section id="id21">
 <h3>Parameters<a class="headerlink" href="#id21" title="Link to this heading">¶</a></h3>
@@ -306,8 +311,56 @@ an executable simulation image</p>
 </ul>
 </section>
 </section>
+<section id="type-suppresswarnings">
+<h2><a class="toc-backref" href="#id34" role="doc-backlink">Type: SuppressWarnings</a><a class="headerlink" href="#type-suppresswarnings" title="Link to this heading">¶</a></h2>
+<p>The SuppressWarnings type carries a list of warning codes to suppress as
+markers.  Connect to SimImage or SimLib via <code class="docutils literal notranslate"><span class="pre">needs</span></code> or <code class="docutils literal notranslate"><span class="pre">feeds</span></code> to
+suppress specific simulator warnings project-wide.</p>
+<section id="id22">
+<h3>Example<a class="headerlink" href="#id22" title="Link to this heading">¶</a></h3>
+<p>Direct parameter on SimImage:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">build</span>
+<span class="w">  </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sim.SimImage</span>
+<span class="w">  </span><span class="nt">needs</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">rtl</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">tb</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">with</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">top</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">tb_top</span><span class="p p-Indicator">]</span>
+<span class="w">    </span><span class="nt">suppress_warnings</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">TFIPC</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">MAXX</span><span class="p p-Indicator">]</span>
+</pre></div>
+</div>
+<p>Shared suppression dataset (reusable across tasks):</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">suppress</span>
+<span class="w">  </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hdlsim.SuppressWarnings</span>
+<span class="w">  </span><span class="nt">with</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">codes</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">TFIPC</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">MAXX</span><span class="p p-Indicator">]</span>
+
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">build</span>
+<span class="w">  </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sim.SimImage</span>
+<span class="w">  </span><span class="nt">needs</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">rtl</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">tb</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">suppress</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">with</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">top</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">tb_top</span><span class="p p-Indicator">]</span>
+</pre></div>
+</div>
+<p>Via feeds in a config (no modification to the build task):</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">configs</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">suppress_warnings</span>
+<span class="w">    </span><span class="nt">tasks</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">suppress</span>
+<span class="w">        </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hdlsim.SuppressWarnings</span>
+<span class="w">        </span><span class="nt">with</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">codes</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">TFIPC</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">MAXX</span><span class="p p-Indicator">]</span>
+<span class="w">        </span><span class="nt">feeds</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">my_project.build</span><span class="p p-Indicator">]</span>
+</pre></div>
+</div>
+</section>
+<section id="id23">
+<h3>Parameters<a class="headerlink" href="#id23" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>codes</strong> - List of warning codes to suppress (e.g., TFIPC, vlog-2623, PINCONNECTS)</p></li>
+</ul>
+</section>
+</section>
 <section id="simulator-support">
-<h2><a class="toc-backref" href="#id32" role="doc-backlink">Simulator Support</a><a class="headerlink" href="#simulator-support" title="Link to this heading">¶</a></h2>
+<h2><a class="toc-backref" href="#id35" role="doc-backlink">Simulator Support</a><a class="headerlink" href="#simulator-support" title="Link to this heading">¶</a></h2>
 <p>Tasks that support specific simulators are implemented in simulator-specific packages.
 The tasks defined in these packages implement the same interface as the generic tasks.
 For example, the full name of the <cite>VCS</cite> SimImage task is <cite>hdlsim.vcs.SimImage</cite>.</p>
@@ -325,7 +378,7 @@ For example, the full name of the <cite>VCS</cite> SimImage task is <cite>hdlsim
 </div>
 </section>
 <section id="feature-support-matrix">
-<h2><a class="toc-backref" href="#id33" role="doc-backlink">Feature support matrix</a><a class="headerlink" href="#feature-support-matrix" title="Link to this heading">¶</a></h2>
+<h2><a class="toc-backref" href="#id36" role="doc-backlink">Feature support matrix</a><a class="headerlink" href="#feature-support-matrix" title="Link to this heading">¶</a></h2>
 <p>The following summarizes supported features by simulator package, based on the current implementation.</p>
 <section id="ivl-icarus-verilog">
 <h3>ivl (Icarus Verilog)<a class="headerlink" href="#ivl-icarus-verilog" title="Link to this heading">¶</a></h3>

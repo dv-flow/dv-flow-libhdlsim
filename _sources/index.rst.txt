@@ -61,6 +61,7 @@ Consumes
 * verilogIncDir 
 * verilogSource 
 * hdlsim.SimCompileArgs
+* hdlsim.SuppressWarnings
 
 
 Produces
@@ -74,6 +75,7 @@ Parameters
 * **libname** - [Optional] Specifies the logical name of the library.
 * **incdirs** - [Optional] List of extra include directories
 * **defines** - [Optional] List of extra defines
+* **suppress_warnings** - [Optional] List of warning codes to suppress from becoming markers (e.g., TFIPC, vlog-2623)
 
 Task: SimLibUVM
 ===============
@@ -156,6 +158,7 @@ Consumes
 * verilogVPI 
 * hdlsim.SimCompileArgs
 * hdlsim.SimElabArgs
+* hdlsim.SuppressWarnings
 
 
 Produces
@@ -174,6 +177,7 @@ Parameters
 * **dpilibs** - [Optional] List of DPI library paths to specify to the elaboration command
 * **incdirs** - [Optional] List of extra include directories
 * **defines** - [Optional] List of extra defines
+* **suppress_warnings** - [Optional] List of warning codes to suppress from becoming markers (e.g., TFIPC, vlog-2623)
 
 Task: SimRun
 ============
@@ -239,6 +243,61 @@ Parameters
 * **plusargs** - [Optional] List of plusargs to pass to the simulation run
 * **dpilibs** - [Optional] List of DPI libraries
 * **vpilibs** - [Optional] List of VPI libraries
+
+
+
+Type: SuppressWarnings
+======================
+The SuppressWarnings type carries a list of warning codes to suppress as
+markers.  Connect to SimImage or SimLib via ``needs`` or ``feeds`` to
+suppress specific simulator warnings project-wide.
+
+Example
+-------
+
+Direct parameter on SimImage:
+
+.. code-block:: yaml
+
+    - name: build
+      uses: sim.SimImage
+      needs: [rtl, tb]
+      with:
+        top: [tb_top]
+        suppress_warnings: [TFIPC, MAXX]
+
+Shared suppression dataset (reusable across tasks):
+
+.. code-block:: yaml
+
+    - name: suppress
+      uses: hdlsim.SuppressWarnings
+      with:
+        codes: [TFIPC, MAXX]
+
+    - name: build
+      uses: sim.SimImage
+      needs: [rtl, tb, suppress]
+      with:
+        top: [tb_top]
+
+Via feeds in a config (no modification to the build task):
+
+.. code-block:: yaml
+
+    configs:
+      - name: suppress_warnings
+        tasks:
+          - name: suppress
+            uses: hdlsim.SuppressWarnings
+            with:
+              codes: [TFIPC, MAXX]
+            feeds: [my_project.build]
+
+Parameters
+----------
+
+* **codes** - List of warning codes to suppress (e.g., TFIPC, vlog-2623, PINCONNECTS)
 
 
 Simulator Support
