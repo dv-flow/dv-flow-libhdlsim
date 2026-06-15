@@ -23,9 +23,11 @@ import os
 import asyncio
 import json
 from typing import List
-from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder
+from dv_flow.libhdlsim.vl_sim_image_builder import (
+    VlSimImageBuilder, VlTaskSimImageMemento, check_sim_image_uptodate)
 from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
 from dv_flow.mgr import FileSet
+from svdep import TaskBuildFileCollection
 from .vcs_log_parser import VcsLogParser
 
 class SimImageBuilder(VlSimImageBuilder):
@@ -132,7 +134,21 @@ class SimImageBuilder(VlSimImageBuilder):
             # Pull in error/warning markers
             self.parseLog(os.path.join(input.rundir, 'vcs.log'))
 
+        if status == 0:
+            # Record the svdep collection (SV roots + include graph) so that
+            # check_uptodate can detect edits to `include'd files that are not
+            # named directly in any FileSet glob.
+            try:
+                info = TaskBuildFileCollection(data.files, data.incdirs).build()
+                self.memento = VlTaskSimImageMemento(svdeps=info.to_dict())
+            except Exception as e:
+                self._log.warning("Failed to build svdep collection: %s" % e)
+
         return (status,changed)
+
+async def check_uptodate(ctxt) -> bool:
+    ref_path = os.path.join(ctxt.rundir, 'simv')
+    return await check_sim_image_uptodate(ctxt, ref_path)
 
 async def SimImage(ctxt, input):
     builder = SimImageBuilder(ctxt)
