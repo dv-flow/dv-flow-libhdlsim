@@ -31,7 +31,7 @@ package:
     uses: hdlsim.SimImage
     shell: pytask
     run: dv_flow.libhdlsim.vcs_sim_image.SimImage
-    uptodate: vcs_sim_image.py::check_uptodate
+    uptodate: dv_flow.libhdlsim.vcs_sim_image.check_uptodate
     desc: Compiles HDL sources into a VCS simulation executable
     doc: |
       Compiles SystemVerilog/Verilog sources using Synopsys VCS.
@@ -61,7 +61,7 @@ package:
     uses: hdlsim.SimLib
     shell: pytask
     run: dv_flow.libhdlsim.vcs_sim_lib.SimLib
-    uptodate: vcs_sim_lib.py::check_uptodate
+    uptodate: dv_flow.libhdlsim.vcs_sim_lib.check_uptodate
     desc: Creates a VCS pre-compiled library
     doc: |
       Creates a pre-compiled simulation library that can be reused
