@@ -105,6 +105,13 @@ class VlSimImageBuilder(object):
 
     _log : ClassVar = logging.getLogger("VlSimImage")
 
+    # When True, VPI libraries consumed by this SimImage are forwarded to
+    # downstream consumers (eg SimRun) instead of being baked into the image.
+    # Simulators that load VPI at run time (Icarus, Questa/ModelSim, Xcelium)
+    # set this so that the flow graph is identical across simulators: the user
+    # always attaches VPI libraries to SimImage, never directly to SimRun.
+    forward_vpi : ClassVar[bool] = False
+
     def getRefTime(self, rundir):
         raise NotImplementedError()
 
@@ -151,9 +158,29 @@ class VlSimImageBuilder(object):
 
 
         self.output.append(FileSet(
-                src=input.name, 
-                filetype="simDir", 
+                src=input.name,
+                filetype="simDir",
                 basedir=input.rundir))
+
+        # Forward run-time environment (std.Env) to consumers (eg SimRun) so a
+        # single upstream config task can attach to SimImage alone and still have
+        # its environment reach the run.
+        for fs in input.inputs:
+            if getattr(fs, "type", None) == "std.Env":
+                self.output.append(fs)
+
+        # Forward VPI libraries to run-time consumers for simulators that load
+        # VPI at run time (see forward_vpi). This keeps the user-facing flow
+        # graph consistent: VPI libraries attach to SimImage for every simulator.
+        if self.forward_vpi:
+            for vpi_path, entrypoint in data.vpi:
+                attrs = ["entrypoint=%s" % entrypoint] if entrypoint else []
+                self.output.append(FileSet(
+                    src=input.name,
+                    filetype="verilogVPI",
+                    basedir=os.path.dirname(vpi_path),
+                    files=[os.path.basename(vpi_path)],
+                    attributes=attrs))
 
         return TaskDataResult(
             memento=self.memento if status == 0 else None,
@@ -196,6 +223,12 @@ class VlSimImageBuilder(object):
                     else:
                         data.libs.append(fs.basedir)
                     self._addIncDirs(data, fs.basedir, fs.incdirs)
+                elif fs.filetype == "verilatorMain":
+                    # A user/tool-supplied C++ main (eg cocotb's verilator.cpp).
+                    # Recorded separately so the Verilator SimImage can build in
+                    # --exe mode with this main instead of generating one.
+                    for file in fs.files:
+                        data.verilator_main = os.path.join(fs.basedir, file)
                 elif fs.filetype == "systemVerilogDPI":
                     for file in fs.files:
                         path = os.path.join(fs.basedir, file)

@@ -29,6 +29,9 @@ from svdep import FileCollection, TaskCheckUpToDate, TaskBuildFileCollection
 
 class SimImageBuilder(VlSimImageBuilder):
 
+    # Icarus loads VPI at run time (vvp -m), so forward VPI libs to SimRun.
+    forward_vpi = True
+
     def getRefTime(self, rundir):
         if os.path.isfile(os.path.join(rundir, 'simv.vpp')):
             print("Returning timestamp")

@@ -15,6 +15,9 @@ class VlSimImageData(object):
     vpi : List[Tuple[str, Optional[str]]] = dc.field(default_factory=list)
     csource : List[str] = dc.field(default_factory=list)
     cincdirs : List[str] = dc.field(default_factory=list)
+    # Path to a user/tool-supplied C++ "main" (eg cocotb's verilator.cpp). When
+    # set, the Verilator SimImage builds with this main instead of --main.
+    verilator_main : Optional[str] = dc.field(default=None)
     top : List[str] = dc.field(default_factory=list)
     trace : bool = dc.field(default=False)
     timing : bool = dc.field(default=True)

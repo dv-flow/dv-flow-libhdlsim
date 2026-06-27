@@ -20,6 +20,7 @@
 #*
 #****************************************************************************
 import asyncio
+import glob
 import os
 import logging
 from typing import ClassVar
@@ -44,12 +45,27 @@ class SimImageBuilder(VlSimImageBuilder):
         status = 0
         changed = True
 
+        # When a verilatorMain data item is supplied (eg cocotb's verilator.cpp),
+        # build in --exe mode with that main instead of letting Verilator generate
+        # one (--main). The supplier is responsible for matching the Verilator
+        # --prefix (passed via compargs) to whatever the main #includes.
+        custom_main = data.verilator_main is not None
+
+        # The 'verilator' wrapper errors if VERILATOR_ROOT is set to a path that
+        # disagrees with its own self-location; drop it for the custom-main build.
+        env = None
+        if custom_main and 'VERILATOR_ROOT' in self.ctxt.env:
+            env = dict(self.ctxt.env)
+            env.pop('VERILATOR_ROOT')
+
         # Phase 1: verilator elaboration and C++ generation only (no link).
         # DPI lib flags are intentionally omitted here; they are injected via
         # VM_USER_LDLIBS in the explicit make phase below so that the DPI
         # object file (V<top>__Dpi.o) can be listed as a direct link object
         # before the shared library, without relying on -Wl,-u workarounds.
-        cmd = ['verilator', '--cc', '--exe', '--main', '-o', 'simv', '-Wno-fatal']
+        cmd = ['verilator', '--cc', '--exe', '-o', 'simv', '-Wno-fatal']
+        if not custom_main:
+            cmd.append('--main')
 
         if data.timing:
             cmd.append('--timing')
@@ -65,7 +81,18 @@ class SimImageBuilder(VlSimImageBuilder):
             cmd.append('--trace')
 
         if len(data.vpi) > 0:
-            raise Exception("VPI not supported in VLT")
+            if not custom_main:
+                raise Exception("VPI in VLT requires a verilatorMain (eg cocotb)")
+            # Generic VPI: expose signals and link the VPI shared library(ies).
+            cmd.extend(['--vpi', '--public-flat-rw'])
+            for lib_path, _entrypoint in data.vpi:
+                lib_dir = os.path.dirname(lib_path)
+                lib = os.path.splitext(os.path.basename(lib_path))[0]
+                if lib.startswith('lib'):
+                    lib = lib[3:]
+                cmd.extend(['-LDFLAGS', '-L%s' % lib_dir,
+                            '-LDFLAGS', '-l%s' % lib,
+                            '-LDFLAGS', '-Wl,-rpath,%s' % lib_dir])
 
         cmd.extend(data.args)
         cmd.extend(data.compargs)
@@ -73,14 +100,13 @@ class SimImageBuilder(VlSimImageBuilder):
 
         cmd.extend(data.files)
         cmd.extend(data.csource)
+        if custom_main:
+            cmd.append(data.verilator_main)
 
         for top in input.params.top:
             cmd.extend(['--top-module', top])
 
-        # Phase 2: make command — deferred until after verilator runs so we can
-        # inspect obj_dir for the generated V<top>__Dpi.cpp.
         top_module = input.params.top[0] if input.params.top else 'top'
-        mk_file = 'V%s.mk' % top_module
 
         with open(os.path.join(input.rundir, "build.f"), "w") as fp:
             for elem in cmd[1:]:
@@ -92,6 +118,7 @@ class SimImageBuilder(VlSimImageBuilder):
 
         status |= await self.ctxt.exec(
             cmd,
+            env=env,
             logfile="build.log",
             logfilter=VltLogParser(
                 notify=lambda m: self.ctxt.add_marker(m),
@@ -103,6 +130,18 @@ class SimImageBuilder(VlSimImageBuilder):
 
         if status:
             return (status, changed)
+
+        # Phase 2: make. With a custom --prefix (eg cocotb's Vtop) the makefile
+        # name is not derivable from the top module, so discover it: there is a
+        # single V<prefix>.mk alongside V<prefix>_classes.mk.
+        if custom_main:
+            mks = [f for f in glob.glob(os.path.join(input.rundir, 'obj_dir', '*.mk'))
+                   if not f.endswith('_classes.mk')]
+            if not mks:
+                raise Exception("No generated Verilator makefile found in obj_dir")
+            mk_file = os.path.basename(mks[0])
+        else:
+            mk_file = 'V%s.mk' % top_module
 
         make_cmd = ['make', '-C', 'obj_dir', '-f', mk_file, '-j']
 
@@ -155,6 +194,7 @@ class SimImageBuilder(VlSimImageBuilder):
         status |= await self.ctxt.exec(
             make_cmd,
             cwd=input.rundir,
+            env=env,
             logfile="build.log")
 
         self.parseLog(os.path.join(input.rundir, 'build.log'))

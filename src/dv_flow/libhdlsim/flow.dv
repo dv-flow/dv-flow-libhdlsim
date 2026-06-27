@@ -156,6 +156,7 @@ package:
     - filetype: verilogSource 
     - filetype: systemVerilogDPI
     - filetype: verilogVPI
+    - filetype: verilatorMain
     - type: hdlsim.SimElabArgs
     - type: hdlsim.SimCompileArgs
     - type: hdlsim.SuppressWarnings

@@ -29,6 +29,9 @@ from svdep import TaskBuildFileCollection
 
 class SimImageBuilder(VlSimImageBuilder):
 
+    # Xcelium loads VPI at run time (xmsim -loadvpi), so forward to SimRun.
+    forward_vpi = True
+
     def getRefTime(self, rundir):
         if os.path.isfile(os.path.join(rundir, 'simv_opt.d')):
             return os.path.getmtime(os.path.join(rundir, 'simv_opt.d'))
@@ -60,6 +63,13 @@ class SimImageBuilder(VlSimImageBuilder):
         # Now, run elaboration
         if not status:
             cmd = ['xmelab', '-64bit', '-snap', 'simv:snap']
+
+            # VPI libraries (eg cocotb) require read/write/connectivity access
+            # to be granted at elaboration; the lib itself is loaded at run time
+            # via 'xmsim -loadvpi' (see xcm_sim_run).
+            if len(data.vpi):
+                cmd.extend(['-access', '+rwc'])
+
             for top in input.params.top:
                 cmd.append(top)
 

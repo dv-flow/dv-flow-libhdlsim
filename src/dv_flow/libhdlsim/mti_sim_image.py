@@ -30,6 +30,9 @@ from .mti_log_parser import MtiLogParser
 
 class SimImageBuilder(VlSimImageBuilder):
 
+    # Questa/ModelSim loads VPI at run time (vsim -pli), so forward to SimRun.
+    forward_vpi = True
+
     def getRefTime(self, rundir):
         if os.path.isfile(os.path.join(rundir, 'simv_opt.d')):
             return os.path.getmtime(os.path.join(rundir, 'simv_opt.d'))

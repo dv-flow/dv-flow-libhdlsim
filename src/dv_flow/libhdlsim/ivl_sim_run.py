@@ -30,16 +30,29 @@ class SimRunner(VLSimRunner):
     async def runsim(self, data : VlSimRunData) -> TaskData:
         status = 0
 
-        cmd = [
-            'vvp',
-            os.path.join(data.imgdir, 'simv.vpp'),
-        ]
+        cmd = ['vvp']
 
-        if len(data.vpilibs):
-            raise Exception("VPI libraries not supported yet")
-        
+        # Load VPI libraries (eg cocotb's GPI library) ahead of the image.
+        # Icarus loads a VPI module via '-M <dir> -m <module>', where <module>
+        # is the library name without its directory or extension (Icarus
+        # appends '.vpl'). The optional entrypoint is not used by Icarus.
+        seen_dirs = set()
+        for vpilib, _entrypoint in data.vpilibs:
+            libdir = os.path.dirname(vpilib)
+            module = os.path.basename(vpilib)
+            for ext in (".vpl", ".vpi", ".so"):
+                if module.endswith(ext):
+                    module = module[:-len(ext)]
+                    break
+            if libdir and libdir not in seen_dirs:
+                cmd.extend(['-M', libdir])
+                seen_dirs.add(libdir)
+            cmd.extend(['-m', module])
+
         if len(data.dpilibs):
             raise Exception("Icarus Verilog does not support DPI libraries")
+
+        cmd.append(os.path.join(data.imgdir, 'simv.vpp'))
 
         for plusarg in data.plusargs:
             cmd.append("+%s" % plusarg)
