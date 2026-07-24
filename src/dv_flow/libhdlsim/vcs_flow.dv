@@ -83,6 +83,49 @@ package:
     doc: |
       Runs a previously compiled VCS simulation executable.
 
+  #------------------------------------------------------------------
+  # Per-sim opt/debug flag sets (see hdlsim.SimCompArgsOpt et al.).
+  # Selected by the `sim`-driven elaborator; each emits the matching
+  # hdlsim.Sim*Args DataItem carrying this simulator's default flags
+  # for the mode. Flag lists are placeholders ([]) until the correct
+  # VCS flags are established.
+  #------------------------------------------------------------------
+  - export: SimCompArgsOpt
+    uses: hdlsim.SimCompileArgs
+    consumes: none
+    desc: VCS optimized-mode compile flags
+    with: { args: { type: list, value: [] } }
+
+  - export: SimCompArgsDbg
+    uses: hdlsim.SimCompileArgs
+    consumes: none
+    desc: VCS debug-mode compile flags
+    with: { args: { type: list, value: [] } }
+
+  - export: SimElabArgsOpt
+    uses: hdlsim.SimElabArgs
+    consumes: none
+    desc: VCS optimized-mode elaboration flags
+    with: { args: { type: list, value: [] } }
+
+  - export: SimElabArgsDbg
+    uses: hdlsim.SimElabArgs
+    consumes: none
+    desc: VCS debug-mode elaboration flags
+    with: { args: { type: list, value: [] } }
+
+  - export: SimRunArgsOpt
+    uses: hdlsim.SimRunArgs
+    consumes: none
+    desc: VCS optimized-mode runtime flags
+    with: { args: { type: list, value: [] } }
+
+  - export: SimRunArgsDbg
+    uses: hdlsim.SimRunArgs
+    consumes: none
+    desc: VCS debug-mode runtime flags
+    with: { args: { type: list, value: [] } }
+
   types:
   - name: AgentSkill
     uses: std.DataItem

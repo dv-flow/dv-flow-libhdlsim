@@ -23,6 +23,18 @@ package:
   name: hdlsim.vlt
   desc: Verilator open-source simulator integration for fast HDL simulation
 
+  # Waveform format for trace-enabled (debug) builds. FST by default (far more
+  # compact than VCD for large designs). The debug arg presets read it as the
+  # qualified `${{ hdlsim.vlt.trace_fmt }}`: the elab preset maps it to the
+  # Verilator tracer flag (fst->--trace-fst, vcd->--trace) and the run preset to
+  # the +trace=waves.<fmt> dump-file name, so build flag and file extension
+  # agree from this one knob. Override with `-D hdlsim.vlt.trace_fmt=vcd` (or a
+  # `set:` subtree rebind).
+  with:
+    trace_fmt:
+      type: str
+      value: "fst"
+
   imports:
   - name: hdlsim
 
@@ -127,6 +139,67 @@ package:
           plusargs: [UVM_TESTNAME=my_test]
           trace: true
       ```
+
+  - export: SimUVMCase
+    uses: hdlsim.SimUVMCase
+    pytask: dv_flow.libhdlsim.vlt_sim_uvm_case.SimUVMCase
+    desc: Run one Verilator UVM test (run + verdict) and emit a TestResult
+
+  #------------------------------------------------------------------
+  # Per-sim opt/debug flag sets (see hdlsim.SimCompArgsOpt et al.).
+  # Selected by the `sim`-driven elaborator; each emits the matching
+  # hdlsim.Sim*Args DataItem carrying this simulator's default flags
+  # for the mode. Flag lists are placeholders ([]) until the correct
+  # Verilator flags are established.
+  #------------------------------------------------------------------
+  - export: SimCompArgsOpt
+    uses: hdlsim.SimCompileArgs
+    consumes: none
+    desc: Verilator optimized-mode compile flags
+    with: { args: { type: list, value: [] } }
+
+  - export: SimCompArgsDbg
+    uses: hdlsim.SimCompileArgs
+    consumes: none
+    desc: Verilator debug-mode compile flags
+    with: { args: { type: list, value: [] } }
+
+  - export: SimElabArgsOpt
+    uses: hdlsim.SimElabArgs
+    consumes: none
+    desc: Verilator optimized-mode elaboration flags
+    with: { args: { type: list, value: [] } }
+
+  - export: SimElabArgsDbg
+    uses: hdlsim.SimElabArgs
+    consumes: none
+    desc: Verilator debug-mode elaboration flags
+    doc: |
+      Verilator debug elaboration flags. Enables waveform tracing: `trace_fmt`
+      defaults to the `hdlsim.vlt.trace_fmt` var (FST), which the image builder
+      maps to the tracer flag (fst->`--trace-fst`, vcd->`--trace`). Flip with
+      `-D hdlsim.vlt.trace_fmt=vcd`. Any Verilator-specific debug elab flags go
+      in `args`.
+    with: { trace_fmt: { type: str, value: "${{ hdlsim.vlt.trace_fmt }}" } }
+
+  - export: SimRunArgsOpt
+    uses: hdlsim.SimRunArgs
+    consumes: none
+    desc: Verilator optimized-mode runtime flags
+    with: { args: { type: list, value: [] } }
+
+  - export: SimRunArgsDbg
+    uses: hdlsim.SimRunArgs
+    consumes: none
+    desc: Verilator debug-mode runtime flags
+    doc: |
+      Verilator debug runtime flags. Passes `+trace=waves.<fmt>`, whose
+      extension follows the package `trace_fmt` var so the file name matches the
+      format the image was built with; the testbench reads it via
+      `$value$plusargs("trace=%s", f)`. `trace` is a project-side plusarg name
+      -- Verilator reserves only the `+verilator+*` namespace, so `+trace` does
+      not collide. Any Verilator-specific debug run flags would go in `args`.
+    with: { plusargs: { type: list, value: ["trace=waves.${{ hdlsim.vlt.trace_fmt }}"] } }
 
   types:
   - name: AgentSkill

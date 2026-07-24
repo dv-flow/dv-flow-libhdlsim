@@ -51,8 +51,15 @@ class SimRunner(VLSimRunner):
         if len(data.vpilibs):
             raise Exception("VPI libraries not supported yet")
 
-        if data.trace:
-            cmd.append("+verilator+debug")
+        # `trace: true` on the run requests waveform dumping. Pass the project
+        # `+trace` plusarg the testbench tests via `$test$plusargs("trace")` to
+        # open its dump (`$dumpfile`/`$dumpvars`) -- the same plusarg
+        # SimRunArgsDbg emits. (Previously this passed `+verilator+debug`, which
+        # only enables Verilator's internal runtime debug logging, not tracing.)
+        # The image must have been built with `--trace` (see SimElabArgsDbg);
+        # avoid double-adding `+trace` if it already arrived via plusargs.
+        if data.trace and "trace" not in data.plusargs:
+            cmd.append("+trace")
 
         status |= await self.ctxt.exec(cmd, logfile="sim.log")
 

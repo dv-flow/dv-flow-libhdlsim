@@ -77,7 +77,15 @@ class SimImageBuilder(VlSimImageBuilder):
         for define in data.defines:
             cmd.append('+define+%s' % define)
 
-        if data.trace:
+        # Waveform tracing. Format (and enable) come from `trace_fmt`
+        # (none|fst|vcd), set by a trace-enabled elab-args preset. The legacy
+        # `trace: true` SimImage bool also enables tracing, defaulting to fst.
+        trace_fmt = getattr(data, 'trace_fmt', 'none')
+        if (not trace_fmt or trace_fmt == 'none') and data.trace:
+            trace_fmt = 'fst'
+        if trace_fmt == 'fst':
+            cmd.append('--trace-fst')
+        elif trace_fmt == 'vcd':
             cmd.append('--trace')
 
         if len(data.vpi) > 0:

@@ -38,3 +38,45 @@ package:
     shell: pytask
     run: dv_flow.libhdlsim.xcm_sim_run.SimRun 
 
+  #------------------------------------------------------------------
+  # Per-sim opt/debug flag sets (see hdlsim.SimCompArgsOpt et al.).
+  # Selected by the `sim`-driven elaborator; each emits the matching
+  # hdlsim.Sim*Args DataItem carrying this simulator's default flags
+  # for the mode. Flag lists are placeholders ([]) until the correct
+  # Xcelium multi-step flags are established.
+  #------------------------------------------------------------------
+  - export: SimCompArgsOpt
+    uses: hdlsim.SimCompileArgs
+    consumes: none
+    desc: Xcelium multi-step optimized-mode compile flags
+    with: { args: { type: list, value: [] } }
+
+  - export: SimCompArgsDbg
+    uses: hdlsim.SimCompileArgs
+    consumes: none
+    desc: Xcelium multi-step debug-mode compile flags
+    with: { args: { type: list, value: [] } }
+
+  - export: SimElabArgsOpt
+    uses: hdlsim.SimElabArgs
+    consumes: none
+    desc: Xcelium multi-step optimized-mode elaboration flags
+    with: { args: { type: list, value: [] } }
+
+  - export: SimElabArgsDbg
+    uses: hdlsim.SimElabArgs
+    consumes: none
+    desc: Xcelium multi-step debug-mode elaboration flags
+    with: { args: { type: list, value: [] } }
+
+  - export: SimRunArgsOpt
+    uses: hdlsim.SimRunArgs
+    consumes: none
+    desc: Xcelium multi-step optimized-mode runtime flags
+    with: { args: { type: list, value: [] } }
+
+  - export: SimRunArgsDbg
+    uses: hdlsim.SimRunArgs
+    consumes: none
+    desc: Xcelium multi-step debug-mode runtime flags
+    with: { args: { type: list, value: [] } }

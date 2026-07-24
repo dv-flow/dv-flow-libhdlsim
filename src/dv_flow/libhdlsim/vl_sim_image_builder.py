@@ -263,6 +263,11 @@ class VlSimImageBuilder(object):
             elif fs.type == "hdlsim.SimElabArgs":
                 self._log.debug("fs.type=%s" % fs.type)
                 data.elabargs.extend(merge_tokenize(fs.args))
+                # A trace-enabled elab-args preset (eg SimElabArgsDbg) selects
+                # the waveform format here; "none" leaves it off.
+                _tf = getattr(fs, 'trace_fmt', 'none')
+                if _tf and _tf != 'none':
+                    data.trace_fmt = _tf
                 # Convert vpilibs from SimElabArgs (strings) to tuples (path, None)
                 data.vpi.extend([(vpi, None) for vpi in fs.vpilibs])
                 data.dpi.extend(fs.dpilibs)

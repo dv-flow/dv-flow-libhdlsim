@@ -20,13 +20,15 @@
 #*
 #****************************************************************************
 import os
+import glob
 import json
 import logging
 import shutil
+import time
 import dataclasses as dc
 from dv_flow.mgr import FileSet, TaskDataResult, TaskRunCtxt
 from dv_flow.mgr.task_data import TaskMarker, SeverityE
-from typing import ClassVar, List, Tuple
+from typing import ClassVar, Dict, List, Tuple
 from dv_flow.libhdlsim.log_parser import LogParser
 from dv_flow.libhdlsim.vl_sim_data import VlSimRunData
 
@@ -39,6 +41,7 @@ class VLSimRunner(object):
     markers : List[TaskMarker] = dc.field(default_factory=list)
     rundir : str = dc.field(default="")
     ctxt : TaskRunCtxt = dc.field(default=None)
+    _walltime : float = dc.field(default=0.0)
 
     async def run(self, ctxt, input) -> TaskDataResult:
         status = 0
@@ -107,17 +110,61 @@ class VLSimRunner(object):
         # Handle simRunData inputs
         self.copy_sim_data(sim_data)
 
+        # `mode` gates how a nonzero simulator exit is treated:
+        #   run  (default): a nonzero exit fails the task (build-and-run).
+        #   test          : the exit code rides in SimRunResult and NEVER fails
+        #                    the task -- a downstream Check task decides the
+        #                    verdict, so one failing case can't abort a suite.
+        # A setup/config error (missing simDir, ...) fails the task in ANY mode:
+        # it is an infrastructure failure, not a test outcome.
+        mode = getattr(input.params, "mode", "run")
 
+        rc = 0
         if not status:
-            status |= await self.runsim(data)
+            t0 = time.monotonic()
+            rc = await self.runsim(data)
+            self._walltime = time.monotonic() - t0
+
+        task_status = status
+        if mode != "test":
+            task_status |= rc
+        else:
+            # In test mode a nonzero simulator exit is the VERDICT (carried in
+            # SimRunResult), not a task failure. `ctxt.exec` auto-adds a
+            # "Command failed" ERROR marker on nonzero exit; left in place it
+            # marks this (compound) cell failed and its TestResult gets dropped
+            # from a suite's matrix aggregation. Drop that marker here -- a
+            # failing test in test mode emits no error marker of its own.
+            if self.ctxt is not None:
+                self.ctxt._markers = [
+                    m for m in self.ctxt._markers
+                    if not (m.severity == SeverityE.Error
+                            and str(m.msg).startswith("Command failed"))]
+
+        artifacts = self._collect_artifacts()
+
+        result = self.ctxt.mkDataItem(
+            "hdlsim.SimRunResult",
+            status=(status | rc),
+            sim=getattr(input.params, "sim", ""),
+            mode=mode,
+            walltime_s=self._walltime,
+            artifacts=artifacts)
 
         return TaskDataResult(
-            status=status,
+            status=task_status,
             markers=self.markers,
-            output=[FileSet(
-                src=input.name, 
-                filetype="simRunDir", 
-                basedir=input.rundir)]
+            # SimRunResult carries the verdict-as-data + artifacts. The
+            # legacy simRunDir FileSet is retained for one release as a soft
+            # landing for consumers that located sim.log by rundir (no
+            # functional flow relies on it; unit tests still do).
+            output=[
+                result,
+                FileSet(
+                    src=input.name,
+                    filetype="simRunDir",
+                    basedir=input.rundir),
+            ]
         )
 
     async def runsim(self, data : VlSimRunData):
@@ -125,7 +172,40 @@ class VLSimRunner(object):
             severity=SeverityE.Error,
             msg="No runsim implemenetation"))
         return 1
-    
+
+    def _artifact_spec(self) -> Dict[str, Tuple[List[str], str]]:
+        """Map artifact filetype -> (glob patterns, role attribute).
+
+        This base spec is the Verilator layout (sim.log, VCD/FST traces). Other
+        backends override to name their own log/trace files. `simCovDb` is a
+        reserved slot: its precise glob emits nothing until a coverage database
+        is actually produced (coverage support is a labeled follow-up), so the
+        FileSet schema does not change when coverage lands.
+        """
+        return {
+            "simLog":   (["sim.log"],                   "log"),
+            "simTrace": (["*.vcd", "*.fst", "waves.*"], "trace"),
+            "simCovDb": (["coverage.dat"],              "cov"),
+        }
+
+    def _collect_artifacts(self) -> List[FileSet]:
+        """Glob the rundir per `_artifact_spec()`, emitting a FileSet only for
+        filetypes whose files actually exist (so trace/coverage stay absent
+        unless produced)."""
+        out = []
+        for ftype, (globs, role) in self._artifact_spec().items():
+            files = []
+            for g in globs:
+                files.extend(glob.glob(os.path.join(self.rundir, g)))
+            files = sorted(set(f for f in files if os.path.isfile(f)))
+            if files:
+                out.append(FileSet(
+                    filetype=ftype,
+                    basedir=self.rundir,
+                    files=[os.path.relpath(f, self.rundir) for f in files],
+                    attributes=["role=%s" % role]))
+        return out
+
     def copy_sim_data(self, sim_data : List[FileSet]):
         for ds in sim_data:
             for f in ds.files:

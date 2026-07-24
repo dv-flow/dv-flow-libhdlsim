@@ -282,6 +282,40 @@ Key points:
 - `std.FileSet` with `type: simRunData` to copy files into the test rundir
 - Feed targets use fully-qualified names (`package.task`)
 
+## Selecting a Simulator (abstract tasks)
+
+Write the generic tasks `uses: hdlsim.SimImage` / `hdlsim.SimRun` (no simulator
+in the name) and pick the backend separately. The abstract tasks read
+`${{ hdlsim.sim }}`, so selection is:
+
+```bash
+dfm run run -D hdlsim.sim=vlt          # whole build runs on Verilator
+```
+
+or, over a subtree, with a `set:` block:
+
+```yaml
+- name: regression
+  set:
+  - hdlsim.sim: vlt                     # this subtree runs on Verilator
+  - path: "**/smoke*"                   # ... except the smoke leg
+    set:
+    - hdlsim.sim: mti                   # ... which runs on Questa
+  body:
+  - name: build
+    uses: hdlsim.SimImage
+    needs: [files]
+    with: {top: [top]}
+  - name: run
+    uses: hdlsim.SimRun
+    needs: [build]
+```
+
+If no simulator is selected, the build aborts with a diagnostic listing the
+available backends. The explicit concrete form (`uses: hdlsim.vlt.SimImage`)
+always works and bypasses selection. See the dv-flow-manager
+*Scoped Variables and Overrides* guide for the full `set:` model.
+
 ## Multi-Simulator Support
 
 Use package parameters and alias imports to select the simulator at build

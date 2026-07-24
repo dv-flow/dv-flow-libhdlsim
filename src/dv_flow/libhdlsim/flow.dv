@@ -25,8 +25,21 @@ package:
   name: hdlsim
   desc: HDL simulation package providing tasks for compiling and running simulations with various simulators
 
+  # Global simulator selection (Feature C). Set with `-D hdlsim.sim=vlt` or a
+  # subtree `set: [{ hdlsim.sim: <name> }]` override. The abstract
+  # SimImage/SimRun/SimLib/SimLibUVM tasks read it by ordinary reference
+  # (`${{ hdlsim.sim }}`); a bound BackendSelectElaborator dispatches to
+  # hdlsim.<sim>.<task>. "unset" is the misconfig sentinel the selector reports
+  # on. (Per-leg control: `set: [{ uses: "hdlsim.*", path: "smoke/**",
+  # set: [{ sim: <name> }] }]`.)
+  with:
+    sim:
+      type: str
+      value: "unset"
+
   tasks:
   - export: SimLib
+    elaborate: dv_flow.libhdlsim.backend_select:elaborate
     desc: Creates a pre-compiled simulation library
     doc: |
       SimLib compiles HDL source files into a pre-compiled simulation library
@@ -46,6 +59,10 @@ package:
     - type: hdlsim.SimCompileArgs
     - type: hdlsim.SuppressWarnings
     with:
+      sim:
+        doc: Simulator backend selector (see package sim); reads hdlsim.sim (CLI / set / with)
+        type: str
+        value: "${{ hdlsim.sim:-unset }}"
       args:
         doc: Additional compiler arguments
         type: list
@@ -109,6 +126,7 @@ package:
         type: list
 
   - export: SimLibUVM
+    elaborate: dv_flow.libhdlsim.backend_select:elaborate
     desc: Provides UVM (Universal Verification Methodology) library support
     doc: |
       SimLibUVM provides the UVM library for the target simulator. Each
@@ -124,9 +142,14 @@ package:
           uses: sim.SimImage
           needs: [rtl, uvm, tb]
       ```
-    with: {}
+    with:
+      sim:
+        doc: Simulator backend selector (see package sim); reads hdlsim.sim (CLI / set / with)
+        type: str
+        value: "${{ hdlsim.sim:-unset }}"
 
   - export: SimImage
+    elaborate: dv_flow.libhdlsim.backend_select:elaborate
     desc: Compiles HDL sources into a simulation executable
     doc: |
       SimImage compiles SystemVerilog/Verilog source files into a simulation
@@ -161,6 +184,10 @@ package:
     - type: hdlsim.SimCompileArgs
     - type: hdlsim.SuppressWarnings
     with:
+      sim:
+        doc: Simulator backend selector (see package sim); reads hdlsim.sim (CLI / set / with)
+        type: str
+        value: "${{ hdlsim.sim:-unset }}"
       top:
         doc: Top-level module name(s)
         type: list
@@ -198,6 +225,7 @@ package:
 
 
   - export: SimRun
+    elaborate: dv_flow.libhdlsim.backend_select:elaborate
     desc: Executes a compiled simulation
     doc: |
       SimRun executes a previously compiled simulation image. It consumes the
@@ -221,6 +249,19 @@ package:
     - type: hdlsim.SimRunArgs
     uptodate: false
     with:
+      sim:
+        doc: Simulator backend selector (see package sim); reads hdlsim.sim (CLI / set / with)
+        type: str
+        value: "${{ hdlsim.sim:-unset }}"
+      mode:
+        doc: |
+          Run mode. "run" (default): the task fails on a nonzero simulator exit
+          code, matching a plain build-and-run. "test": the task never fails on
+          a nonzero exit -- the exit code is carried in the emitted SimRunResult
+          and the pass/fail verdict is decided downstream by a Check task. Used
+          by SimCase so one failing case does not abort a suite.
+        type: str
+        value: "run"
       args:
         doc: Runtime arguments
         type: list
@@ -242,6 +283,175 @@ package:
 
   - export: SimArgs
     uses: hdlsim.SimCompileArgs
+
+  #------------------------------------------------------------------
+  # Per-sim opt/debug flag selectors.
+  #
+  # These abstract tasks pick the correct simulator-specific flag set
+  # for optimized ('...Opt') or debug ('...Dbg') builds, driven by the
+  # global `hdlsim.sim` selection. The bound elaborator (backend_select)
+  # reads the resolved `sim` and rebinds `uses` to the concrete per-sim
+  # emitter `hdlsim.<sim>.<Family>` (e.g. hdlsim.vlt.SimCompArgsOpt),
+  # which produces the matching hdlsim.Sim*Args DataItem consumed by
+  # SimImage / SimLib / SimRun.
+  #
+  # Only `sim` is declared here; args/incdirs/defines are inherited from
+  # the base Sim*Args type, so the concrete emitter's flags flow through
+  # (a user-supplied `args` on the instance replaces them). `sim` drives
+  # selection only and is never part of the emitted DataItem.
+  #------------------------------------------------------------------
+  - export: SimCompArgsOpt
+    uses: SimCompileArgs
+    elaborate: dv_flow.libhdlsim.backend_select:elaborate
+    consumes: none
+    desc: Optimized-mode compile flags; selects the per-sim set from hdlsim.sim
+    with: { sim: { type: str, value: "${{ hdlsim.sim:-unset }}" } }
+
+  - export: SimCompArgsDbg
+    uses: SimCompileArgs
+    elaborate: dv_flow.libhdlsim.backend_select:elaborate
+    consumes: none
+    desc: Debug-mode compile flags; selects the per-sim set from hdlsim.sim
+    with: { sim: { type: str, value: "${{ hdlsim.sim:-unset }}" } }
+
+  - export: SimElabArgsOpt
+    uses: SimElabArgs
+    elaborate: dv_flow.libhdlsim.backend_select:elaborate
+    consumes: none
+    desc: Optimized-mode elaboration flags; selects the per-sim set from hdlsim.sim
+    with: { sim: { type: str, value: "${{ hdlsim.sim:-unset }}" } }
+
+  - export: SimElabArgsDbg
+    uses: SimElabArgs
+    elaborate: dv_flow.libhdlsim.backend_select:elaborate
+    consumes: none
+    desc: Debug-mode elaboration flags; selects the per-sim set from hdlsim.sim
+    with: { sim: { type: str, value: "${{ hdlsim.sim:-unset }}" } }
+
+  - export: SimRunArgsOpt
+    uses: SimRunArgs
+    elaborate: dv_flow.libhdlsim.backend_select:elaborate
+    consumes: none
+    desc: Optimized-mode runtime flags; selects the per-sim set from hdlsim.sim
+    with: { sim: { type: str, value: "${{ hdlsim.sim:-unset }}" } }
+
+  - export: SimRunArgsDbg
+    uses: SimRunArgs
+    elaborate: dv_flow.libhdlsim.backend_select:elaborate
+    consumes: none
+    desc: Debug-mode runtime flags; selects the per-sim set from hdlsim.sim
+    with: { sim: { type: str, value: "${{ hdlsim.sim:-unset }}" } }
+
+  #------------------------------------------------------------------
+  # Verdict tasks: turn a SimRunResult into an interpreted TestResult.
+  #
+  # These are simulator-AGNOSTIC pytasks (they read the log file a SimRun wrote;
+  # no simulator is invoked), so unlike SimRun/SimImage they do NOT dispatch via
+  # backend_select -- the pytask is bound directly.
+  #------------------------------------------------------------------
+  - export: SimCheck
+    desc: Interpret a SimRunResult into a pass/fail TestResult (generic; verdict from exit code)
+    doc: |
+      SimCheck consumes a SimRunResult (produced by a SimRun in `mode: test`)
+      and emits a TestResult carrying the pass/fail verdict plus the artifact
+      FileSets forwarded from the run. The generic base decides the verdict from
+      the simulator exit code; SimUVMCheck overrides it to parse the UVM report
+      summary (a UVM $finish exits 0 even with UVM_ERROR>0, so the exit code is
+      NOT the verdict).
+
+      Run it with `rundir: inherit` alongside its SimRun so both share the run
+      directory (the check locates `sim.log` there). On a non-pass the task
+      emits an Error marker for visibility but still returns success, so one
+      failing case does not abort a suite -- the gate is SimSuiteReport.
+    pytask: dv_flow.libhdlsim.sim_check.SimCheck
+    consumes:
+    - type: hdlsim.SimRunResult
+    uptodate: false
+    with:
+      name:
+        doc: Case name recorded in the emitted TestResult
+        type: str
+        value: ""
+      testname:
+        doc: Test identity (e.g. UVM_TESTNAME) recorded in the emitted TestResult
+        type: str
+        value: ""
+      uvm:
+        doc: |
+          When true, parse the UVM report summary for the verdict (delegates to
+          SimUVMCheck) instead of using the simulator exit code. SimUVMCase sets
+          this via an ordinary param override, avoiding a compound-subtask
+          override of the check task.
+        type: bool
+        value: false
+
+  - export: SimUVMCheck
+    uses: SimCheck
+    desc: UVM-aware check -- parses the UVM report summary for the authoritative verdict
+    doc: |
+      SimUVMCheck is the UVM specialization of SimCheck. It parses the tail of
+      the UVM simulation log for the `--- UVM Report Summary ---` block
+      (UVM_ERROR / UVM_FATAL counts + the `** TEST PASSED/FAILED **` line) and
+      falls back to an anchored whole-file scan only when the summary is absent
+      (crash / hang). `passed = UVM_ERROR==0 and UVM_FATAL==0`.
+    pytask: dv_flow.libhdlsim.sim_check.SimUVMCheck
+
+  - export: SimSuiteReport
+    desc: Roll up a suite's TestResults into a SuiteResult and gate CI
+    doc: |
+      SimSuiteReport consumes every TestResult produced by a suite's cases (a
+      matrix task's output aggregates all body cells) and emits a single
+      SuiteResult with pass/fail/error counts. Its task status is nonzero iff
+      any case did not pass -- that status is the suite's CI gate. Individual
+      failing cases still run and are reported (they do not abort the suite),
+      because each SimCase runs in `mode: test` and its check returns success.
+    pytask: dv_flow.libhdlsim.sim_check.SimSuiteReport
+    consumes:
+    - type: hdlsim.TestResult
+    uptodate: false
+
+  #------------------------------------------------------------------
+  # SimUVMCase -- the compact "run one UVM test" task: a SINGLE leaf task that
+  # runs the simulator (in test mode: a failing test never aborts a suite) AND
+  # parses the UVM report summary, emitting a TestResult. A user writes just one
+  # task per case with `testname` (+ optional `plusargs`); the sim image is
+  # injected through `needs:`.
+  #
+  # It is a LEAF (not a compound) on purpose: a compound instantiated more than
+  # once collides on subtask node names (only one instance's output survives
+  # aggregation -- see docs/sim_case_suite_impl_plan.md), whereas distinct leaf
+  # instances get distinct names. `uses: hdlsim.SimRun` inherits the run params
+  # + consumes + backend dispatch; the concrete hdlsim.<sim>.SimUVMCase pytask
+  # runs-then-checks. `SimUVMCase` is itself a backend_select family, so it
+  # dispatches ahead of the inherited SimRun family.
+  #------------------------------------------------------------------
+  - export: SimUVMCase
+    uses: hdlsim.SimRun
+    elaborate: dv_flow.libhdlsim.backend_select:elaborate
+    desc: Run one UVM test (run + verdict in one task) and emit a TestResult
+    doc: |
+      SimUVMCase runs a single UVM test and reports its pass/fail verdict as a
+      TestResult -- run and check in ONE task. Give it a `testname` (used as
+      +UVM_TESTNAME) and, optionally, extra `plusargs`; inject the sim image via
+      `needs:`. It always runs in test mode (the UVM $finish exit code is not the
+      verdict), so a failing case never aborts a suite -- gate a group of cases
+      with SimSuiteReport.
+
+      ```yaml
+      - root: uvm-wb-arb
+        uses: hdlsim.vlt.SimUVMCase
+        needs: [uvm-wb-img]
+        with: { testname: wb_dma_arb_test, plusargs: [CMP_BY_CHANNEL] }
+      ```
+    with:
+      testname:
+        doc: UVM test to run (emitted as +UVM_TESTNAME and recorded in the TestResult)
+        type: str
+        value: ""
+      name:
+        doc: Case name for the TestResult (defaults to `testname`)
+        type: str
+        value: ""
 
   types:
   - name: AgentSkill
@@ -416,16 +626,25 @@ package:
       args:
         doc: Elaboration arguments
         type: list
+      trace_fmt:
+        doc: |
+          Waveform trace format, and the build-time trace enable: "none"
+          (off), "fst" or "vcd". A concrete backend maps a non-"none" value
+          to its trace flag (e.g. Verilator --trace-fst / --trace). Debug
+          arg presets default this from their package `trace_fmt` var (e.g.
+          ${{ hdlsim.vlt.trace_fmt }}), so a single -D flips the format.
+        type: str
+        value: "none"
       dpilibs:
         doc: DPI libraries to link
         type: list
       vpilibs:
         doc: VPI libraries to link
         type: list
-      
+
   - name: SimRunArgs
     doc: Additional runtime arguments for SimRun
-    with: 
+    with:
       plusargs:
         doc: Simulation plusargs
         type: list
@@ -438,4 +657,124 @@ package:
       vpilibs:
         doc: VPI libraries to load
         type: list
-      
+
+  #------------------------------------------------------------------
+  # Test-case / suite result carriers (SimCase / SimSuite infrastructure).
+  #
+  # SimRunResult   -- emitted by SimRun. Carries the *raw* simulator exit
+  #                   status plus the collected artifact FileSets (sim log,
+  #                   trace, coverage db). In `mode: test` the SimRun task
+  #                   status stays 0 even when `status != 0`, so the verdict
+  #                   travels as data (a Check task decides pass/fail).
+  # TestResult     -- emitted by SimCheck/SimUVMCheck. The *interpreted*
+  #                   per-case verdict (passed + severity counts) with the
+  #                   artifacts forwarded from SimRunResult.
+  # SuiteResult    -- emitted by SimSuiteReport. Roll-up over a suite's
+  #                   TestResults; the report task's status gates CI.
+  #------------------------------------------------------------------
+  - name: SimRunResult
+    doc: |
+      Raw outcome of a single SimRun. `status` is the simulator process exit
+      code (NOT the verdict -- a UVM $finish exits 0 with UVM_ERROR>0). In
+      `mode: test` the SimRun task does not fail on nonzero `status`; the
+      verdict is decided downstream by a Check task reading `artifacts`.
+    with:
+      status:
+        doc: Simulator process exit code (0 == clean exit, not necessarily pass)
+        type: int
+        value: 0
+      sim:
+        doc: Simulator backend that produced this result (vlt/vcs/xsm/...)
+        type: str
+        value: ""
+      mode:
+        doc: SimRun mode this result was produced under ("run" or "test")
+        type: str
+        value: "run"
+      walltime_s:
+        doc: Wall-clock seconds spent in the simulator run
+        type: float
+        value: 0.0
+      artifacts:
+        doc: Collected artifact FileSets (simLog / simTrace / simCovDb)
+        type: list
+
+  - name: TestResult
+    doc: |
+      Interpreted per-case verdict emitted by SimCheck/SimUVMCheck. `passed`
+      is the authoritative pass/fail; the *_count fields carry the parsed UVM
+      severity tallies; `artifacts` are forwarded from the SimRunResult.
+    with:
+      name:
+        doc: Case name (matrix cell / SimCase instance name)
+        type: str
+        value: ""
+      testname:
+        doc: Test identity (e.g. UVM_TESTNAME) that was run
+        type: str
+        value: ""
+      sim:
+        doc: Simulator backend that ran the case
+        type: str
+        value: ""
+      status:
+        doc: Verdict status label ("pass" / "fail" / "error" / "timeout")
+        type: str
+        value: ""
+      passed:
+        doc: Authoritative pass/fail verdict
+        type: bool
+        value: false
+      run_status:
+        doc: Underlying simulator process exit code (from SimRunResult.status)
+        type: int
+        value: 0
+      errors:
+        doc: UVM_ERROR count parsed from the log
+        type: int
+        value: 0
+      warnings:
+        doc: UVM_WARNING count parsed from the log
+        type: int
+        value: 0
+      fatals:
+        doc: UVM_FATAL count parsed from the log
+        type: int
+        value: 0
+      seed:
+        doc: Simulation seed (0 when not captured)
+        type: int
+        value: 0
+      walltime_s:
+        doc: Wall-clock seconds spent in the simulator run
+        type: float
+        value: 0.0
+      artifacts:
+        doc: Artifact FileSets forwarded from SimRunResult (simLog / simTrace / simCovDb)
+        type: list
+
+  - name: SuiteResult
+    doc: |
+      Roll-up over a suite's TestResults, emitted by SimSuiteReport. The
+      report task's status is nonzero iff `failed`/`errored` > 0 (the CI gate).
+    with:
+      total:
+        doc: Total number of cases in the suite
+        type: int
+        value: 0
+      passed:
+        doc: Number of cases that passed
+        type: int
+        value: 0
+      failed:
+        doc: Number of cases that failed (verdict fail)
+        type: int
+        value: 0
+      errored:
+        doc: Number of cases that errored/timed out (no clean verdict)
+        type: int
+        value: 0
+      results:
+        doc: The per-case TestResult items in the suite
+        type: list
+

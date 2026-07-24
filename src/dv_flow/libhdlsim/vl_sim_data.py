@@ -20,6 +20,10 @@ class VlSimImageData(object):
     verilator_main : Optional[str] = dc.field(default=None)
     top : List[str] = dc.field(default_factory=list)
     trace : bool = dc.field(default=False)
+    # Waveform format, and the trace enable: "none" (off), "fst" (default
+    # format when tracing) or "vcd". Selects Verilator's --trace-fst vs
+    # --trace at build time. Set from the elab-args `trace_fmt` param.
+    trace_fmt : str = dc.field(default="none")
     timing : bool = dc.field(default=True)
     full64 : bool = dc.field(default=True)
 

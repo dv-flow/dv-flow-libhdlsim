@@ -33,3 +33,7 @@ def dvfm_packages():
         'hdlsim.xcm': os.path.join(hdlsim_dir, "xcm_flow.dv"),
         'hdlsim.xsm': os.path.join(hdlsim_dir, "xsm_flow.dv"),
     }
+
+# Simulator backend selection is bound declaratively: each abstract hdlsim task
+# in flow.dv carries `elaborate: dv_flow.libhdlsim.backend_select:elaborate`.
+# There is no elaborator entry-point hook.
