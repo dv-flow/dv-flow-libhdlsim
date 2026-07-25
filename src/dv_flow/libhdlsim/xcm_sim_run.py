@@ -25,6 +25,8 @@ from typing import List
 from dv_flow.libhdlsim.vl_sim_runner import VLSimRunner
 
 class SimRunner(VLSimRunner):
+    sim_name = "xcm"
+
 
     async def runsim(self, data):
         status = 0
@@ -55,7 +57,7 @@ class SimRunner(VLSimRunner):
         for arg in data.args:
             cmd.append(arg)
 
-        status |= await self.ctxt.exec(cmd, logfile="sim.log")
+        status |= await self.exec_sim(cmd, logfile="sim.log")
 
         return status
 

@@ -26,6 +26,8 @@ from dv_flow.libhdlsim.vl_sim_runner import VLSimRunner
 from dv_flow.libhdlsim.vl_sim_data import VlSimRunData
 
 class SimRunner(VLSimRunner):
+    sim_name = "xsm"
+
 
     async def runsim(self, data : VlSimRunData):
         status = 0
@@ -53,7 +55,7 @@ class SimRunner(VLSimRunner):
             existing = env.get("LD_LIBRARY_PATH", "")
             env["LD_LIBRARY_PATH"] = (extra_dirs + ":" + existing) if existing else extra_dirs
 
-        status |= await self.ctxt.exec(cmd, logfile="sim.log", env=env)
+        status |= await self.exec_sim(cmd, logfile="sim.log", env=env)
 
         return status
     

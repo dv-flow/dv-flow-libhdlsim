@@ -26,6 +26,8 @@ from dv_flow.libhdlsim.vl_sim_runner import VLSimRunner
 from dv_flow.libhdlsim.vl_sim_data import VlSimRunData
 
 class SimRunner(VLSimRunner):
+    sim_name = "ivl"
+
 
     async def runsim(self, data : VlSimRunData) -> TaskData:
         status = 0
@@ -59,7 +61,7 @@ class SimRunner(VLSimRunner):
 
         cmd.extend(data.args)
 
-        status |= await self.ctxt.exec(cmd, logfile="sim.log")
+        status |= await self.exec_sim(cmd, logfile="sim.log")
 
         return status
 

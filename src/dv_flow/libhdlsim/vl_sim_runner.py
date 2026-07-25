@@ -31,6 +31,7 @@ from dv_flow.mgr.task_data import TaskMarker, SeverityE
 from typing import ClassVar, Dict, List, Tuple
 from dv_flow.libhdlsim.log_parser import LogParser
 from dv_flow.libhdlsim.vl_sim_data import VlSimRunData
+from dv_flow.libhdlsim import sim_stats
 
 from svdep import FileCollection, TaskCheckUpToDate, TaskBuildFileCollection
 from dv_flow.libhdlsim.vl_sim_image_builder import VlTaskSimImageMemento
@@ -42,6 +43,15 @@ class VLSimRunner(object):
     rundir : str = dc.field(default="")
     ctxt : TaskRunCtxt = dc.field(default=None)
     _walltime : float = dc.field(default=0.0)
+    # Sparse measurement/provenance maps for the run (see sim_stats).
+    _stats : Dict[str, object] = dc.field(default_factory=dict)
+    _runinfo : Dict[str, object] = dc.field(default_factory=dict)
+    _log : ClassVar = logging.getLogger("VLSimRunner")
+    # Backend identity, set by each concrete runner. Used when the `sim` param
+    # is unresolved ("unset" is what backend_select leaves when the run task was
+    # bound to a concrete per-sim task rather than selected by the `sim` var),
+    # so a result always says which simulator actually produced it.
+    sim_name : ClassVar[str] = ""
 
     async def run(self, ctxt, input) -> TaskDataResult:
         status = 0
@@ -121,9 +131,13 @@ class VLSimRunner(object):
 
         rc = 0
         if not status:
+            self._runinfo["start_time"] = sim_stats.utcnow()
             t0 = time.monotonic()
             rc = await self.runsim(data)
             self._walltime = time.monotonic() - t0
+            self._runinfo["end_time"] = sim_stats.utcnow()
+
+        self._collect_stats(input, data, rc)
 
         task_status = status
         if mode != "test":
@@ -146,9 +160,11 @@ class VLSimRunner(object):
         result = self.ctxt.mkDataItem(
             "hdlsim.SimRunResult",
             status=(status | rc),
-            sim=getattr(input.params, "sim", ""),
+            sim=self._sim_id(input),
             mode=mode,
             walltime_s=self._walltime,
+            stats=dict(self._stats),
+            runinfo=dict(self._runinfo),
             artifacts=artifacts)
 
         return TaskDataResult(
@@ -173,6 +189,105 @@ class VLSimRunner(object):
             msg="No runsim implemenetation"))
         return 1
 
+    def _sim_id(self, input) -> str:
+        """Which simulator produced this result: the resolved `sim` param when
+        it names one, else the concrete runner's own identity. `unset` is what
+        the param holds when the task was bound directly to a per-sim task
+        instead of being selected through the `sim` variable -- reporting that
+        verbatim would leave every such result unattributed."""
+        sim = getattr(input.params, "sim", "") or ""
+        if sim and sim != "unset":
+            return sim
+        return self.sim_name or sim
+
+    async def exec_sim(self, cmd : List[str], logfile : str = "sim.log", **kwargs):
+        """Run the simulator command with host-process instrumentation.
+
+        Backends call this INSTEAD of `ctxt.exec` for the simulation itself, so
+        CPU time / peak RSS come for free on every backend regardless of what
+        the simulator chooses to print. The command is wrapped in GNU `time`
+        when one is available (probed once) and run unchanged otherwise -- the
+        wrapper propagates the child's exit status, so the caller's status
+        handling is unaffected either way.
+        """
+        self._runinfo["cmd"] = list(cmd)
+        self._runinfo["logfile"] = logfile
+        wrapped = sim_stats.wrap_host_stats(
+            cmd, os.path.join(self.rundir, sim_stats.HOST_STATS_FILE))
+        return await self.ctxt.exec(wrapped, logfile=logfile, **kwargs)
+
+    def parse_sim_stats(self, logfile : str) -> Dict[str, object]:
+        """Backend hook: stats/provenance the SIMULATOR reported in its log.
+
+        Return a flat dict; keys in `sim_stats.STAT_KEYS` are routed to `stats`
+        and keys in `INFO_KEYS` to `runinfo`. The base returns nothing -- a
+        backend whose simulator prints no end-of-run report contributes only
+        the host-process tier, and the corresponding keys stay absent (they are
+        never faked with a 0).
+
+        Implemented for Verilator (`vlt_sim_run.SimRunner`). vcs / mti / xcm /
+        xsm / ivl are candidates: each prints some subset (CPU time, data
+        structure size, `$finish` time), but the patterns need validating
+        against real logs from those tools before being relied on.
+        """
+        return {}
+
+    def _collect_stats(self, input, data : VlSimRunData, rc : int):
+        """Assemble the run's `stats` + `runinfo` maps and persist them.
+
+        Best-effort throughout: a failure to measure something drops the key,
+        and can never change the run's verdict.
+        """
+        try:
+            self._stats.update(sim_stats.parse_host_stats(
+                os.path.join(self.rundir, sim_stats.HOST_STATS_FILE)))
+
+            # Task-level wallclock is authoritative (always available, and it
+            # spans exactly what the task timed); it supersedes GNU time's.
+            self._stats["walltime_s"] = round(self._walltime, 3)
+
+            logfile = self._runinfo.get("logfile", "sim.log")
+            parsed = {}
+            try:
+                parsed = self.parse_sim_stats(
+                    os.path.join(self.rundir, logfile)) or {}
+            except Exception as e:
+                self._log.debug("sim stats parse failed: %s", e)
+            for k, v in parsed.items():
+                if k in sim_stats.INFO_KEYS:
+                    self._runinfo[k] = v
+                else:
+                    self._stats[k] = v
+
+            self._stats.update(sim_stats.read_tb_stats(self.rundir))
+            sim_stats.finalize(self._stats)
+
+            seed, seed_src = sim_stats.extract_seed(data.args, data.plusargs)
+
+            self._runinfo.update(sim_stats.host_info())
+            self._runinfo.update(dict(
+                case_name=(getattr(input.params, "name", "")
+                           or os.path.basename((input.rundir or "").rstrip("/"))),
+                testname=getattr(input.params, "testname", ""),
+                sim=self._sim_id(input),
+                mode=getattr(input.params, "mode", "run"),
+                args=list(data.args),
+                plusargs=list(data.plusargs),
+                dpilibs=list(data.dpilibs),
+                vpilibs=[v[0] for v in data.vpilibs],
+                imgdir=data.imgdir or "",
+                rundir=self.rundir,
+                trace=bool(data.trace),
+                valgrind=bool(data.valgrind),
+                exit_code=rc))
+            if seed is not None:
+                self._runinfo["seed"] = seed
+                self._runinfo["seed_source"] = seed_src
+
+            sim_stats.write_stats_json(self.rundir, self._stats, self._runinfo)
+        except Exception as e:
+            self._log.debug("stats collection failed: %s", e)
+
     def _artifact_spec(self) -> Dict[str, Tuple[List[str], str]]:
         """Map artifact filetype -> (glob patterns, role attribute).
 
@@ -184,6 +299,7 @@ class VLSimRunner(object):
         """
         return {
             "simLog":   (["sim.log"],                   "log"),
+            "simStats": ([sim_stats.STATS_FILE],        "stats"),
             "simTrace": (["*.vcd", "*.fst", "waves.*"], "trace"),
             "simCovDb": (["coverage.dat"],              "cov"),
         }

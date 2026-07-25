@@ -28,6 +28,8 @@ from dv_flow.libhdlsim.vl_sim_runner import VLSimRunner
 from dv_flow.libhdlsim.vl_sim_data import VlSimRunData
 
 class SimRunner(VLSimRunner):
+    sim_name = "mti"
+
     async def runsim(self, data : VlSimRunData):
         status = 0
 
@@ -65,7 +67,7 @@ class SimRunner(VLSimRunner):
         for arg in data.args:
             cmd.append(arg)
 
-        status |= await self.ctxt.exec(cmd, logfile="sim.log")
+        status |= await self.exec_sim(cmd, logfile="sim.log")
         
         return status
 

@@ -397,6 +397,7 @@ package:
     pytask: dv_flow.libhdlsim.sim_check.SimUVMCheck
 
   - export: SimSuiteReport
+    uses: std.TestRunner
     desc: Roll up a suite's TestResults into a SuiteResult and gate CI
     doc: |
       SimSuiteReport consumes every TestResult produced by a suite's cases (a
@@ -405,10 +406,49 @@ package:
       any case did not pass -- that status is the suite's CI gate. Individual
       failing cases still run and are reported (they do not abort the suite),
       because each SimCase runs in `mode: test` and its check returns success.
+
+      Via `std.TestRunner` it is also the project's test-execution *command*:
+      the cases and suites it `needs:` can be selected from the command line
+      (`--tests` / `--views`), and the selection prunes the graph so a
+      deselected case -- and any image only it needed -- is never built. The
+      end-of-run report comes from the same base.
     pytask: dv_flow.libhdlsim.sim_check.SimSuiteReport
     consumes:
     - type: hdlsim.TestResult
     uptodate: false
+    with:
+      # A case's short name lives in the `name` field of a suite matrix cell,
+      # and the DUT view is the `image` axis. Both are what this project family
+      # already writes; std.TestRunner's defaults are `name`/`view`.
+      view_axis:
+        type: str
+        value: image
+      junit:
+        type: bool
+        value: true
+        doc: |
+          Write junit.xml into the report's rundir (emitted as a junitXml
+          FileSet). JUnit is what CI systems read natively, so this is what
+          turns a suite into a GitHub/GitLab test view.
+
+  - export: SimSuiteInfo
+    uses: std.TestInfo
+    desc: Report the cases and DUT views a SimSuiteReport root offers
+    doc: |
+      The introspection companion to `SimSuiteReport`: it lists what `--tests`
+      and `--views` accept, and builds nothing -- no image is compiled.
+
+      ```yaml
+      - root: tests-info
+        uses: hdlsim.SimSuiteInfo
+        with: { target: tests }
+      ```
+    with:
+      # Must match SimSuiteReport's: the case name is a cell's `name` field and
+      # the DUT view is the `image` axis.
+      view_axis:
+        type: str
+        value: image
 
   #------------------------------------------------------------------
   # SimUVMCase -- the compact "run one UVM test" task: a SINGLE leaf task that
@@ -468,6 +508,10 @@ package:
         type: str
         value: "Configure and run HDL simulations with various simulators"
       skill_doc:
+        # CAUTION: this is a parameter VALUE, so a literal `${{ ... }}` anywhere
+        # below is expanded at load and will fail the package with something
+        # like "Variable 'this' not found". There is no escape -- write flow
+        # expressions as `{{ ... }}` with a note, as the suite example does.
         type: str
         value: |
           # HDL Simulation Package (hdlsim)
@@ -556,8 +600,69 @@ package:
                 top: [tb_top]
           ```
           
+          ## Test Cases, Suites, and Running Tests
+
+          A UVM test case is one leaf task. `SimUVMCase` runs the simulator
+          (in `mode: test`, so a failing test never aborts the suite) AND parses
+          the UVM report summary, emitting a `TestResult`:
+
+          ```yaml
+          - name: arb
+            uses: hdlsim.vlt.SimUVMCase
+            needs: [my-img]
+            with: { testname: my_arb_test, plusargs: [SOME_ARG] }
+          ```
+
+          A suite is a matrix over (testname, plusargs) pairs. Give each cell a
+          short `name` -- that is what `--tests` selects on.
+
+          NOTE: expressions below are written `{{ ... }}`. In a real flow they
+          take a leading dollar sign: `$` immediately followed by `{{ ... }}`.
+          (This doc is itself a parameter value, so writing the real form here
+          would expand it at load.)
+
+          ```yaml
+          - name: cases
+            strategy:
+              matrix:
+                image: [tlm, rtl]
+                case:
+                - { name: arb, testname: my_arb_test, plusargs: [CMP] }
+                - { name: err, testname: my_err_test, plusargs: [CMP] }
+            body:
+            - name: "{{ this.image }}-{{ this.case.name }}"
+              uses: hdlsim.vlt.SimUVMCase
+              needs: [ "{{ image_of[this.image] }}" ]
+              with:
+                name: "{{ this.image }}-{{ this.case.name }}"
+                testname: "{{ this.case.testname }}"
+                plusargs: "{{ this.case.plusargs }}"
+          ```
+
+          `SimSuiteReport` is the gate AND the project's test command (it
+          `uses: std.TestRunner`):
+
+          ```yaml
+          - root: tests
+            uses: hdlsim.SimSuiteReport
+            needs: [cases]
+          ```
+
+          ```bash
+          dfm run tests                      # everything; exit != 0 iff a case failed
+          dfm exec tests --tests arb         # only that case
+          dfm exec tests --views rtl         # only that image -- the others are NOT built
+          dfm exec tests --detail full       # report every case
+          ```
+
+          Selection prunes the graph at BUILD time, so a deselected case is
+          never built and neither is an image only it needed. A verdict is data,
+          not a task failure, so every selected case runs to completion and the
+          report decides the exit code. `junit.xml` is written into the report's
+          rundir for CI (`junit: false` to disable).
+
           ## Multi-Simulator Support
-          
+
           Use package parameters to select the simulator at build time:
           
           ```yaml
@@ -695,8 +800,35 @@ package:
         doc: Wall-clock seconds spent in the simulator run
         type: float
         value: 0.0
+      stats:
+        doc: |
+          Sparse map of measurements for this run. A key is present ONLY when
+          it was actually measured -- an absent key means "this backend cannot
+          report it", never zero. Keys (see dv_flow.libhdlsim.sim_stats for the
+          authoritative registry, with units and suite-aggregation rules):
+
+            host process (every backend, via GNU time):
+              walltime_s, cpu_user_s, cpu_sys_s, cpu_total_s, cpu_pct,
+              maxrss_mb, io_read_mb, io_write_mb, ctx_vol, ctx_invol
+            simulator-reported (backend-dependent; Verilator today):
+              simtime (as printed, eg '608us'), simtime_s, sim_walltime_s,
+              sim_cpu_s, sim_mem_mb, threads, sim_speed_s_per_s
+            log-derived (filled by the Check tasks):
+              errors, warnings, fatals, infos
+            testbench-reported (optional tb_stats.json in the rundir):
+              cycles, transactions, plus any custom scalar counters
+        type: map
+      runinfo:
+        doc: |
+          Sparse map of provenance for this run -- what was run, how, and where:
+          case_name, testname, sim, sim_version, mode, seed, seed_source, cmd,
+          args, plusargs, dpilibs, vpilibs, imgdir, rundir, logfile, trace,
+          valgrind, finish_reason, exit_code, host, user, nproc, start_time,
+          end_time. Same sparse rule as `stats`: `seed` is absent (not 0) when
+          no seed was explicitly applied.
+        type: map
       artifacts:
-        doc: Collected artifact FileSets (simLog / simTrace / simCovDb)
+        doc: Collected artifact FileSets (simLog / simStats / simTrace / simCovDb)
         type: list
 
   - name: TestResult
@@ -742,15 +874,24 @@ package:
         type: int
         value: 0
       seed:
-        doc: Simulation seed (0 when not captured)
+        doc: Simulation seed (0 when not captured; `runinfo.seed` is the sparse form)
         type: int
         value: 0
       walltime_s:
         doc: Wall-clock seconds spent in the simulator run
         type: float
         value: 0.0
+      stats:
+        doc: |
+          Measurements forwarded from SimRunResult.stats, with the log-derived
+          tallies (errors/warnings/fatals/infos) added by the Check task. Sparse:
+          an absent key was not measured. See SimRunResult.stats for the key set.
+        type: map
+      runinfo:
+        doc: Provenance forwarded from SimRunResult.runinfo (see that field)
+        type: map
       artifacts:
-        doc: Artifact FileSets forwarded from SimRunResult (simLog / simTrace / simCovDb)
+        doc: Artifact FileSets forwarded from SimRunResult (simLog / simStats / simTrace / simCovDb)
         type: list
 
   - name: SuiteResult
@@ -777,4 +918,12 @@ package:
       results:
         doc: The per-case TestResult items in the suite
         type: list
+      stats:
+        doc: |
+          Roll-up of the per-case `stats` maps, aggregated per each key's rule
+          (sim_stats.STAT_KEYS): summed keys emit `<key>`, `<key>_max` and
+          `<key>_mean`; max-only keys emit `<key>_max`. Keys no case reported
+          stay absent. Eg walltime_s / walltime_s_max / walltime_s_mean,
+          cpu_total_s, maxrss_mb_max, simtime_s.
+        type: map
 

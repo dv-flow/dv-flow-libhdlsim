@@ -30,7 +30,7 @@ import os
 from dv_flow.mgr import TaskDataResult
 from dv_flow.libhdlsim.vlt_sim_run import SimRunner
 from dv_flow.libhdlsim import uvm_log_parser
-from dv_flow.libhdlsim.sim_check import _as_fileset, _artifacts
+from dv_flow.libhdlsim.sim_check import _as_fileset, _artifacts, _maps, _severity_stats
 
 
 class UVMCaseRunner(SimRunner):
@@ -66,12 +66,18 @@ class UVMCaseRunner(SimRunner):
 
         name = getattr(input.params, "name", "") or testname or input.name
 
+        # Same stats/runinfo contract as the split SimRun+SimCheck path: the
+        # base run collected them, the check tier adds the severity tallies.
+        stats, runinfo = _maps(srr)
+        stats.update(_severity_stats(parsed))
+
         tr = ctxt.mkDataItem(
             "hdlsim.TestResult",
             testname=testname, sim=sim, status=parsed["status"],
             passed=parsed["passed"], run_status=run_status,
             errors=parsed["errors"], warnings=parsed["warnings"],
-            fatals=parsed["fatals"], seed=0, walltime_s=walltime,
+            fatals=parsed["fatals"], seed=int(runinfo.get("seed", 0) or 0),
+            walltime_s=walltime, stats=stats, runinfo=runinfo,
             artifacts=[_as_fileset(a) for a in artifacts])
         tr.name = name
         tr.src = name  # distinct per case -> no dedup when a report gathers cases

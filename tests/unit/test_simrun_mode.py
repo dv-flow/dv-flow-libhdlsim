@@ -9,6 +9,7 @@
 # Both modes emit a SimRunResult carrying `status`, `sim`, `mode`, and the
 # collected artifact FileSets (at least a `simLog`).
 
+import json
 import os
 import shutil
 import asyncio
@@ -86,3 +87,45 @@ def test_mode_run_fails_on_nonzero_exit(tmpdir):
 
     # Default run mode: a nonzero simulator exit fails the task.
     assert runner.status != 0
+
+
+@pytest.mark.skipif(not HAVE_VLT, reason="verilator not available")
+def test_simrun_emits_stats_and_runinfo(tmpdir):
+    """End-to-end: a real Verilator run must publish the three collection tiers
+    it can reach -- host process, simulator report, and provenance -- plus the
+    durable sim_stats.json record."""
+    runner, sim_run = _build_fail_run(tmpdir, "test")
+    out_l = asyncio.run(runner.run([sim_run]))
+    result = _find_result(out_l)
+    assert result is not None
+
+    stats, runinfo = result.stats, result.runinfo
+
+    # Tier 1 (host process): always available, whatever the simulator prints.
+    assert stats["walltime_s"] > 0
+    assert "cpu_total_s" in stats and "maxrss_mb" in stats
+
+    # Tier 2 (Verilator's own end-of-run report). $fatal exits before $finish,
+    # so only assert what a report-bearing run must have; simtime rides along
+    # when the summary was printed.
+    if "simtime" in stats:
+        assert stats["simtime_s"] > 0
+        assert runinfo["sim_version"].startswith("Verilator")
+
+    # Provenance: enough to re-run this case by hand.
+    assert runinfo["sim"] == "vlt"
+    assert runinfo["mode"] == "test"
+    assert runinfo["cmd"][0].endswith("simv")
+    assert runinfo["exit_code"] == result.status
+    assert runinfo["start_time"] and runinfo["end_time"]
+    # No seed was applied -> the key is ABSENT rather than a fabricated 0.
+    assert "seed" not in runinfo
+
+    # The durable record, and its artifact FileSet.
+    stats_fs = [fs for fs in result.artifacts if fs.filetype == "simStats"]
+    assert len(stats_fs) == 1
+    path = os.path.join(stats_fs[0].basedir, stats_fs[0].files[0])
+    with open(path) as fp:
+        doc = json.load(fp)
+    assert doc["stats"]["walltime_s"] == stats["walltime_s"]
+    assert doc["runinfo"]["sim"] == "vlt"
