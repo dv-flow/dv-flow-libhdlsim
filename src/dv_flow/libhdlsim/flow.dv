@@ -38,8 +38,18 @@ package:
       value: "unset"
 
   tasks:
+  # `produces:` is declared ONCE on each generic export; the per-simulator
+  # variants (vlt/vcs/mti/...) inherit it, since inheritance is nearest-wins and
+  # they do not redeclare. A backend that genuinely emits something extra says so.
+  #
+  # Kept COARSE deliberately: the item type, plus attributes fixed by the task's
+  # own parameters. What a run actually emitted is a runtime property and is not
+  # claimed here.
   - export: SimLib
     elaborate: dv_flow.libhdlsim.backend_select:elaborate
+    produces:
+    - type: std.FileSet
+      filetype: simLib
     desc: Creates a pre-compiled simulation library
     doc: |
       SimLib compiles HDL source files into a pre-compiled simulation library
@@ -150,6 +160,13 @@ package:
 
   - export: SimImage
     elaborate: dv_flow.libhdlsim.backend_select:elaborate
+    produces:
+    - type: std.FileSet
+      filetype: simDir
+    # Only some backends load VPI at run time (see forward_vpi), so this is a
+    # "may produce" -- which is what `produces:` means.
+    - type: std.FileSet
+      filetype: verilogVPI
     desc: Compiles HDL sources into a simulation executable
     doc: |
       SimImage compiles SystemVerilog/Verilog source files into a simulation
@@ -227,6 +244,10 @@ package:
   - export: SimRun
     elaborate: dv_flow.libhdlsim.backend_select:elaborate
     desc: Executes a compiled simulation
+    produces:
+    - type: hdlsim.SimRunResult
+      sim: "${{ sim }}"
+      mode: "${{ mode }}"
     doc: |
       SimRun executes a previously compiled simulation image. It consumes the
       simulation directory from SimImage and runs the simulation with the
@@ -350,6 +371,8 @@ package:
   # backend_select -- the pytask is bound directly.
   #------------------------------------------------------------------
   - export: SimCheck
+    produces:
+    - type: hdlsim.TestResult
     desc: Interpret a SimRunResult into a pass/fail TestResult (generic; verdict from exit code)
     doc: |
       SimCheck consumes a SimRunResult (produced by a SimRun in `mode: test`)
@@ -398,6 +421,10 @@ package:
 
   - export: SimSuiteReport
     uses: std.TestRunner
+    produces:
+    - type: hdlsim.SuiteResult
+    - type: std.FileSet
+      filetype: junitXml
     desc: Roll up a suite's TestResults into a SuiteResult and gate CI
     doc: |
       SimSuiteReport consumes every TestResult produced by a suite's cases (a
@@ -433,6 +460,8 @@ package:
 
   - export: SimSuiteInfo
     uses: std.TestInfo
+    # Writes tests-info.json for scripted use; emits no data item.
+    produces: []
     desc: Report the cases and DUT views a SimSuiteReport root offers
     doc: |
       The introspection companion to `SimSuiteReport`: it lists what `--tests`
@@ -468,6 +497,12 @@ package:
   - export: SimUVMCase
     uses: hdlsim.SimRun
     elaborate: dv_flow.libhdlsim.backend_select:elaborate
+    # Replaces the inherited SimRunResult claim: this task reports a verdict,
+    # not a raw run. Nearest-wins inheritance is what makes that statable.
+    produces:
+    - type: hdlsim.TestResult
+      name: "${{ name }}"
+      testname: "${{ testname }}"
     desc: Run one UVM test (run + verdict in one task) and emit a TestResult
     doc: |
       SimUVMCase runs a single UVM test and reports its pass/fail verdict as a

@@ -188,5 +188,53 @@ def elaborate(ctxt, task, name):
     # Rebind `uses` to the concrete backend and build the standard interior.
     # paramT is reset so it rebuilds against the new (concrete) uses chain;
     # the re-entrancy guard keeps this from re-firing the elaborator.
-    variant = dc.replace(task, uses=concrete, paramT=None)
+    family_task = ctxt.getTask("hdlsim.%s" % family)
+    variant = dc.replace(task, uses=concrete, paramT=None,
+                         **_backend_overrides(family_task, concrete))
     return ctxt.buildDefault(variant, name)
+
+
+# Task attributes the graph builder reads when constructing a node. These are
+# materialized onto each Task by the package LOADER, which runs before any
+# `elaborate:` clause -- so on `task` they hold values inherited from the
+# ABSTRACT family task, computed against a `uses` chain we are about to replace.
+_INHERITABLE = ("uptodate", "rundir", "passthrough", "consumes", "produces")
+
+
+def _backend_overrides(family, concrete):
+    """Attributes the selected backend overrode, which must survive specialization.
+
+    Every concrete backend derives from its abstract family task
+    (`hdlsim.vlt.SimLib` uses `hdlsim.SimLib`), so the loader already resolved
+    the backend's values by inheriting from the family and then applying the
+    backend's own declarations. Therefore **any attribute where the backend
+    differs from the family is, by construction, an override the backend made**
+    -- and specializing to that backend has to carry it across.
+
+    Without this, writing the portable form (`uses: hdlsim.SimImage`) silently
+    behaves differently from naming the backend (`uses: hdlsim.vlt.SimImage`),
+    which defeats the entire purpose of the abstract task. Two live instances:
+
+      * `uptodate:` exists ONLY on the backends. Losing it made every image
+        built through the abstract task permanently "up-to-date" -- a whole
+        regression could pass against a stale binary.
+      * `SimLib` is `passthrough: unused` in general (a real library consumes
+        sources and emits a simLib), but `passthrough: all` on vlt/ivl/xsm,
+        which have no precompiled-library concept. Losing it means the sources
+        never reach the image.
+
+    Attributes the backend did NOT override are left alone, so a value the
+    consuming task set for itself is preserved. The baseline is the ABSTRACT
+    FAMILY task -- resolved by name rather than taken as `task.uses`, because a
+    project may layer its own task in between (`A uses hdlsim.SimImage`,
+    `B uses A`) and the question is always "what did the backend change relative
+    to the family", not relative to whatever happens to be one link up.
+    """
+    overrides = {}
+    if family is None:
+        return overrides
+    for attr in _INHERITABLE:
+        c_val = getattr(concrete, attr, None)
+        if c_val != getattr(family, attr, None):
+            overrides[attr] = c_val
+    return overrides

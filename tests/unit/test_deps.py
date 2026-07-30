@@ -115,6 +115,89 @@ def test_svh_incdirs_rebuild(tmpdir, request, sim):
 
 
 @pytest.mark.parametrize("sim", get_available_sims())
+def test_svh_rebuild_via_abstract_simimage(tmpdir, request, sim):
+    """REGRESSION: the same rebuild guarantee must hold when the image is built
+    through the ABSTRACT `hdlsim.SimImage` rather than a concrete backend.
+
+    `hdlsim.SimImage` carries `elaborate: backend_select`, which rebinds `uses`
+    to the selected backend at graph-build time -- and the backend is where
+    `uptodate:` is declared. When the rebind did not re-inherit `uptodate`, the
+    node fell back to comparing parameters and the input signature, neither of
+    which changes when a source file's CONTENTS change. The image was then
+    NEVER rebuilt, and a whole regression could pass against a stale binary.
+
+    The sibling test above uses `hdlsim.<sim>.SimImage` directly, so it could
+    not see this: writing the portable form is exactly what broke it.
+    """
+    src_dir = os.path.join(str(tmpdir), "src")
+    inc_dir = os.path.join(src_dir, "inc")
+    os.makedirs(inc_dir)
+
+    sv_path  = os.path.join(src_dir, "top.sv")
+    svh_path = os.path.join(inc_dir, "msg.svh")
+
+    with open(sv_path, "w") as f:
+        f.write('`include "msg.svh"\n'
+                'module top;\n'
+                '  initial begin\n'
+                '    `MSG_DISPLAY\n'
+                '    $finish;\n'
+                '  end\n'
+                'endmodule\n')
+
+    with open(svh_path, "w") as f:
+        f.write('`define MSG_DISPLAY $display("Hello World!");\n')
+
+    def run():
+        status = []
+        runner = TaskSetRunner(os.path.join(str(tmpdir), "rundir"))
+        builder = TaskGraphBuilder(
+            PackageLoader().load_rgy(["std", "hdlsim", "hdlsim.%s" % sim]),
+            os.path.join(str(tmpdir), "rundir"))
+        runner.builder = builder
+
+        top_v = builder.mkTaskNode(
+            "std.FileSet",
+            name="top_v",
+            type="systemVerilogSource",
+            base=src_dir,
+            include="top.sv",
+            incdirs=[inc_dir])
+
+        # The ABSTRACT task + a `sim` parameter -- the portable form a project
+        # is meant to write.
+        sim_img = builder.mkTaskNode(
+            "hdlsim.SimImage",
+            name="sim_img",
+            needs=[top_v],
+            sim=sim,
+            top=["top"])
+
+        def listener(task, reason):
+            if reason == "leave":
+                status.append(task)
+
+        runner.add_listener(listener)
+        asyncio.run(runner.run([sim_img]))
+        assert runner.status == 0
+        return status
+
+    status = run()
+    assert next(t for t in status if t.name == "sim_img").output.changed == True
+
+    time.sleep(2)
+
+    with open(svh_path, "w") as f:
+        f.write('`define MSG_DISPLAY $display("Goodbye World!");\n')
+
+    status = run()
+    assert next(t for t in status if t.name == "sim_img").output.changed == True, (
+        "SimImage built via the ABSTRACT hdlsim.SimImage was not rebuilt after a "
+        "source change -- the backend's `uptodate:` was lost when `elaborate:` "
+        "rebound `uses`")
+
+
+@pytest.mark.parametrize("sim", get_available_sims())
 def test_simple_1(tmpdir, request,sim):
     data_dir = os.path.join(os.path.dirname(__file__), "data")
 

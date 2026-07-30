@@ -151,7 +151,12 @@ class SimImageBuilder(VlSimImageBuilder):
         else:
             mk_file = 'V%s.mk' % top_module
 
-        make_cmd = ['make', '-C', 'obj_dir', '-f', mk_file, '-j']
+        # `-j <n>`, not a bare `-j`: bare means UNLIMITED, so several image
+        # builds running at once spawn unbounded g++ and the OOM killer takes
+        # cc1plus. `ctxt.cores` is this task's budget -- the batch allocation
+        # under a scheduler, the `-j` budget locally.
+        make_cmd = ['make', '-C', 'obj_dir', '-f', mk_file,
+                    '-j', str(getattr(self.ctxt, 'cores', 1) or 1)]
 
         if data.dpi:
             # V<top>__Dpi.o is a standalone file only when Verilator uses
