@@ -25,7 +25,8 @@ from typing import List, Tuple
 from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder, VlTaskSimImageMemento, check_sim_image_uptodate
 from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
 from dv_flow.mgr import FileSet
-from svdep import TaskBuildFileCollection                                                                                                              
+from svdep import TaskBuildFileCollection
+from .util import xcelium_cds_lib
 
 class SimImageBuilder(VlSimImageBuilder):
 
@@ -43,22 +44,54 @@ class SimImageBuilder(VlSimImageBuilder):
         status = 0
         changed = False
 
-        cmd = ['xmvlog', '-sv', '-64bit']
+        # Assemble the cds.lib: install default (std/IEEE), the local work
+        # library (kept under xcelium.d so xcm_sim_run.py's xcelium.d symlink
+        # resolves the snapshot), plus each consumed precompiled simLib. The
+        # elaborator resolves cross-library instances via default binding.
+        # The worklib physical directory must exist or Xcelium rejects the
+        # cds.lib DEFINE (*W,DLCPTH -> *F,WRKBAD).
+        worklib = os.path.join(input.rundir, "xcelium.d", "worklib")
+        os.makedirs(worklib, exist_ok=True)
+        defines = [("worklib", worklib)]
+        seen = {"worklib"}
+        for lib in data.libs:
+            logical = os.path.basename(lib)
+            if logical in seen:
+                continue
+            seen.add(logical)
+            defines.append((logical, lib))
 
-        for incdir in data.incdirs:
-            cmd.extend(['-incdir', incdir])
+        # MSIE: make each consumed primary snapshot's library visible so the
+        # elaborator can bind it (-primsnap) and the simulator can resolve it at
+        # runtime (SimRun symlinks this cds.lib).
+        for lib in data.primaries:
+            logical = os.path.basename(lib)
+            if logical in seen:
+                continue
+            seen.add(logical)
+            defines.append((logical, lib))
 
-        for define in data.defines:
-            cmd.extend(['-define', define])
+        self.ctxt.create("cds.lib", xcelium_cds_lib(defines))
 
-        cmd.extend(data.args)
-        cmd.extend(data.compargs)
+        # Compile local sources into worklib (skip when all sources come from
+        # precompiled libraries).
+        if len(data.files):
+            cmd = ['xmvlog', '-sv', '-64bit', '-update', '-work', 'worklib']
 
-        cmd.extend(data.files)
+            for incdir in data.incdirs:
+                cmd.extend(['-incdir', incdir])
 
-        status |= await self.ctxt.exec(
-            cmd,
-            logfile="xmvlog.log")
+            for define in data.defines:
+                cmd.extend(['-define', define])
+
+            cmd.extend(data.args)
+            cmd.extend(data.compargs)
+
+            cmd.extend(data.files)
+
+            status |= await self.ctxt.exec(
+                cmd,
+                logfile="xmvlog.log")
 
         # Now, run elaboration
         if not status:
@@ -72,6 +105,12 @@ class SimImageBuilder(VlSimImageBuilder):
 
             for top in input.params.top:
                 cmd.append(top)
+
+            # MSIE: bind each consumed primary snapshot by cell name. The
+            # elaborator binds the pre-elaborated PRM instead of re-elaborating
+            # the subsystem's contents.
+            for primtop in data.primtops:
+                cmd.extend(['-primsnap', primtop])
 
             cmd.extend(data.args)
             cmd.extend(data.elabargs)

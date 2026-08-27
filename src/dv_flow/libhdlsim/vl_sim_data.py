@@ -11,6 +11,12 @@ class VlSimImageData(object):
     compargs : List[str] = dc.field(default_factory=list)
     elabargs : List[str] = dc.field(default_factory=list)
     libs : List[str] = dc.field(default_factory=list)
+    # Xcelium MSIE: consumed primary snapshots (Type C). `primaries` holds the
+    # physical library directories carrying each primary snapshot (added as
+    # cds.lib DEFINEs); `primtops` holds the primary cell/top names to bind via
+    # `xmelab -primsnap <name>`.
+    primaries : List[str] = dc.field(default_factory=list)
+    primtops : List[str] = dc.field(default_factory=list)
     dpi : List[str] = dc.field(default_factory=list)
     vpi : List[Tuple[str, Optional[str]]] = dc.field(default_factory=list)
     csource : List[str] = dc.field(default_factory=list)

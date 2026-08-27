@@ -57,6 +57,11 @@ cover/
 
 # Django stuff:
 *.log
+# ...but the UVM verdict-parser fixtures ARE source. Without this the blanket
+# rule above silently swallows them on `git add`, which is how they came to be
+# referenced by tests/unit/test_uvm_log_parser.py and test_sim_check.py while
+# never existing in the repo.
+!tests/unit/data/uvm_logs/*.log
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
@@ -173,4 +178,9 @@ cython_debug/
 packages/
 _build/
 src/dv_flow/libhdlsim/share/
+
+.agents/
+.claude/
+.codex/
+.cursor/
 

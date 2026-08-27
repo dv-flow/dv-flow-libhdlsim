@@ -1,0 +1,113 @@
+[PERF] hvl_top_spl_wb.unnamedblk1 START  wallclock=515721.960 s
+UVM_INFO /home/x/packages/uvm/src/base/uvm_root.svh(449) @ 0: reporter [UVM/RELNOTES] 
+  ***********       IMPORTANT RELEASE NOTES         ************
+
+  This implementation of the UVM Library deviates from the 1800.2-2017
+  standard.  See the DEVIATIONS.md file contained in the release
+  for more details.
+
+----------------------------------------------------------------
+Accellera:1800.2-2017:UVM:1.0
+
+All copyright owners for this kit are listed in NOTICE.txt
+All Rights Reserved Worldwide
+----------------------------------------------------------------
+
+      (Specify +UVM_NO_RELNOTES to turn off this notice)
+
+UVM_INFO /home/x/packages/uvm/src/base/uvm_root.svh(517) @ 0: reporter [NO_DPI_TSTNAME] UVM_NO_DPI defined--getting UVM_TESTNAME directly, without DPI
+UVM_INFO @ 0: reporter [RNTST] Running test wb_dma_sw_copy_test...
+get_full_name: uvm_test_top.env.m_mem0
+Got config
+get_full_name: uvm_test_top.env.m_mem1
+Got config
+UVM_INFO /home/x/packages/uvm/src/base/uvm_traversal.svh(289) @ 0: reporter [UVM/COMP/NAMECHECK] This implementation of the component name checks requires DPI to be enabled
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "uvm_test_top" of the component "uvm_test_top" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "env" of the component "uvm_test_top.env" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "m_init" of the component "uvm_test_top.env.m_init" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "m_driver" of the component "uvm_test_top.env.m_init.m_driver" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "rsp_port" of the component "uvm_test_top.env.m_init.m_driver.rsp_port" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "seq_item_port" of the component "uvm_test_top.env.m_init.m_driver.seq_item_port" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "m_seqr" of the component "uvm_test_top.env.m_init.m_seqr" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "req_fifo" of the component "uvm_test_top.env.m_init.m_seqr.req_fifo" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "get_ap" of the component "uvm_test_top.env.m_init.m_seqr.req_fifo.get_ap" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "get_peek_export" of the component "uvm_test_top.env.m_init.m_seqr.req_fifo.get_peek_export" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "put_ap" of the component "uvm_test_top.env.m_init.m_seqr.req_fifo.put_ap" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "put_export" of the component "uvm_test_top.env.m_init.m_seqr.req_fifo.put_export" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "rsp_export" of the component "uvm_test_top.env.m_init.m_seqr.rsp_export" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "seq_item_export" of the component "uvm_test_top.env.m_init.m_seqr.seq_item_export" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "sqr_rsp_analysis_fifo" of the component "uvm_test_top.env.m_init.m_seqr.sqr_rsp_analysis_fifo" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "analysis_export" of the component "uvm_test_top.env.m_init.m_seqr.sqr_rsp_analysis_fifo.analysis_export" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "get_ap" of the component "uvm_test_top.env.m_init.m_seqr.sqr_rsp_analysis_fifo.get_ap" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "get_peek_export" of the component "uvm_test_top.env.m_init.m_seqr.sqr_rsp_analysis_fifo.get_peek_export" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "put_ap" of the component "uvm_test_top.env.m_init.m_seqr.sqr_rsp_analysis_fifo.put_ap" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "put_export" of the component "uvm_test_top.env.m_init.m_seqr.sqr_rsp_analysis_fifo.put_export" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "m_int" of the component "uvm_test_top.env.m_int" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "ap" of the component "uvm_test_top.env.m_int.ap" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "m_int_sub" of the component "uvm_test_top.env.m_int_sub" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "analysis_imp" of the component "uvm_test_top.env.m_int_sub.analysis_imp" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "m_mem0" of the component "uvm_test_top.env.m_mem0" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "m_driver" of the component "uvm_test_top.env.m_mem0.m_driver" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "rsp_port" of the component "uvm_test_top.env.m_mem0.m_driver.rsp_port" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "seq_item_port" of the component "uvm_test_top.env.m_mem0.m_driver.seq_item_port" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "m_seqr" of the component "uvm_test_top.env.m_mem0.m_seqr" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "req_fifo" of the component "uvm_test_top.env.m_mem0.m_seqr.req_fifo" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "get_ap" of the component "uvm_test_top.env.m_mem0.m_seqr.req_fifo.get_ap" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "get_peek_export" of the component "uvm_test_top.env.m_mem0.m_seqr.req_fifo.get_peek_export" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "put_ap" of the component "uvm_test_top.env.m_mem0.m_seqr.req_fifo.put_ap" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "put_export" of the component "uvm_test_top.env.m_mem0.m_seqr.req_fifo.put_export" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "rsp_export" of the component "uvm_test_top.env.m_mem0.m_seqr.rsp_export" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "seq_item_export" of the component "uvm_test_top.env.m_mem0.m_seqr.seq_item_export" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "sqr_rsp_analysis_fifo" of the component "uvm_test_top.env.m_mem0.m_seqr.sqr_rsp_analysis_fifo" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "analysis_export" of the component "uvm_test_top.env.m_mem0.m_seqr.sqr_rsp_analysis_fifo.analysis_export" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "get_ap" of the component "uvm_test_top.env.m_mem0.m_seqr.sqr_rsp_analysis_fifo.get_ap" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "get_peek_export" of the component "uvm_test_top.env.m_mem0.m_seqr.sqr_rsp_analysis_fifo.get_peek_export" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "put_ap" of the component "uvm_test_top.env.m_mem0.m_seqr.sqr_rsp_analysis_fifo.put_ap" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "put_export" of the component "uvm_test_top.env.m_mem0.m_seqr.sqr_rsp_analysis_fifo.put_export" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "m_mem1" of the component "uvm_test_top.env.m_mem1" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "m_driver" of the component "uvm_test_top.env.m_mem1.m_driver" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "rsp_port" of the component "uvm_test_top.env.m_mem1.m_driver.rsp_port" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "seq_item_port" of the component "uvm_test_top.env.m_mem1.m_driver.seq_item_port" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "m_seqr" of the component "uvm_test_top.env.m_mem1.m_seqr" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "req_fifo" of the component "uvm_test_top.env.m_mem1.m_seqr.req_fifo" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "get_ap" of the component "uvm_test_top.env.m_mem1.m_seqr.req_fifo.get_ap" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "get_peek_export" of the component "uvm_test_top.env.m_mem1.m_seqr.req_fifo.get_peek_export" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "put_ap" of the component "uvm_test_top.env.m_mem1.m_seqr.req_fifo.put_ap" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "put_export" of the component "uvm_test_top.env.m_mem1.m_seqr.req_fifo.put_export" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "rsp_export" of the component "uvm_test_top.env.m_mem1.m_seqr.rsp_export" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "seq_item_export" of the component "uvm_test_top.env.m_mem1.m_seqr.seq_item_export" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "sqr_rsp_analysis_fifo" of the component "uvm_test_top.env.m_mem1.m_seqr.sqr_rsp_analysis_fifo" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "analysis_export" of the component "uvm_test_top.env.m_mem1.m_seqr.sqr_rsp_analysis_fifo.analysis_export" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "get_ap" of the component "uvm_test_top.env.m_mem1.m_seqr.sqr_rsp_analysis_fifo.get_ap" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "get_peek_export" of the component "uvm_test_top.env.m_mem1.m_seqr.sqr_rsp_analysis_fifo.get_peek_export" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "put_ap" of the component "uvm_test_top.env.m_mem1.m_seqr.sqr_rsp_analysis_fifo.put_ap" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "put_export" of the component "uvm_test_top.env.m_mem1.m_seqr.sqr_rsp_analysis_fifo.put_export" violates the uvm component name constraints
+UVM_WARNING /home/x/packages/uvm/src/base/uvm_traversal.svh(274) @ 0: reporter [UVM/COMP/NAME] the name "sb" of the component "uvm_test_top.env.sb" violates the uvm component name constraints
+TODO: Create root
+UVM_INFO /home/x/tests/wb_dma_sw_copy_test.svh(26) @ 17595000: uvm_test_top [SWCOPY] mode 0 (0->0) done
+UVM_INFO /home/x/tests/wb_dma_sw_copy_test.svh(26) @ 35115000: uvm_test_top [SWCOPY] mode 1 (0->1) done
+UVM_INFO /home/x/tests/wb_dma_sw_copy_test.svh(26) @ 52635000: uvm_test_top [SWCOPY] mode 2 (1->0) done
+UVM_INFO /home/x/tests/wb_dma_sw_copy_test.svh(26) @ 70155000: uvm_test_top [SWCOPY] mode 3 (1->1) done
+UVM_INFO /home/x/tests/wb_dma_base_test.svh(18) @ 70155000: uvm_test_top [RESULT] ** TEST PASSED **
+UVM_INFO /home/x/packages/uvm/src/base/uvm_report_server.svh(864) @ 70155000: reporter [UVM/REPORT/SERVER] 
+--- UVM Report Summary ---
+
+** Report counts by severity
+UVM_INFO :    9
+UVM_WARNING :   61
+UVM_ERROR :    0
+UVM_FATAL :    0
+** Report counts by id
+[NO_DPI_TSTNAME]     1
+[RESULT]     1
+[RNTST]     1
+[SWCOPY]     4
+[UVM/COMP/NAME]    61
+[UVM/COMP/NAMECHECK]     1
+[UVM/RELNOTES]     1
+
+- /home/x/packages/uvm/src/base/uvm_root.svh:585: Verilog $finish
+[PERF] hvl_top_spl_wb.unnamedblk2 FINISH wallclock=515722.000 s  ELAPSED=0.040 s
+- S i m u l a t i o n   R e p o r t: Verilator 5.049 devel
+- Verilator: $finish at 70us; walltime 0.039 s; speed 1.816 ms/s
+- Verilator: cpu 0.039 s on 1 threads; allocated 26 MB

@@ -33,10 +33,70 @@ package:
     run: dv_flow.libhdlsim.xcm_sim_image.SimImage                                                                                                      
     uptodate: dv_flow.libhdlsim.xcm_sim_image.check_uptodate
         
+  - export: SimLib
+    uses: hdlsim.SimLib
+    shell: pytask
+    run: dv_flow.libhdlsim.xcm_sim_lib.SimLib
+    desc: Creates an Xcelium pre-compiled library
+    doc: |
+      Compiles HDL sources into an Xcelium (xmvlog) logical library that can
+      be reused read-only across multiple simulation builds. The library is
+      referenced downstream via cds.lib; the elaborator resolves cross-library
+      instances by default binding.
+
+  - export: SimPrimary
+    uses: hdlsim.SimImage
+    shell: pytask
+    run: dv_flow.libhdlsim.xcm_sim_primary.SimPrimary
+    # Overrides hdlsim.SimImage's produces: a primary is a reusable
+    # pre-elaborated artifact, not a runnable image -- no simDir, no verilogVPI.
+    produces:
+    - type: std.FileSet
+      filetype: simPrimary
+    desc: Pre-elaborates a stable subsystem into an Xcelium primary snapshot (MSIE)
+    doc: |
+      Pre-elaborates a stable subsystem (DUT/IP) into an Xcelium *primary
+      snapshot* using Multi-Snapshot Incremental Elaboration (MSIE). The sources
+      are compiled into their own logical library and elaborated once with
+      `xmelab <lib>.<top> -mkprimsnap`, producing a reusable, non-simulatable
+      PRM design unit.
+
+      A downstream SimImage consumes the emitted `simPrimary` fileset and binds
+      it with `xmelab <tb_top> -primsnap <top>` -- the pre-elaborated subsystem
+      is bound in *without being re-elaborated*, so editing the testbench does
+      not pay to re-elaborate the DUT.
+
+      Constraints (see Xcelium MSIE docs): the primary's parameters are fixed at
+      build time (the testbench cannot override DUT parameters across the
+      boundary); cut partitions at clean structural (net/logic) boundaries;
+      cross-boundary hierarchical references require href permissions; keep
+      testbench `$unit` declarations out of the primary's compilation unit or
+      the "stable" primary will rebuild.
+
+      Example:
+      ```yaml
+      - name: dut_primary
+        uses: hdlsim.xcm.SimPrimary
+        needs: [dut_rtl]
+        with:
+          top: [dut]
+          libname: dut_prim
+      - name: build
+        uses: hdlsim.xcm.SimImage
+        needs: [dut_primary, tb]
+        with:
+          top: [tb_top]
+      ```
+    with:
+      libname:
+        doc: Logical library name for the primary snapshot (defaults to the task name)
+        type: str
+        value: ""
+
   - export: SimRun
     uses: hdlsim.SimRun
     shell: pytask
-    run: dv_flow.libhdlsim.xcm_sim_run.SimRun 
+    run: dv_flow.libhdlsim.xcm_sim_run.SimRun
 
   #------------------------------------------------------------------
   # Per-sim opt/debug flag sets (see hdlsim.SimCompArgsOpt et al.).

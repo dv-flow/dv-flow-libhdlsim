@@ -36,6 +36,14 @@ class SimRunner(VLSimRunner):
                 src=os.path.join(data.imgdir, "xcelium.d"),
                 dst=os.path.join(self.rundir, "xcelium.d"))
 
+        # Reuse the image's cds.lib so xmsim can resolve every library the
+        # snapshot references at runtime (worklib + any precompiled simLibs,
+        # via absolute-path DEFINEs). Without it: *E,DLOALB / *F,NOSIMU.
+        img_cds_lib = os.path.join(data.imgdir, "cds.lib")
+        run_cds_lib = os.path.join(self.rundir, "cds.lib")
+        if os.path.isfile(img_cds_lib) and not os.path.exists(run_cds_lib):
+            os.symlink(src=img_cds_lib, dst=run_cds_lib)
+
         cmd = ['xmsim', '-64bit', 'simv:snap']
 
         # Load VPI libraries (eg cocotb's GPI library). Xcelium requires the

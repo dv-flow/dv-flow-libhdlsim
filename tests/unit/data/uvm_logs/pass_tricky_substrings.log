@@ -1,0 +1,18 @@
+UVM_INFO @ 0: reporter [RNTST] Running test wb_dma_err_test...
+UVM_INFO /home/x/tests/wb_dma_err_test.svh(15) @ 100: uvm_test_top [ERRINJ] injecting recoverable error, expecting 0 errors at scoreboard
+UVM_INFO /home/x/tests/wb_dma_err_test.svh(40) @ 70155000: uvm_test_top [ERRINJ] error path handled, no miscompare
+UVM_INFO /home/x/tests/wb_dma_base_test.svh(18) @ 70155000: uvm_test_top [RESULT] ** TEST PASSED **
+UVM_INFO /home/x/packages/uvm/src/base/uvm_report_server.svh(864) @ 70155000: reporter [UVM/REPORT/SERVER]
+--- UVM Report Summary ---
+
+** Report counts by severity
+UVM_INFO :    8
+UVM_WARNING :    0
+UVM_ERROR :    0
+UVM_FATAL :    0
+** Report counts by id
+[ERRINJ]     2
+[RESULT]     1
+[RNTST]     1
+
+- /home/x/packages/uvm/src/base/uvm_root.svh:585: Verilog $finish

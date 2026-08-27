@@ -1,0 +1,20 @@
+UVM_INFO @ 0: reporter [RNTST] Running test wb_dma_err_test...
+UVM_ERROR /home/x/tests/wb_dma_scoreboard.svh(120) @ 35115000: uvm_test_top.env.sb [MISCOMPARE] channel 0: expected 0xdead got 0xbeef
+UVM_ERROR /home/x/tests/wb_dma_scoreboard.svh(120) @ 52635000: uvm_test_top.env.sb [MISCOMPARE] channel 1: expected 0x1234 got 0x0000
+UVM_ERROR /home/x/tests/wb_dma_scoreboard.svh(120) @ 70155000: uvm_test_top.env.sb [MISCOMPARE] channel 2: length mismatch
+UVM_INFO /home/x/tests/wb_dma_base_test.svh(20) @ 70155000: uvm_test_top [RESULT] ** TEST FAILED **
+UVM_INFO /home/x/packages/uvm/src/base/uvm_report_server.svh(864) @ 70155000: reporter [UVM/REPORT/SERVER]
+--- UVM Report Summary ---
+
+** Report counts by severity
+UVM_INFO :    5
+UVM_WARNING :   12
+UVM_ERROR :    3
+UVM_FATAL :    0
+** Report counts by id
+[MISCOMPARE]     3
+[RESULT]     1
+[RNTST]     1
+
+- /home/x/packages/uvm/src/base/uvm_root.svh:585: Verilog $finish
+- Verilator: $finish at 70us; walltime 0.041 s

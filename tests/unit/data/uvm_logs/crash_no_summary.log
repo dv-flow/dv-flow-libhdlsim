@@ -1,0 +1,4 @@
+UVM_INFO @ 0: reporter [RNTST] Running test wb_dma_sw_copy_test...
+UVM_INFO /home/x/tests/wb_dma_sw_copy_test.svh(26) @ 17595000: uvm_test_top [SWCOPY] mode 0 (0->0) done
+%Error: wb_dma_engine.sv:412: Assertion failed in top.dut: dividing by zero
+Segmentation fault (core dumped)

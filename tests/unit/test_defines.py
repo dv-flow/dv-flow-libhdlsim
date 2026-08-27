@@ -21,6 +21,7 @@ def get_available_sims():
         "vcs": "vcs",
         "vsim": "mti",
         "xsim": "xsm",
+        "xmvlog": "xcm",
     }.items():
         if shutil.which(sim_exe) is not None:
             sims.append(sim)

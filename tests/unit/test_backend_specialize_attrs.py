@@ -62,7 +62,16 @@ def test_specializing_preserves_backend_attrs(tmpdir, sim, family):
         return b.mkTaskNode(taskname, name="t", **kw)
 
     abstract = build("hdlsim.%s" % family, sim=sim)
+
+    # Give the concrete side the SAME `sim` (when it declares that parameter --
+    # the flag-set tasks do not), so the comparison isolates what this test is
+    # actually about: whether specialization preserves what the BACKEND
+    # declares. `produces:` interpolates task parameters (`sim: "${{ sim }}"`),
+    # so building the concrete side without `sim` would compare two nodes with
+    # different inputs and report a plain param difference as a lost attribute.
     concrete = build(concrete_name)
+    if hasattr(concrete.params, "sim"):
+        concrete = build(concrete_name, sim=sim)
 
     mismatched = {
         a: (getattr(abstract, a, None), getattr(concrete, a, None))

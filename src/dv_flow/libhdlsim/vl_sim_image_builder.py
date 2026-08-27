@@ -229,6 +229,21 @@ class VlSimImageBuilder(object):
                     # --exe mode with this main instead of generating one.
                     for file in fs.files:
                         data.verilator_main = os.path.join(fs.basedir, file)
+                elif fs.filetype == "simPrimary":
+                    # Xcelium MSIE primary snapshot (Type C). The physical
+                    # library dir(s) carry the primary; the primary cell names
+                    # ride along as `primtop=<name>` attributes.
+                    if len(fs.files) > 0:
+                        for file in fs.files:
+                            path = os.path.join(fs.basedir, file)
+                            if len(path.strip()) > 0:
+                                data.primaries.append(path)
+                    else:
+                        data.primaries.append(fs.basedir)
+                    for attr in fs.attributes:
+                        if attr.startswith("primtop="):
+                            data.primtops.append(attr.split("=", 1)[1])
+                    self._addIncDirs(data, fs.basedir, fs.incdirs)
                 elif fs.filetype == "systemVerilogDPI":
                     for file in fs.files:
                         path = os.path.join(fs.basedir, file)

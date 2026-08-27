@@ -188,12 +188,13 @@ package:
     consumes:
     - filetype: cSource
     - filetype: cppSource
-    - filetype: systemVerilogInclude 
-    - filetype: systemVerilogSource 
+    - filetype: systemVerilogInclude
+    - filetype: systemVerilogSource
     - filetype: simLib
-    - filetype: verilogIncDir 
-    - filetype: verilogInclude 
-    - filetype: verilogSource 
+    - filetype: simPrimary
+    - filetype: verilogIncDir
+    - filetype: verilogInclude
+    - filetype: verilogSource
     - filetype: systemVerilogDPI
     - filetype: verilogVPI
     - filetype: verilatorMain
