@@ -388,6 +388,20 @@ package:
       defines:
         doc: Preprocessor defines
         type: list
+      vpi:
+        doc: |
+          Declares that this library calls VPI from C, so the simulation
+          image must be built with VPI support enabled. Independent of
+          linking an external VPI library.
+        type: bool
+        value: false
+      public_flat_rw:
+        doc: |
+          Declares that this library needs read/write access to signals
+          that are not otherwise marked public. Costly (inhibits
+          optimization), so it is not implied by `vpi`.
+        type: bool
+        value: false
 
   - name: SuppressWarnings
     doc: |

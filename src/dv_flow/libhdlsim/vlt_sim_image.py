@@ -80,19 +80,41 @@ class SimImageBuilder(VlSimImageBuilder):
         if data.trace:
             cmd.append('--trace')
 
-        if len(data.vpi) > 0:
-            if not custom_main:
-                raise Exception("VPI in VLT requires a verilatorMain (eg cocotb)")
-            # Generic VPI: expose signals and link the VPI shared library(ies).
-            cmd.extend(['--vpi', '--public-flat-rw'])
-            for lib_path, _entrypoint in data.vpi:
-                lib_dir = os.path.dirname(lib_path)
-                lib = os.path.splitext(os.path.basename(lib_path))[0]
-                if lib.startswith('lib'):
-                    lib = lib[3:]
-                cmd.extend(['-LDFLAGS', '-L%s' % lib_dir,
-                            '-LDFLAGS', '-l%s' % lib,
-                            '-LDFLAGS', '-Wl,-rpath,%s' % lib_dir])
+        # Three separable concerns, historically conflated:
+        #
+        #  1. --vpi -- enables Verilator's VPI runtime. Required by anything
+        #     that calls VPI from C: a cocotb main, or the UVM DPI layer
+        #     (uvm_hdl_verilator.c and uvm_svcmd_dpi.c both make VPI calls,
+        #     and uvm_dpi.cc compiles them into one translation unit). This
+        #     works fine with the generated --main; upstream Verilator's own
+        #     UVM tests use --binary --vpi with no custom main.
+        #
+        #  2. --public-flat-rw -- signal visibility. Only needed to reach
+        #     signals that aren't otherwise marked public, and it inhibits
+        #     optimization across the design, so it is not implied by --vpi.
+        #
+        #  3. Linking an external VPI shared library (data.vpi). This is the
+        #     only part that needs a custom main, because the generated main
+        #     does not bootstrap a separately-supplied VPI module.
+        vpi_enable = data.vpi_enable or len(data.vpi) > 0
+        public_flat_rw = data.public_flat_rw or len(data.vpi) > 0
+
+        if len(data.vpi) > 0 and not custom_main:
+            raise Exception("Linking a VPI library in VLT requires a verilatorMain (eg cocotb)")
+
+        if vpi_enable:
+            cmd.append('--vpi')
+        if public_flat_rw:
+            cmd.append('--public-flat-rw')
+
+        for lib_path, _entrypoint in data.vpi:
+            lib_dir = os.path.dirname(lib_path)
+            lib = os.path.splitext(os.path.basename(lib_path))[0]
+            if lib.startswith('lib'):
+                lib = lib[3:]
+            cmd.extend(['-LDFLAGS', '-L%s' % lib_dir,
+                        '-LDFLAGS', '-l%s' % lib,
+                        '-LDFLAGS', '-Wl,-rpath,%s' % lib_dir])
 
         cmd.extend(data.args)
         cmd.extend(data.compargs)

@@ -20,6 +20,7 @@
 #*
 #****************************************************************************
 import logging
+import os
 import shutil
 from pathlib import Path
 from typing import List
@@ -35,11 +36,20 @@ async def SimLibUVM(ctxt: TaskRunCtxt, input):
     - Forward a FileSet with:
         files:   [src/uvm_pkg.sv]
         incdirs: [src]
-        defines: [UVM_NO_DPI]
+      plus, when the UVM installation carries a Verilator DPI backend, the
+      DPI sources and a request for Verilator's VPI runtime.
+
+    UVM_NO_DPI is emitted *only* as a fallback, when the DPI sources cannot
+    be located. It downgrades uvm_re_match to glob-only matching and disables
+    register backdoor access, so it is a last resort rather than the default.
     """
     status = 0
     changed = False
-    markers: List[TaskMarker] = []
+
+    def add_marker(severity, msg):
+        # Report through ctxt rather than TaskDataResult.markers: doing both
+        # records the marker twice. ctxt is the path the log parsers use.
+        ctxt.add_marker(TaskMarker(severity=severity, msg=msg))
 
     if "UVM_HOME" in ctxt.env.keys():
         uvm_home = ctxt.env["UVM_HOME"]
@@ -59,24 +69,82 @@ async def SimLibUVM(ctxt: TaskRunCtxt, input):
                     break
 
         if uvm_home is None:
-            markers.append(TaskMarker(
-                severity=SeverityE.Error,
-                msg="UVM not found: set $UVM_HOME or install UVM with Verilator"
-            ))
-            return TaskDataResult(status=1, changed=False, output=[], markers=markers)
+            add_marker(SeverityE.Error,
+                "UVM not found: set $UVM_HOME or install UVM with Verilator")
+            return TaskDataResult(status=1, changed=False, output=[])
 
-    # Forward UVM fileset with required incdir and define
-    fs = FileSet(
-        filetype="systemVerilogSource",
-        basedir=str(uvm_home),
-        files=["src/uvm_pkg.sv"],
-        incdirs=["src"],
-        defines=["UVM_NO_DPI"]
-    )
+    # Is a Verilator-capable DPI layer present? uvm_hdl_verilator.c is the
+    # thing that actually makes uvm_dpi.cc link -- stock Accellera UVM has
+    # backends only for VCS/Questa/Xcelium and #errors otherwise. Probing for
+    # it (rather than for a marker file) means a hand-assembled $UVM_HOME that
+    # carries the backend works too.
+    dpi_dir = os.path.join(str(uvm_home), "src", "dpi")
+    dpi_cc = os.path.join(dpi_dir, "uvm_dpi.cc")
+    dpi_backend = os.path.join(dpi_dir, "uvm_hdl_verilator.c")
+    dpi_capable = os.path.isfile(dpi_cc) and os.path.isfile(dpi_backend)
+
+    dpi_mode = getattr(input.params, "dpi", "auto")
+    if isinstance(dpi_mode, bool):
+        dpi_mode = "true" if dpi_mode else "false"
+    dpi_mode = str(dpi_mode).lower()
+
+    if dpi_mode not in ("auto", "true", "false"):
+        add_marker(SeverityE.Error,
+            "SimLibUVM: invalid dpi=%s (expected auto, true or false)" % dpi_mode)
+        return TaskDataResult(status=1, changed=False, output=[])
+
+    if dpi_mode == "false":
+        use_dpi = False
+    elif dpi_mode == "true":
+        if not dpi_capable:
+            add_marker(SeverityE.Error,
+                ("SimLibUVM: dpi=true, but %s has no Verilator DPI backend "
+                     "(missing %s). Install a verilator-bin that ships the UVM "
+                     "DPI overlay, or set dpi=auto/false."
+                     % (uvm_home, dpi_backend)))
+            return TaskDataResult(status=1, changed=False, output=[])
+        use_dpi = True
+    else:
+        use_dpi = dpi_capable
+
+    output = []
+
+    if use_dpi:
+        _log.info("Using UVM DPI layer from %s", dpi_dir)
+        output.append(FileSet(
+            filetype="systemVerilogSource",
+            basedir=str(uvm_home),
+            files=["src/uvm_pkg.sv"],
+            incdirs=["src"]))
+        # uvm_dpi.cc is the single translation unit that pulls in uvm_common.c,
+        # uvm_regex.cc, uvm_hdl.c and uvm_svcmd_dpi.c.
+        output.append(FileSet(
+            filetype="cppSource",
+            basedir=dpi_dir,
+            files=["uvm_dpi.cc"]))
+        # Declare the VPI need rather than string-injecting --vpi: uvm_hdl.c
+        # (via uvm_hdl_verilator.c) and uvm_svcmd_dpi.c both call into VPI.
+        # public_flat_rw is deliberately NOT requested -- it inhibits
+        # optimization design-wide, and most UVM testbenches never use
+        # register backdoor access. Users who do need it set public_flat_rw
+        # on SimImage, or mark signals /*verilator public*/.
+        output.append(ctxt.mkDataItem("hdlsim.SimCompileArgs", vpi=True))
+    else:
+        if dpi_mode == "auto":
+            add_marker(SeverityE.Warning,
+                ("SimLibUVM: no Verilator UVM DPI backend found in %s; "
+                     "falling back to UVM_NO_DPI. uvm_re_match degrades to "
+                     "glob-only matching (real regexes will not match) and "
+                     "register backdoor access is unavailable." % dpi_dir))
+        output.append(FileSet(
+            filetype="systemVerilogSource",
+            basedir=str(uvm_home),
+            files=["src/uvm_pkg.sv"],
+            incdirs=["src"],
+            defines=["UVM_NO_DPI"]))
 
     return TaskDataResult(
         status=status,
         changed=changed,
-        output=[fs],
-        markers=markers
+        output=output
     )

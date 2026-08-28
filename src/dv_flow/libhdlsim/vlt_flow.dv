@@ -50,6 +50,22 @@ package:
       Common issues:
       - "Unsupported" errors: Verilator doesn't support all SV constructs
       - Slow compile: Use VERILATOR_JOBS env var for parallel C++ compilation
+    with:
+      vpi:
+        doc: |
+          Build with Verilator's VPI runtime (--vpi). Needed by any C code
+          that makes VPI calls. Enabled automatically when a VPI library is
+          linked or when a library (eg SimLibUVM) requests it.
+        type: bool
+        value: false
+      public_flat_rw:
+        doc: |
+          Expose all signals for read/write access (--public-flat-rw).
+          Required to reach signals not marked /*verilator public*/ through
+          VPI, eg for UVM register backdoor access. Inhibits optimization,
+          so it is off unless explicitly requested.
+        type: bool
+        value: false
 
   - export: SimLib
     uses: hdlsim.SimLib
@@ -100,7 +116,17 @@ package:
     doc: |
       Provides the UVM library configured for Verilator simulation.
       Uses the built-in UVM library or a user-specified UVM installation.
-      
+
+      When the UVM installation ships a Verilator DPI backend (verilator-bin
+      installs one into share/uvm/src/dpi), the DPI layer is used: UVM gets
+      real regular-expression matching and register backdoor access, and the
+      image is built with --vpi. Otherwise UVM_NO_DPI is defined as a
+      fallback, which downgrades uvm_re_match to glob-only matching.
+
+      Backdoor access additionally requires the target signals to be visible
+      to VPI -- mark them /*verilator public*/ or set public_flat_rw on
+      SimImage.
+
       Example:
       ```yaml
       tasks:
@@ -110,6 +136,15 @@ package:
           uses: hdlsim.vlt.SimImage
           needs: [rtl, uvm, tb]
       ```
+    with:
+      dpi:
+        doc: |
+          Use the UVM DPI layer: "auto" (default) uses it when the UVM
+          installation provides a Verilator backend and warns when falling
+          back; "true" errors instead of falling back, for flows that must
+          not silently lose regex matching; "false" forces UVM_NO_DPI.
+        type: str
+        value: "auto"
 
   - export: SimRun
     uses: hdlsim.SimRun
