@@ -19,6 +19,14 @@ class VlSimImageData(object):
     primtops : List[str] = dc.field(default_factory=list)
     dpi : List[str] = dc.field(default_factory=list)
     vpi : List[Tuple[str, Optional[str]]] = dc.field(default_factory=list)
+    # Request the simulator's VPI runtime without necessarily linking an
+    # external VPI library. Anything that calls VPI from C needs this -- a
+    # cocotb main, or the UVM DPI layer (uvm_hdl_verilator.c, uvm_svcmd_dpi.c).
+    vpi_enable : bool = dc.field(default=False)
+    # Request flat public read/write access to all signals. Needed to reach
+    # arbitrary signals through VPI, but it inhibits optimization, so it is
+    # requested explicitly rather than implied by vpi_enable.
+    public_flat_rw : bool = dc.field(default=False)
     csource : List[str] = dc.field(default_factory=list)
     cincdirs : List[str] = dc.field(default_factory=list)
     # Path to a user/tool-supplied C++ "main" (eg cocotb's verilator.cpp). When

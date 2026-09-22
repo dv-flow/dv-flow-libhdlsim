@@ -140,6 +140,9 @@ class VlSimImageBuilder(object):
         # Convert vpilibs from params (strings) to tuples (path, None)
         data.vpi.extend([(vpi, None) for vpi in input.params.vpilibs])
         data.dpi.extend(input.params.dpilibs)
+        # Optional params: not every simulator's SimImage declares these
+        data.vpi_enable = bool(getattr(input.params, "vpi", False))
+        data.public_flat_rw = bool(getattr(input.params, "public_flat_rw", False))
         data.trace = input.params.trace
         data.timing = input.params.timing if hasattr(input.params, 'timing') else True
 
@@ -275,6 +278,12 @@ class VlSimImageBuilder(object):
                     if len(inc.strip()) > 0:
                         data.incdirs.append(inc)
                 data.defines.extend(fs.defines)
+                # A library (eg UVM's DPI layer) declares that it calls VPI
+                # from C, rather than string-injecting --vpi via args.
+                if getattr(fs, "vpi", False):
+                    data.vpi_enable = True
+                if getattr(fs, "public_flat_rw", False):
+                    data.public_flat_rw = True
             elif fs.type == "hdlsim.SimElabArgs":
                 self._log.debug("fs.type=%s" % fs.type)
                 data.elabargs.extend(merge_tokenize(fs.args))
