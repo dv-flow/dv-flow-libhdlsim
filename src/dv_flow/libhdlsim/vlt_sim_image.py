@@ -217,6 +217,15 @@ class SimImageBuilder(VlSimImageBuilder):
 
         try:
             info = TaskBuildFileCollection(data.files, data.incdirs).build()
+            # This scan runs against the SAME search path the compile just
+            # used, so an unresolved include here is a real hole: the file is
+            # compiled in but absent from the dependency graph, and editing it
+            # will not mark the image out-of-date.
+            if info.unresolved:
+                self._log.warning(
+                    "Dependency scan could not resolve %s -- changes to %s will not trigger a rebuild" % (
+                        ", ".join(info.unresolved),
+                        "them" if len(info.unresolved) > 1 else "it"))
             self.memento = VlTaskSimImageMemento(svdeps=info.to_dict())
         except Exception as e:
             self._log.warning("Failed to build svdep collection: %s" % e)
