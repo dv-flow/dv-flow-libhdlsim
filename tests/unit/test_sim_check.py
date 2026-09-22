@@ -354,3 +354,76 @@ def test_report_json_write_failure_does_not_change_the_verdict(tmpdir):
         rundir=os.path.join(str(tmpdir), "nope"), name="suite")
     out = asyncio.run(SimSuiteReport(ctxt, inp))
     assert out.status == 0
+
+
+# ---- CTRF ----------------------------------------------------------------
+
+def _ctrf(tmpdir):
+    import json
+    with open(os.path.join(str(tmpdir), "ctrf.json")) as fp:
+        return json.load(fp)
+
+
+def test_suite_report_writes_ctrf(tmpdir):
+    b, ctxt = _mk(tmpdir)
+    inp = types.SimpleNamespace(
+        inputs=[_tr(b, "ok", True, "pass"),
+                _tr(b, "bad", False, "fail"),
+                _tr(b, "dead", False, "timeout")],
+        params=types.SimpleNamespace(junit=True, ctrf=True),
+        rundir=str(tmpdir), name="suite")
+    out = asyncio.run(SimSuiteReport(ctxt, inp))
+
+    doc = _ctrf(tmpdir)
+    assert doc["reportFormat"] == "CTRF"
+    summary = doc["results"]["summary"]
+    assert (summary["tests"], summary["passed"], summary["failed"]) == (3, 1, 2)
+    assert summary["start"] <= summary["stop"]
+    tests = {t["name"]: t for t in doc["results"]["tests"]}
+    # CTRF has one `failed`; the fail/timeout distinction survives in rawStatus.
+    assert tests["bad"]["status"] == "failed" and tests["bad"]["rawStatus"] == "fail"
+    assert tests["dead"]["status"] == "failed" and tests["dead"]["rawStatus"] == "timeout"
+    assert tests["ok"]["status"] == "passed"
+    assert any(getattr(a, "filetype", "") == "ctrfJson" for a in out.output)
+
+
+def test_ctrf_carries_seed_and_metrics(tmpdir):
+    b, ctxt = _mk(tmpdir)
+    runinfo = dict(_RUNINFO, start_time="2026-09-22T20:00:27+00:00",
+                   end_time="2026-09-22T20:00:29+00:00")
+    inp = types.SimpleNamespace(
+        inputs=[_tr_stats(b, "a", False, "fail", _STATS, runinfo)],
+        params=types.SimpleNamespace(junit=False, ctrf=True),
+        rundir=str(tmpdir), name="suite")
+    asyncio.run(SimSuiteReport(ctxt, inp))
+
+    doc = _ctrf(tmpdir)
+    t = doc["results"]["tests"][0]
+    # The reproduction handles are in the message a CI view shows unexpanded...
+    assert "seed=4242" in t["message"] and "sim=vlt" in t["message"]
+    # ...and in `extra` for anything that reads the file.
+    assert t["extra"]["seed"] == 4242
+    assert t["extra"]["simtime"] == "608us"
+    assert t["duration"] == 1500
+    summary = doc["results"]["summary"]
+    assert summary["stop"] - summary["start"] == 2000
+
+
+def test_ctrf_can_be_turned_off(tmpdir):
+    b, ctxt = _mk(tmpdir)
+    inp = types.SimpleNamespace(
+        inputs=[_tr(b, "ok", True, "pass")],
+        params=types.SimpleNamespace(junit=False, ctrf=False),
+        rundir=str(tmpdir), name="suite")
+    asyncio.run(SimSuiteReport(ctxt, inp))
+    assert not os.path.exists(os.path.join(str(tmpdir), "ctrf.json"))
+
+
+def test_a_ctrf_write_failure_does_not_change_the_verdict(tmpdir):
+    b, ctxt = _mk(tmpdir)
+    inp = types.SimpleNamespace(
+        inputs=[_tr(b, "ok", True, "pass")],
+        params=types.SimpleNamespace(junit=False, ctrf=True),
+        rundir=os.path.join(str(tmpdir), "does", "not", "exist"), name="suite")
+    out = asyncio.run(SimSuiteReport(ctxt, inp))
+    assert out.status == 0

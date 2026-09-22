@@ -31,8 +31,11 @@ SimSuiteReport is the CI gate. Only an infrastructure failure (no SimRunResult
 input, or a missing sim log) fails the task itself.
 """
 
+import datetime
 import json
 import os
+import time
+import uuid
 from dv_flow.mgr import FileSet, TaskDataResult
 from dv_flow.libhdlsim import sim_stats
 from dv_flow.libhdlsim.uvm_log_parser import parse_uvm_log
@@ -276,6 +279,11 @@ async def SimSuiteReport(ctxt, input) -> TaskDataResult:
         junit = _write_junit(ctxt, input, results)
         if junit is not None:
             output.append(junit)
+    want_ctrf = getattr(getattr(input, "params", None), "ctrf", True)
+    if want_ctrf and total and getattr(input, "rundir", None):
+        ctrf = _write_ctrf(ctxt, input, results)
+        if ctrf is not None:
+            output.append(ctrf)
 
     return TaskDataResult(status=status, output=output)
 
@@ -441,3 +449,121 @@ def _write_junit(ctxt, input, results):
 
     return FileSet(src=input.name, filetype="junitXml",
                    basedir=input.rundir, files=["junit.xml"])
+
+
+# The CTRF spec version this writer follows. Kept in step with
+# dv-flow-libhdllint, so a lint report and a suite report can be handed to the
+# same CI reporter together.
+CTRF_SPEC_VERSION = "0.0.0"
+
+_CTRF_EXTRA_INFO = ("sim", "sim_version", "seed", "seed_source", "host",
+                    "finish_reason", "testname", "plusargs")
+
+
+def _ctrf_test(r):
+    """One case as a CTRF test entry.
+
+    CTRF has a single `failed` status, so the failure/error distinction JUnit
+    draws travels in `rawStatus` (the case's own status: fail, error, timeout).
+    The reproduction handles go in the message as well as `extra`, because the
+    message is what a CI test view shows without expanding the row.
+    """
+    passed = bool(getattr(r, "passed", False))
+    raw = str(getattr(r, "status", "") or ("pass" if passed else "fail"))
+    runinfo = getattr(r, "runinfo", None)
+    runinfo = runinfo if isinstance(runinfo, dict) else {}
+    stats = _case_stats(r)
+    name = getattr(r, "name", "") or getattr(r, "testname", "") or "?"
+
+    test = {
+        "name": name,
+        "status": "passed" if passed else "failed",
+        "rawStatus": raw,
+        "duration": int(round(float(getattr(r, "walltime_s", 0) or 0) * 1000)),
+        "suite": getattr(r, "testname", "") or name,
+    }
+    handles = ["%s=%s" % (k, runinfo[k]) for k in ("sim", "seed")
+               if runinfo.get(k) not in (None, "")]
+    if not passed:
+        test["message"] = "%s: errors=%d fatals=%d%s" % (
+            raw, getattr(r, "errors", 0), getattr(r, "fatals", 0),
+            (" (%s)" % ", ".join(handles)) if handles else "")
+    elif handles:
+        test["message"] = ", ".join(handles)
+    tags = [t for t in (runinfo.get("sim"), getattr(r, "testname", "")) if t]
+    if tags:
+        test["tags"] = tags
+
+    extra = {k: runinfo[k] for k in _CTRF_EXTRA_INFO
+             if runinfo.get(k) not in (None, "", [])}
+    extra.update({k: stats[k] for k in _JUNIT_PROP_STATS if stats.get(k) is not None})
+    rundir = runinfo.get("rundir")
+    logfile = runinfo.get("logfile")
+    if rundir and logfile:
+        extra["log"] = os.path.join(rundir, logfile)
+    if extra:
+        test["extra"] = extra
+    return test
+
+
+def _write_ctrf(ctxt, input, results):
+    """Render the suite as `ctrf.json` and return it as a FileSet.
+
+    CTRF is what the CI reporters that build a job summary or PR comment read
+    (e.g. ctrf-io/github-test-reporter), and it is the format
+    dv-flow-libhdllint already emits for lint -- so one reporter step shows a
+    project's lint and its tests side by side.
+    """
+    path = os.path.join(input.rundir, "ctrf.json")
+    tests = [_ctrf_test(r) for r in results]
+    counts = {"passed": 0, "failed": 0, "skipped": 0, "pending": 0, "other": 0}
+    for t in tests:
+        counts[t["status"]] += 1
+
+    # Suite start/stop from the cases' own timestamps where they recorded them;
+    # CTRF requires both, so fall back to "now" rather than omitting them.
+    now_ms = int(time.time() * 1000)
+    starts, stops = [], []
+    for r in results:
+        runinfo = getattr(r, "runinfo", None)
+        runinfo = runinfo if isinstance(runinfo, dict) else {}
+        for key, acc in (("start_time", starts), ("end_time", stops)):
+            ms = _iso_to_ms(runinfo.get(key))
+            if ms is not None:
+                acc.append(ms)
+    start_ms = min(starts) if starts else now_ms
+    stop_ms = max(stops) if stops else now_ms
+
+    doc = {
+        "reportFormat": "CTRF",
+        "specVersion": CTRF_SPEC_VERSION,
+        "reportId": str(uuid.uuid4()),
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(start_ms / 1000.0)),
+        "generatedBy": "dv-flow-libhdlsim",
+        "results": {
+            "tool": {"name": "hdlsim"},
+            "summary": dict(tests=len(tests), start=start_ms, stop=stop_ms, **counts),
+            "tests": tests,
+            "extra": {"suite": input.name},
+        },
+    }
+    try:
+        with open(path, "w") as fp:
+            json.dump(doc, fp, indent=2)
+            fp.write("\n")
+    except Exception as e:
+        # A report-format failure must not change the suite's verdict.
+        ctxt.info("could not write ctrf.json: %s" % e)
+        return None
+
+    return FileSet(src=input.name, filetype="ctrfJson",
+                   basedir=input.rundir, files=["ctrf.json"])
+
+
+def _iso_to_ms(text):
+    if not isinstance(text, str) or not text:
+        return None
+    try:
+        return int(datetime.datetime.fromisoformat(text).timestamp() * 1000)
+    except ValueError:
+        return None

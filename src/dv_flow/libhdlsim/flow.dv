@@ -426,6 +426,8 @@ package:
     - type: hdlsim.SuiteResult
     - type: std.FileSet
       filetype: junitXml
+    - type: std.FileSet
+      filetype: ctrfJson
     desc: Roll up a suite's TestResults into a SuiteResult and gate CI
     doc: |
       SimSuiteReport consumes every TestResult produced by a suite's cases (a
@@ -458,6 +460,14 @@ package:
           Write junit.xml into the report's rundir (emitted as a junitXml
           FileSet). JUnit is what CI systems read natively, so this is what
           turns a suite into a GitHub/GitLab test view.
+      ctrf:
+        type: bool
+        value: true
+        doc: |
+          Write ctrf.json into the report's rundir (emitted as a ctrfJson
+          FileSet). CTRF is what CI test reporters that build a job summary or
+          PR comment read -- e.g. ctrf-io/github-test-reporter -- and it is the
+          format hdllint emits for lint, so one reporter shows both.
 
   - export: SimSuiteInfo
     uses: std.TestInfo
