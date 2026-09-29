@@ -258,3 +258,29 @@ package:
     builder._pkg_params_m["hdlsim"].sim = "vlt"
     build = builder.mkTaskNode("foo.build")
     assert "vlt_sim_image" in _backend(build)
+
+
+# --- Every SIM_BACKENDS entry exists in its package ---------------------------
+# Most backends can't be run here (no license), so a typo in a flow.dv export
+# or a pytask path would otherwise only show up on a machine with that tool.
+# Building the concrete node needs only the package, not the simulator.
+
+def _backend_entries():
+    from dv_flow.libhdlsim.backend_select import SIM_BACKENDS
+    return [(fam, sim, name)
+            for fam, m in sorted(SIM_BACKENDS.items())
+            for sim, name in sorted(m.items())]
+
+
+@pytest.mark.parametrize("family,sim,concrete", _backend_entries())
+def test_backend_entry_resolves(tmpdir, family, sim, concrete):
+    import importlib
+    from dv_flow.mgr.task_graph_builder import TaskGraphBuilder as _TGB
+    rgy = PackageLoader().load_rgy(["std", "hdlsim", "hdlsim.%s" % sim])
+    node = _TGB(rgy, os.path.join(str(tmpdir), "rundir")).mkTaskNode(
+        concrete, name="t")
+    assert node is not None
+    body = _backend(node)
+    if isinstance(body, str) and body.startswith("dv_flow."):
+        mod, _, attr = body.rpartition(".")
+        assert callable(getattr(importlib.import_module(mod), attr)), body

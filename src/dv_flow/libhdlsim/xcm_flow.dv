@@ -98,6 +98,11 @@ package:
     shell: pytask
     run: dv_flow.libhdlsim.xcm_sim_run.SimRun
 
+  - export: SimUVMCase
+    uses: hdlsim.SimUVMCase
+    pytask: dv_flow.libhdlsim.xcm_sim_run.SimUVMCase
+    desc: Run one Xcelium UVM test (run + verdict) and emit a TestResult
+
   #------------------------------------------------------------------
   # Per-sim opt/debug flag sets (see hdlsim.SimCompArgsOpt et al.).
   # Selected by the `sim`-driven elaborator; each emits the matching

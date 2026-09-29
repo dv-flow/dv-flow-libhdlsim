@@ -74,9 +74,13 @@ SIM_BACKENDS = {
         "xsm": "hdlsim.xsm.SimLibUVM",
     },
     # SimUVMCase = run-a-UVM-test-and-check in one leaf task (compact,
-    # multi-instantiable). Verilator-first; other backends are a follow-up.
+    # multi-instantiable). Shared implementation: sim_uvm_case.py.
     "SimUVMCase": {
         "vlt": "hdlsim.vlt.SimUVMCase",
+        "vcs": "hdlsim.vcs.SimUVMCase",
+        "mti": "hdlsim.mti.SimUVMCase",
+        "xcm": "hdlsim.xcm.SimUVMCase",
+        "xsm": "hdlsim.xsm.SimUVMCase",
     },
 }
 

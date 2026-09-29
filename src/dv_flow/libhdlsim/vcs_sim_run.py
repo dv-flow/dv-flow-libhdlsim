@@ -26,6 +26,7 @@ from typing import List
 from dv_flow.mgr import TaskDataResult, FileSet
 from dv_flow.libhdlsim.log_parser import LogParser
 from dv_flow.libhdlsim.vl_sim_runner import VLSimRunner
+from dv_flow.libhdlsim.sim_uvm_case import uvm_case_task
 from dv_flow.libhdlsim.vl_sim_data import VlSimRunData
 
 class SimRunner(VLSimRunner):
@@ -53,3 +54,5 @@ class SimRunner(VLSimRunner):
 
 async def SimRun(runner, input) -> TaskDataResult:
     return await SimRunner().run(runner, input)
+
+SimUVMCase = uvm_case_task(SimRunner)

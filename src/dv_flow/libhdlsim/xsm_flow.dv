@@ -67,6 +67,11 @@ package:
     doc: |
       Runs a previously compiled Xcelium simulation.
 
+  - export: SimUVMCase
+    uses: hdlsim.SimUVMCase
+    pytask: dv_flow.libhdlsim.xsm_sim_run.SimUVMCase
+    desc: Run one XSim UVM test (run + verdict) and emit a TestResult
+
   #------------------------------------------------------------------
   # Per-sim opt/debug flag sets (see hdlsim.SimCompArgsOpt et al.).
   # Selected by the `sim`-driven elaborator; each emits the matching

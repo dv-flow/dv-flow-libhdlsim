@@ -83,6 +83,11 @@ package:
     doc: |
       Runs a previously compiled VCS simulation executable.
 
+  - export: SimUVMCase
+    uses: hdlsim.SimUVMCase
+    pytask: dv_flow.libhdlsim.vcs_sim_run.SimUVMCase
+    desc: Run one VCS UVM test (run + verdict) and emit a TestResult
+
   #------------------------------------------------------------------
   # Per-sim opt/debug flag sets (see hdlsim.SimCompArgsOpt et al.).
   # Selected by the `sim`-driven elaborator; each emits the matching
