@@ -1,30 +1,18 @@
 
 import os
 import pytest
-import shutil
 import asyncio
 import sys
 from dv_flow.mgr import TaskListenerLog, TaskSetRunner, TaskSpec, PackageLoader
 from dv_flow.mgr.task_graph_builder import TaskGraphBuilder
 from dv_flow.mgr.util import loadProjPkgDef
 import dv_flow.libhdlsim as libhdlsim
+from .sims import get_available_sims
 
-def get_available_sims():
-    global sims
+SIMS = get_available_sims(exclude=("xcm",))
 
-    sims = []
-    for sim_exe,sim in {
-        "iverilog": "ivl",
-        "verilator": "vlt",
-        "vcs": "vcs",
-        "vsim": "mti",
-        "xsim": "xsm",
-    }.items():
-        if shutil.which(sim_exe) is not None:
-            sims.append(sim)
-    return sims
 
-@pytest.mark.parametrize("sim", get_available_sims())
+@pytest.mark.parametrize("sim", SIMS)
 def test_smoke(tmpdir, request, sim):
 
     data_dir = os.path.join(os.path.dirname(__file__), "data/rundata")
@@ -84,7 +72,7 @@ def test_smoke(tmpdir, request, sim):
     
         assert sim_log.find("Data: Hello, World!") != -1
 
-@pytest.mark.parametrize("sim", get_available_sims())
+@pytest.mark.parametrize("sim", SIMS)
 def test_smoke_1(tmpdir, request, sim):
 
     data_dir = os.path.join(os.path.dirname(__file__), "data/rundata")

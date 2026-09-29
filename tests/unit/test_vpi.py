@@ -1,26 +1,15 @@
 import os
 import pytest
-import shutil
 import asyncio
 from dv_flow.mgr import TaskListenerLog, TaskSetRunner, PackageLoader
 from dv_flow.mgr.task_graph_builder import TaskGraphBuilder
 import dv_flow.libhdlsim as libhdlsim
+from .sims import get_available_sims
 
-sims = None
+SIMS = get_available_sims(only=("vcs", "mti"))
 
-def get_available_sims():
-    global sims
 
-    sims = []
-    for sim_exe, sim in {
-        "vcs": "vcs",
-        "vsim": "mti",
-    }.items():
-        if shutil.which(sim_exe) is not None:
-            sims.append(sim)
-    return sims
-
-@pytest.mark.parametrize("sim", get_available_sims())
+@pytest.mark.parametrize("sim", SIMS)
 def test_vpi_entrypoint(tmpdir, sim):
     """Test that VPI libraries with entrypoint attributes are correctly handled"""
     

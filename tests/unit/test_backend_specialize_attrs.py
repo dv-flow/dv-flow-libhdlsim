@@ -21,21 +21,11 @@
 #* it is added without anyone remembering to extend this file.
 #****************************************************************************
 import os
-import shutil
 import pytest
 from dv_flow.mgr import PackageLoader
 from dv_flow.mgr.task_graph_builder import TaskGraphBuilder
 from dv_flow.libhdlsim.backend_select import SIM_BACKENDS
-
-
-def available_sims():
-    return [sim for exe, sim in {
-        "iverilog": "ivl",
-        "verilator": "vlt",
-        "vcs": "vcs",
-        "vsim": "mti",
-        "xsim": "xsm",
-    }.items() if shutil.which(exe) is not None]
+from .sims import get_available_sims
 
 
 # Attributes the graph builder reads off a Task when constructing a node. If a
@@ -45,7 +35,7 @@ def available_sims():
 INHERITABLE = ("uptodate", "rundir", "passthrough", "consumes", "produces")
 
 
-@pytest.mark.parametrize("sim", available_sims())
+@pytest.mark.parametrize("sim", get_available_sims(exclude=("xcm",)))
 @pytest.mark.parametrize("family", sorted(SIM_BACKENDS.keys()))
 def test_specializing_preserves_backend_attrs(tmpdir, sim, family):
     """Binding `hdlsim.<Family>` with sim=<sim> must yield the same inheritable

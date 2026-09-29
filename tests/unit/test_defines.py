@@ -1,31 +1,16 @@
 
 import os
 import pytest
-import shutil
 import asyncio
 import sys
 from dv_flow.mgr import TaskListenerLog, TaskSetRunner, TaskSpec, PackageLoader
 from dv_flow.mgr.task_graph_builder import TaskGraphBuilder
 from dv_flow.mgr.util import loadProjPkgDef
 import dv_flow.libhdlsim as libhdlsim
+from .sims import get_available_sims
 
-sims = None
+SIMS = get_available_sims()
 
-def get_available_sims():
-    global sims
-
-    sims = []
-    for sim_exe,sim in {
-        "iverilog": "ivl",
-        "verilator": "vlt",
-        "vcs": "vcs",
-        "vsim": "mti",
-        "xsim": "xsm",
-        "xmvlog": "xcm",
-    }.items():
-        if shutil.which(sim_exe) is not None:
-            sims.append(sim)
-    return sims
 
 def mkdefine(sim, define):
     if sim in ("vcs", "mti", "vlt", "xcm"):
@@ -37,7 +22,7 @@ def mkdefine(sim, define):
     else:
         raise Exception("Unknown simulator %s" % sim)
 
-@pytest.mark.parametrize("sim", get_available_sims())
+@pytest.mark.parametrize("sim", SIMS)
 def test_define_fs(tmpdir, request, sim):
 
     data_dir = os.path.join(os.path.dirname(__file__), "data/defines")
@@ -90,7 +75,7 @@ def test_define_fs(tmpdir, request, sim):
     
         assert sim_log.find("SPECIAL_DEFINE is defined") != -1
 
-@pytest.mark.parametrize("sim", get_available_sims())
+@pytest.mark.parametrize("sim", SIMS)
 def test_define_simimg_compargs(tmpdir, request, sim):
 
     data_dir = os.path.join(os.path.dirname(__file__), "data/defines")
@@ -146,7 +131,7 @@ def test_define_simimg_compargs(tmpdir, request, sim):
     
         assert sim_log.find("SPECIAL_DEFINE is defined") != -1
 
-@pytest.mark.parametrize("sim", get_available_sims())
+@pytest.mark.parametrize("sim", SIMS)
 def test_define_dataitem_compargs(tmpdir, request, sim):
 
     data_dir = os.path.join(os.path.dirname(__file__), "data/defines")
