@@ -313,6 +313,11 @@ For example, the full name of the `VCS` SimImage task is `hdlsim.vcs.SimImage`.
 * **vlt** - Verilator
 * **xcm** - Cadence Xcelium
 * **xsm** - AMD Xilinx Vivado (XSim)
+* **xzm** - xezim
+
+`SimUVMCase` (run one UVM test and emit a TestResult) is provided by every
+UVM-capable package: vlt, vcs, mti, xcm, xsm and xzm. They share one
+implementation; Icarus Verilog has no UVM support.
 
 .. note::
     All trademarks are the property of their respective owners
@@ -376,3 +381,31 @@ xcm (Cadence Xcelium)
 - Status: Experimental/incomplete in this repository; functionality may be outdated
 - DPI/VPI/Trace/Valgrind/Incremental: TBD
 - Special parameters: TBD
+
+xzm (xezim)
+-----------
+- DPI: Supported. C/C++ sources given to SimImage are compiled into a shared
+  library (`libxzm_dpi.so`, needs `cc`/`c++`); it and prebuilt libraries are
+  loaded at run time with --dpi-lib. A design that `export`s SV functions to
+  C also needs `cc` on PATH at run time.
+- VPI: Supported at run time (--vpi-lib). Only `vlog_startup_routines` is
+  run; an `entrypoint=` attribute is ignored with a warning. cocotb 2.x works
+  this way with its Icarus VPI library.
+- Trace: Supported at run time. `trace: true`, or the debug elab preset's
+  `trace_fmt`, gives FST (`sim.fst`) by default, or with `trace_fmt: vcd`
+  the testbench's own `$dumpfile`/`$dumpvars`.
+- Valgrind: Supported (the run is wrapped in valgrind --tool=memcheck)
+- Incremental compile: Yes (file-dependency cache/memento). The image is
+  also rebuilt when a different xezim build is on PATH.
+- UVM: SimLibUVM provides the UVM bundled with xezim (or `$UVM_HOME`). UVM's
+  DPI layer is built into xezim, so nothing is compiled for it.
+- Special behavior:
+
+  - `--error-exit` is always passed, so a `$error` fails the run.
+  - `--max-time 1000000s` is passed unless `args` sets `--max-time`
+    (xezim's own default is 100ms). Reaching it without `$finish` is a
+    failed run: an Error in `mode: run`, a nonzero status in `mode: test`,
+    and `runinfo.finish_reason` is `max_time`.
+  - xezim diagnostics have no warning codes, so `suppress_warnings` cannot
+    target them.
+  - SimImage's `timing`, `vpi` and `public_flat_rw` have no effect.

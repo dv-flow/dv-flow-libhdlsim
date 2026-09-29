@@ -1,0 +1,3 @@
+[xezim][hang-report] simulation reached --max-time (100 ticks) without $finish
+Simulation finished at time 100
+{"schema_version":1,"version":"0.11.0","git_rev":"6558a1e6","wall_ms":0,"cpu_user_ms":0,"cpu_sys_ms":1,"peak_rss_kb":21444,"hostname":"host","sim_time_ns":100}

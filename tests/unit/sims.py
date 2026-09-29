@@ -15,6 +15,7 @@ SIM_EXES = {
     "vsim": "mti",
     "xsim": "xsm",
     "xmvlog": "xcm",
+    "xezim": "xzm",
 }
 
 # Sims whose backend provides SimLibUVM/SimUVMCase

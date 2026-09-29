@@ -32,6 +32,7 @@ def dvfm_packages():
         'hdlsim.vlt': os.path.join(hdlsim_dir, "vlt_flow.dv"),
         'hdlsim.xcm': os.path.join(hdlsim_dir, "xcm_flow.dv"),
         'hdlsim.xsm': os.path.join(hdlsim_dir, "xsm_flow.dv"),
+        'hdlsim.xzm': os.path.join(hdlsim_dir, "xzm_flow.dv"),
     }
 
 # Simulator backend selection is bound declaratively: each abstract hdlsim task

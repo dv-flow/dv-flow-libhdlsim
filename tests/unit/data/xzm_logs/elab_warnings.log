@@ -1,0 +1,6 @@
+Parsed 1 file(s): 2 descriptions, 0 errors, 0 warnings
+[xezim][warning] implicit 1-bit net created for undeclared identifier 'q' (IEEE 1800-2017 §6.10). Add an explicit declaration to silence.
+[xezim][warning] port width mismatch: module 'sub' port 'a' is 4 bit(s) but the connection is 8 bit(s) — instance 'u' (connection at pw.sv:7:12); the value is truncated/extended per IEEE 1800-2017 §23.3.3. Further instances of this (module, port) pair are not reported.
+  connection 'w' is declared as '<anonymous>' (8 bit(s)), declared at pw.sv:5:15
+Elaboration successful
+Wrote compiled artifact to x.xzb

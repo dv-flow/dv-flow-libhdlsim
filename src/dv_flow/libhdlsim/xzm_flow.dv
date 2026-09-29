@@ -1,0 +1,229 @@
+#****************************************************************************
+#* xzm_flow.dv
+#*
+#* Copyright 2023-2025 Matthew Ballance and Contributors
+#*
+#* Licensed under the Apache License, Version 2.0 (the "License"); you may
+#* not use this file except in compliance with the License.
+#* You may obtain a copy of the License at:
+#*
+#*   http://www.apache.org/licenses/LICENSE-2.0
+#*
+#* Unless required by applicable law or agreed to in writing, software
+#* distributed under the License is distributed on an "AS IS" BASIS,
+#* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#* See the License for the specific language governing permissions and
+#* limitations under the License.
+#*
+#****************************************************************************
+package:
+  name: hdlsim.xzm
+  desc: xezim open-source SystemVerilog/UVM simulator integration
+
+  # Waveform format for trace-enabled (debug) runs. xezim takes waveform
+  # options at run time, so the debug elab preset records the format in the
+  # image manifest and SimRun maps it to the run flag (fst->--fst sim.fst,
+  # vcd->--wave). Override with `-D hdlsim.xzm.trace_fmt=vcd`.
+  with:
+    trace_fmt:
+      type: str
+      value: "fst"
+
+  imports:
+  - name: hdlsim
+
+  tasks:
+  - export: SimImage
+    uses: hdlsim.SimImage
+    pytask: dv_flow.libhdlsim.xzm_sim_image.SimImage
+    uptodate: dv_flow.libhdlsim.xzm_sim_image.check_uptodate
+    desc: Compiles a design to a xezim artifact (simv.xzb)
+    doc: |
+      Parses and elaborates the design with `xezim --compile` and writes the
+      compiled artifact `simv.xzb`, which SimRun loads. C/C++ DPI sources are
+      compiled into `libxzm_dpi.so` and forwarded to SimRun, which passes it
+      with `--dpi-lib`. The image is rebuilt when the sources change or when
+      a different xezim build is on PATH.
+
+  - export: SimLib
+    uses: hdlsim.SimLib
+    passthrough: all
+    doc: |
+      xezim doesn't have a notion of a pre-compiled library (every run
+      compiles from source). Consequently, this notion is implemented as a
+      passthrough.
+
+  - export: SimLibUVM
+    uses: hdlsim.SimLibUVM
+    pytask: dv_flow.libhdlsim.xzm_sim_lib_uvm.SimLibUVM
+    desc: Provides the UVM library bundled with xezim
+    doc: |
+      Emits UVM as source (`uvm_pkg.sv` + include dir) from `$UVM_HOME`, or
+      else from the UVM that ships with xezim (`<prefix>/share/uvm`). xezim
+      implements UVM's DPI layer internally, so no `uvm_dpi.cc` is compiled.
+      `dpi: false` defines `UVM_NO_DPI` to match a DPI-less simulator.
+
+  - export: SimRun
+    uses: hdlsim.SimRun
+    pytask: dv_flow.libhdlsim.xzm_sim_run.SimRun
+    desc: Executes a xezim simulation
+    doc: |
+      Runs the compiled artifact. Always passes `--error-exit`, so a `$error`
+      fails the run, and `--max-time 1000000s` unless `args` sets
+      `--max-time`. Reaching `--max-time` without `$finish` is a failed run.
+
+  - export: SimUVMCase
+    uses: hdlsim.SimUVMCase
+    pytask: dv_flow.libhdlsim.xzm_sim_run.SimUVMCase
+    desc: Run one xezim UVM test (run + verdict) and emit a TestResult
+
+  #------------------------------------------------------------------
+  # Per-sim opt/debug flag sets (see hdlsim.SimCompArgsOpt et al.).
+  # Selected by the `sim`-driven elaborator; each emits the matching
+  # hdlsim.Sim*Args DataItem carrying this simulator's default flags
+  # for the mode.
+  #------------------------------------------------------------------
+  - export: SimCompArgsOpt
+    uses: hdlsim.SimCompileArgs
+    consumes: none
+    desc: xezim optimized-mode compile flags
+    with: { args: { type: list, value: [] } }
+
+  - export: SimCompArgsDbg
+    uses: hdlsim.SimCompileArgs
+    consumes: none
+    desc: xezim debug-mode compile flags
+    with: { args: { type: list, value: [] } }
+
+  - export: SimElabArgsOpt
+    uses: hdlsim.SimElabArgs
+    consumes: none
+    desc: xezim optimized-mode elaboration flags
+    with: { args: { type: list, value: [] } }
+
+  - export: SimElabArgsDbg
+    uses: hdlsim.SimElabArgs
+    consumes: none
+    desc: xezim debug-mode elaboration flags
+    doc: |
+      xezim debug elaboration flags. Enables waveform tracing: `trace_fmt`
+      defaults to the `hdlsim.xzm.trace_fmt` var (FST). xezim's waveform
+      options are run-time flags, so the image records the format and SimRun
+      applies it. Flip with `-D hdlsim.xzm.trace_fmt=vcd`.
+    with: { trace_fmt: { type: str, value: "${{ hdlsim.xzm.trace_fmt }}" } }
+
+  - export: SimRunArgsOpt
+    uses: hdlsim.SimRunArgs
+    consumes: none
+    desc: xezim optimized-mode runtime flags
+    with: { args: { type: list, value: [] } }
+
+  - export: SimRunArgsDbg
+    uses: hdlsim.SimRunArgs
+    consumes: none
+    desc: xezim debug-mode runtime flags
+    doc: |
+      xezim debug runtime flags. `--x-warn` reports signals that go from a
+      valid 0/1 value to X after time 0, naming the signal and its drivers.
+    with: { args: { type: list, value: ["--x-warn"] } }
+
+  types:
+  - name: AgentSkill
+    uses: std.DataItem
+    tags:
+      - std.AgentSkillTag
+    doc: xezim simulation skill for LLM agent discovery
+    with:
+      name:
+        type: str
+        value: "xezim-simulation"
+      desc:
+        type: str
+        value: "Compile and run SystemVerilog/UVM simulations with xezim"
+      skill_doc:
+        type: str
+        value: |
+          # xezim Simulation (hdlsim.xzm)
+
+          Open-source, event-driven SystemVerilog (IEEE 1800-2023) simulator
+          with UVM, DPI-C and VPI support. Verilog/SystemVerilog only: VHDL
+          and mixed-language designs are not supported.
+
+          ## Quick Start
+
+          ```yaml
+          package:
+            name: my_sim
+
+            imports:
+              - name: hdlsim.xzm
+                as: sim
+
+            tasks:
+              - name: rtl
+                uses: std.FileSet
+                with:
+                  type: systemVerilogSource
+                  include: "src/**/*.sv"
+
+              - name: build
+                uses: sim.SimImage
+                needs: [rtl]
+                with:
+                  top: [my_module]
+
+              - name: run
+                uses: sim.SimRun
+                needs: [build]
+          ```
+
+          Or select it portably: `uses: hdlsim.SimImage` with
+          `-D hdlsim.sim=xzm`.
+
+          ## Tasks
+
+          - `SimImage`: Compile the design to a xezim artifact (`simv.xzb`)
+          - `SimRun`: Run the artifact
+          - `SimLib`: Passthrough (xezim compiles everything from source)
+          - `SimLibUVM`: The UVM library bundled with xezim
+          - `SimUVMCase`: Run one UVM test and emit a TestResult
+
+          ## Run behavior
+
+          - `--error-exit` is always on: a `$error` makes the run fail (the
+            simulation still runs to `$finish`, so later errors are reported).
+            There is no opt-out.
+          - xezim stops at `--max-time` (its own default is 100ms). SimRun
+            passes `--max-time 1000000s` unless `args` already contains
+            `--max-time`. Reaching the limit without `$finish` is a failed
+            run: an Error in `mode: run`, a nonzero status in `mode: test`,
+            and `runinfo.finish_reason = "max_time"`.
+          - Seeds: `+seed=<n>`; the default is 1 and runs are deterministic.
+
+          ## Tracing
+
+          `trace: true` on SimImage or SimRun (or the debug flag sets) dumps
+          waves at run time: FST to `sim.fst` by default, or with
+          `trace_fmt: vcd` the testbench's own `$dumpfile`/`$dumpvars`.
+          Scope an FST dump with `args: [--fst-scope, tb.dut]`.
+
+          ## DPI and VPI
+
+          - C/C++ sources given to SimImage are compiled into
+            `libxzm_dpi.so` with the xezim headers; prebuilt libraries are
+            loaded with `--dpi-lib`. A design that `export`s SV functions to
+            C needs `cc` on PATH at run time (xezim builds a trampoline).
+          - VPI libraries are loaded with `--vpi-lib`. xezim only calls
+            `vlog_startup_routines`, so a VPI `entrypoint=` attribute is
+            ignored with a warning. cocotb 2.x works this way: use its
+            `libcocotbvpi_icarus.so` and set cocotb's usual environment
+            (`GPI_USERS`, `COCOTB_TEST_MODULES`, `COCOTB_TOPLEVEL`, ...).
+
+          ## Limitations
+
+          - xezim diagnostics have no warning codes, so `suppress_warnings`
+            cannot target them.
+          - `timing`, `vpi_enable` and `public_flat_rw` on SimImage have no
+            effect: xezim always models timing and exposes every signal.
+          - The language level is 1800-2023; add `args: [--sv2017]` for
+            code that relies on 2017 parsing.

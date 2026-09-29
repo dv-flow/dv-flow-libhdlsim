@@ -112,7 +112,7 @@ STAT_KEYS : Dict[str, Tuple[str, str, str]] = {
 INFO_KEYS : Dict[str, str] = {
     "case_name":    "Case name recorded for this run",
     "testname":     "Test identity (eg UVM_TESTNAME)",
-    "sim":          "Simulator backend (vlt/vcs/mti/xcm/xsm/ivl)",
+    "sim":          "Simulator backend (vlt/vcs/mti/xcm/xsm/ivl/xzm)",
     "sim_version":  "Simulator version string, when the log reports one",
     "mode":         "SimRun mode ('run' or 'test')",
     "seed":         "Random seed applied to the run",

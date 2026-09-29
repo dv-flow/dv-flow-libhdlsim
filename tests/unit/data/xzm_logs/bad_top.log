@@ -1,0 +1,2 @@
+Parsed 1 file(s): 2 descriptions, 0 errors, 0 warnings
+Simulation error: top module 'nope' not found; known top-level definitions: sub, top (use --no-strict-top to auto-detect the design root instead)

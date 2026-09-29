@@ -1,0 +1,4 @@
+perr.sv:4:3: error: expected Semicolon, found KwEnd 'end'
+    4 |   end
+      |   ^~~
+Parsed 1 file(s): 1 descriptions, 1 errors, 0 warnings

@@ -15,7 +15,7 @@ SIMS = get_available_sims()
 def mkdefine(sim, define):
     if sim in ("vcs", "mti", "vlt", "xcm"):
         return ["+define+%s" % define]
-    elif sim in ("ivl",):
+    elif sim in ("ivl", "xzm"):
         return ["-D", define]
     elif sim in ("xsm",):
         return ["-d", define]

@@ -6,7 +6,7 @@ from dv_flow.mgr.task_graph_builder import TaskGraphBuilder
 import dv_flow.libhdlsim as libhdlsim
 from .sims import get_available_sims
 
-SIMS = get_available_sims(only=("vcs", "mti"))
+SIMS = get_available_sims(only=("vcs", "mti", "xzm"))
 
 
 @pytest.mark.parametrize("sim", SIMS)

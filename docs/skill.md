@@ -15,10 +15,11 @@ tasks (SimImage, SimRun, SimLib, etc.) that each simulator package implements.
 |---------|-----------|---------|
 | `hdlsim.vlt` | Verilator | Open Source |
 | `hdlsim.vcs` | Synopsys VCS | Commercial |
-| `hdlsim.xsm` | Cadence Xcelium | Commercial |
+| `hdlsim.xcm` | Cadence Xcelium | Commercial |
 | `hdlsim.mti` | Siemens Questa | Commercial |
 | `hdlsim.ivl` | Icarus Verilog | Open Source |
-| `hdlsim.xcm` | AMD Xilinx XSim | Commercial |
+| `hdlsim.xsm` | AMD Xilinx XSim | Commercial |
+| `hdlsim.xzm` | xezim | Open Source |
 
 ## Quick Start
 
@@ -27,7 +28,7 @@ package:
   name: my_sim
 
   imports:
-    - name: hdlsim.vlt   # Or hdlsim.vcs, hdlsim.xsm, hdlsim.mti
+    - name: hdlsim.vlt   # Or hdlsim.vcs, hdlsim.xsm, hdlsim.mti, hdlsim.xzm
       as: sim
 
   tasks:

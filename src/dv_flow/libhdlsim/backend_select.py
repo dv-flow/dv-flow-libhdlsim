@@ -40,7 +40,7 @@ import difflib
 # All simulator sub-package leaf ids. Used to recognize an explicit concrete
 # task (`hdlsim.<sim>.<Family>`) structurally, independent of whether that
 # sim/family pair appears in the selection registry below.
-SIMS = ("vlt", "vcs", "mti", "xsm", "xcm", "ivl")
+SIMS = ("vlt", "vcs", "mti", "xsm", "xcm", "ivl", "xzm")
 
 
 # Single source of truth: task family -> {sim: concrete task type name}.
@@ -52,6 +52,7 @@ SIM_BACKENDS = {
         "xsm": "hdlsim.xsm.SimImage",
         "xcm": "hdlsim.xcm.SimImage",
         "ivl": "hdlsim.ivl.SimImage",
+        "xzm": "hdlsim.xzm.SimImage",
     },
     "SimRun": {
         "vlt": "hdlsim.vlt.SimRun",
@@ -60,18 +61,21 @@ SIM_BACKENDS = {
         "xsm": "hdlsim.xsm.SimRun",
         "xcm": "hdlsim.xcm.SimRun",
         "ivl": "hdlsim.ivl.SimRun",
+        "xzm": "hdlsim.xzm.SimRun",
     },
     "SimLib": {
         "vlt": "hdlsim.vlt.SimLib",
         "vcs": "hdlsim.vcs.SimLib",
         "mti": "hdlsim.mti.SimLib",
         "xsm": "hdlsim.xsm.SimLib",
+        "xzm": "hdlsim.xzm.SimLib",
     },
     "SimLibUVM": {
         "vlt": "hdlsim.vlt.SimLibUVM",
         "vcs": "hdlsim.vcs.SimLibUVM",
         "mti": "hdlsim.mti.SimLibUVM",
         "xsm": "hdlsim.xsm.SimLibUVM",
+        "xzm": "hdlsim.xzm.SimLibUVM",
     },
     # SimUVMCase = run-a-UVM-test-and-check in one leaf task (compact,
     # multi-instantiable). Shared implementation: sim_uvm_case.py.
@@ -81,6 +85,7 @@ SIM_BACKENDS = {
         "mti": "hdlsim.mti.SimUVMCase",
         "xcm": "hdlsim.xcm.SimUVMCase",
         "xsm": "hdlsim.xsm.SimUVMCase",
+        "xzm": "hdlsim.xzm.SimUVMCase",
     },
 }
 

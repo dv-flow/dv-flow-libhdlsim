@@ -1,0 +1,4 @@
+Parsed 1 file(s): 1 descriptions, 0 errors, 0 warnings
+undecl.sv:3:5: error: Undeclared identifier 'x'
+    3 |     x = 1;
+      |     ^
