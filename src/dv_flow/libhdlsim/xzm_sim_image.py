@@ -45,10 +45,24 @@ def read_manifest(imgdir):
         return {}
 
 
+# Coverage level -> kinds. xezim collects coverage at run time, so the image is
+# the same at every level; cov.json (written by the base builder) is what
+# tells SimRun what to collect. xezim's `statement` is reported as `line`.
+_COV_KINDS = {
+    "none": [],
+    "func": ["covergroup", "user"],
+    "code": ["covergroup", "user", "line", "branch"],
+    "full": ["covergroup", "user", "line", "branch", "toggle"],
+}
+
+
 class SimImageBuilder(VlSimImageBuilder):
 
     # xezim loads VPI at run time (--vpi-lib), so forward VPI libs to SimRun.
     forward_vpi = True
+
+    def cov_kinds(self, level):
+        return list(_COV_KINDS[level])
 
     def getRefTime(self, rundir):
         path = os.path.join(rundir, ARTIFACT)

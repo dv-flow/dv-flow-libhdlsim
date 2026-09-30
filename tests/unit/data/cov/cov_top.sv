@@ -42,6 +42,10 @@ module cov_top;
   cover property (@(posedge clk) count == 4'd5);
 
   initial begin
+    if ($test$plusargs("trace")) begin
+      $dumpfile("waves.fst");
+      $dumpvars(0, cov_top);
+    end
     #100;
     $display("cov_top done count=%0d", count);
     $finish;

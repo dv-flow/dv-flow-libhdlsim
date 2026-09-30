@@ -35,6 +35,23 @@ DEFAULT_MAX_TIME = "1000000s"
 # xezim's default seed when no +seed is given
 DEFAULT_SEED = 1
 
+# The coverage database xezim writes (XEZIM_COV_DB), in the run directory
+COV_DB = "xezim_cov.json"
+
+# Code-coverage kinds per level (--code-coverage=<kinds>); none below `code`
+_CODE_COV = {"code": "stmt,branch", "full": "stmt,branch,toggle"}
+
+
+def _user_code_cov(args):
+    """True when the user's run args already request code coverage (any of
+    xezim's spellings); theirs is then left alone."""
+    for a in args:
+        if a == "--code-coverage" or a.startswith("--code-coverage="):
+            return True
+        if a == "-coverage" or a == "+cover" or a.startswith("+cover="):
+            return True
+    return False
+
 
 class SimRunner(VLSimRunner):
     sim_name = "xzm"
@@ -92,12 +109,24 @@ class SimRunner(VLSimRunner):
             # what is written.
             cmd.append('--wave')
 
+        # Coverage follows the image's cov.json. xezim writes functional
+        # coverage whenever the design has any, so at `none` the database is
+        # sent to /dev/null rather than left in the rundir.
+        env = dict(self.ctxt.env) if self.ctxt.env is not None else dict(os.environ)
+        if data.cov is None:
+            env["XEZIM_COV_DB"] = os.devnull
+        else:
+            env["XEZIM_COV_DB"] = os.path.join(self.rundir, COV_DB)
+            kinds = _CODE_COV.get(data.cov.get("level"))
+            if kinds is not None and not _user_code_cov(data.args):
+                cmd.append("--code-coverage=%s" % kinds)
+
         cmd.extend(data.args)
 
         for p in data.plusargs:
             cmd.append("+%s" % p)
 
-        status |= await self.exec_sim(cmd, logfile="sim.log")
+        status |= await self.exec_sim(cmd, logfile="sim.log", env=env)
 
         # Reaching --max-time without $finish exits 0. It's a failed run.
         hang = self._hang_report(os.path.join(self.rundir, "sim.log"))
@@ -177,10 +206,18 @@ class SimRunner(VLSimRunner):
 
         return stats
 
+    def parse_cov_summary(self, rundir, cov_info):
+        path = os.path.join(rundir, COV_DB)
+        if not os.path.isfile(path):
+            return {}
+        with open(path, "r") as fp:
+            obj = json.load(fp)
+        return cov.parse_xzm_cov_summary(obj, cov_info.get("kinds"))
+
     def _artifact_spec(self) -> Dict[str, Tuple]:
         spec = super()._artifact_spec()
         spec["simTrace"] = (["sim.fst", "*.vcd", "*.fst"], "trace")
-        spec["simCovDb"] = (["xezim_cov.json"], "cov",
+        spec["simCovDb"] = ([COV_DB], "cov",
                             ["format=%s" % cov.FORMAT_XEZIM_JSON])
         return spec
 

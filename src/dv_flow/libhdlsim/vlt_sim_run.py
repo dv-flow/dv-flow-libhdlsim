@@ -23,8 +23,11 @@ import asyncio
 import json
 import os
 import re
-from typing import List
+import shutil
+import subprocess
+from typing import List, Optional
 from dv_flow.mgr import TaskDataResult, FileSet
+from dv_flow.libhdlsim import cov
 from dv_flow.libhdlsim.vl_sim_runner import VLSimRunner
 from dv_flow.libhdlsim.vl_sim_data import VlSimRunData
 
@@ -123,6 +126,36 @@ class SimRunner(VLSimRunner):
                 stats["sim_mem_mb"] = float(m.group(3))
 
         return stats
+
+    def _verilator_coverage(self) -> Optional[str]:
+        """verilator_coverage from the same install as the `verilator` in
+        use (so the report matches the writer's format), else from PATH."""
+        path = None
+        if self.ctxt is not None and getattr(self.ctxt, "env", None):
+            path = self.ctxt.env.get("PATH")
+        vlt = shutil.which("verilator", path=path)
+        if vlt is not None:
+            cand = os.path.join(os.path.dirname(vlt), "verilator_coverage")
+            if os.path.isfile(cand) and os.access(cand, os.X_OK):
+                return cand
+        return shutil.which("verilator_coverage", path=path)
+
+    def parse_cov_summary(self, rundir, cov_info):
+        dat = os.path.join(rundir, "coverage.dat")
+        if not os.path.isfile(dat):
+            return {}
+        exe = self._verilator_coverage()
+        if exe is None:
+            self._log.debug("verilator_coverage not found; no coverage summary")
+            return {}
+        p = subprocess.run([exe, "--report", "summary", dat],
+                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                           text=True, timeout=300)
+        if p.returncode != 0:
+            self._log.debug("verilator_coverage failed (%d): %s",
+                            p.returncode, p.stdout)
+            return {}
+        return cov.parse_vlt_cov_summary(p.stdout, cov_info.get("kinds"))
 
 
 async def SimRun(runner, input) -> TaskDataResult:

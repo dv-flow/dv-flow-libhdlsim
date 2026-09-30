@@ -31,9 +31,27 @@ from dv_flow.mgr.task_data import TaskMarker, TaskMarkerLoc
 from svdep import TaskBuildFileCollection
 from .vlt_log_parser import VltLogParser
 
+# Coverage level -> (kinds recorded, Verilator flags). Cumulative. Covergroups
+# are recorded whenever any --coverage-* flag is on; `cover property` counts as
+# `user`. --coverage-line also records branch points.
+_COV_LEVELS = {
+    "none": ([], []),
+    "func": (["covergroup", "user"],
+             ["--coverage-user"]),
+    "code": (["covergroup", "user", "line", "branch", "expr"],
+             ["--coverage-user", "--coverage-line", "--coverage-expr"]),
+    "full": (["covergroup", "user", "line", "branch", "expr",
+              "toggle", "fsm_state", "fsm_arc"],
+             ["--coverage-user", "--coverage-line", "--coverage-expr",
+              "--coverage-toggle", "--coverage-fsm"]),
+}
+
 class SimImageBuilder(VlSimImageBuilder):
 
     _log : ClassVar = logging.getLogger("SimImageBuilder[vlt]")
+
+    def cov_kinds(self, level):
+        return list(_COV_LEVELS[level][0])
 
     def getRefTime(self, rundir):
         if os.path.isfile(os.path.join(rundir, 'obj_dir/simv')):
@@ -87,6 +105,10 @@ class SimImageBuilder(VlSimImageBuilder):
             cmd.append('--trace-fst')
         elif trace_fmt == 'vcd':
             cmd.append('--trace')
+
+        # Coverage instrumentation (the run writes coverage.dat at exit).
+        # Ahead of the user's args, so raw flags there still come last.
+        cmd.extend(_COV_LEVELS[data.cov_level][1])
 
         # Three separable concerns, historically conflated:
         #

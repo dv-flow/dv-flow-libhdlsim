@@ -325,7 +325,7 @@ class CovRun(object):
         return {k: v for k, v in self.result.stats.items() if k.startswith("cov_")}
 
 
-@pytest.mark.parametrize("sim", get_available_sims(exclude=("xzm",)))
+@pytest.mark.parametrize("sim", ALL_SIMS)
 def test_none_is_unchanged(tmpdir, sim):
     """The default (no request) collects nothing and reports nothing: no
     cov.json, no runinfo.cov, no simCovDb, no cov_* stats, no warning."""
@@ -359,3 +359,208 @@ def test_unknown_level_errors(tmpdir, sim):
     errs = r.task_markers("sim_img", SeverityE.Error)
     assert any("medium" in e.msg and "none, func, code, full" in e.msg
                for e in errs), errs
+
+
+#---------------------------------------------------------------------------
+# Verilator
+#---------------------------------------------------------------------------
+
+needs_vlt = pytest.mark.skipif("vlt" not in ALL_SIMS, reason="verilator not installed")
+
+
+def _kinds_in(stats):
+    return set(k[len("cov_"):].rsplit("_", 1)[0] for k in stats)
+
+
+@needs_vlt
+def test_vlt_func(tmpdir):
+    r = CovRun(tmpdir, "vlt", cov_param="func")
+    assert r.status == 0
+    assert r.cov_json() == {"level": "func", "kinds": ["covergroup", "user"]}
+    assert r.result.runinfo["cov"]["level"] == "func"
+    dbs = r.artifacts("simCovDb")
+    assert len(dbs) == 1
+    assert dbs[0].files == ["coverage.dat"]
+    assert dbs[0].attributes == ["role=cov", "format=vlt-dat"]
+    s = r.cov_stats()
+    assert _kinds_in(s) == {"covergroup", "user"}
+    assert (s["cov_covergroup_covered"], s["cov_covergroup_total"]) == (3, 4)
+    with open(os.path.join(dbs[0].basedir, "coverage.dat")) as fp:
+        assert "hit_high" in fp.read()
+    assert r.task_markers("sim_img", SeverityE.Warning) == []
+
+
+@needs_vlt
+def test_vlt_code(tmpdir):
+    r = CovRun(tmpdir, "vlt", cov_param="code")
+    assert r.status == 0
+    s = r.cov_stats()
+    assert _kinds_in(s) == {"covergroup", "user", "line", "branch", "expr"}
+    assert 0 < s["cov_line_pct"] <= 100
+
+
+@needs_vlt
+def test_vlt_full(tmpdir):
+    r = CovRun(tmpdir, "vlt", cov_param="full")
+    assert r.status == 0
+    s = r.cov_stats()
+    assert "cov_toggle_pct" in s and "cov_fsm_state_pct" in s
+    assert r.cov_json()["kinds"][-3:] == ["toggle", "fsm_state", "fsm_arc"]
+
+
+@needs_vlt
+def test_vlt_level_from_item(tmpdir):
+    """A SimCovArgs holder sets the level; with the param too, highest wins."""
+    r = CovRun(tmpdir, "vlt", cov_items=["code"])
+    assert r.cov_json()["level"] == "code"
+    r = CovRun(tmpdir.mkdir("b"), "vlt", cov_param="func", cov_items=["code", "none"])
+    assert r.cov_json()["level"] == "code"
+    r = CovRun(tmpdir.mkdir("c"), "vlt", cov_param="full", cov_items=["func"])
+    assert r.cov_json()["level"] == "full"
+
+
+@needs_vlt
+def test_vlt_level_from_define(tmpdir):
+    """`-D hdlsim.cov=code` reaches a bare `uses: hdlsim.SimCovArgs` in a real
+    build (CLI subprocess: see _cov_items)."""
+    import subprocess, sys
+    d = str(tmpdir)
+    flow = {"package": {"name": "t", "imports": [{"name": "hdlsim"}], "tasks": [
+        {"name": "src", "uses": "std.FileSet",
+         "with": {"type": "systemVerilogSource", "base": DATA,
+                  "include": "cov_top.sv"}},
+        {"name": "covargs", "uses": "hdlsim.SimCovArgs"},
+        {"name": "sim_img", "uses": "hdlsim.vlt.SimImage",
+         "needs": ["src", "covargs"], "with": {"top": ["cov_top"]}},
+    ]}}
+    with open(os.path.join(d, "flow.dv"), "w") as fp:
+        json.dump(flow, fp)
+    subprocess.check_call([sys.executable, "-m", "dv_flow.mgr", "run",
+                           "-D", "hdlsim.cov=code", "sim_img"],
+                          cwd=d, stdout=subprocess.DEVNULL)
+    recs = [cov.read_cov_json(os.path.join(d, "rundir", n))
+            for n in os.listdir(os.path.join(d, "rundir"))]
+    assert {"level": "code",
+            "kinds": ["covergroup", "user", "line", "branch", "expr"]} in recs
+
+
+@needs_vlt
+def test_vlt_rebuild_on_level_change(tmpdir):
+    """Same rundir: func -> code rebuilds and re-records; -> none rebuilds
+    and removes the record."""
+    r = CovRun(tmpdir, "vlt", cov_param="func")
+    simv = os.path.join(r.imgdir, "obj_dir", "simv")
+    t_func = os.path.getmtime(simv)
+    assert r.cov_json()["level"] == "func"
+
+    r = CovRun(tmpdir, "vlt", cov_param="code")
+    assert r.status == 0
+    assert r.cov_json()["level"] == "code"
+    t_code = os.path.getmtime(simv)
+    assert t_code > t_func
+    assert "cov_line_pct" in r.cov_stats()
+
+    r = CovRun(tmpdir, "vlt", cov_param="none")
+    assert r.status == 0
+    assert r.cov_json() is None
+    assert os.path.getmtime(simv) > t_code
+    # ... and the rerun in the same rundir drops the previous coverage.dat
+    assert r.artifacts("simCovDb") == []
+    assert not os.path.exists(os.path.join(r.rundir_run, "coverage.dat"))
+    assert "cov" not in r.result.runinfo
+    assert r.cov_stats() == {}
+
+
+@needs_vlt
+def test_vlt_with_dbg_preset(tmpdir):
+    """Coverage combines with the debug (FST trace) preset."""
+    r = CovRun(tmpdir, "vlt", cov_param="code",
+               extra_tasks=[{"name": "dbg", "uses": "hdlsim.vlt.SimElabArgsDbg"}],
+               run_with={"trace": True})
+    assert r.status == 0
+    assert "--trace-fst" in open(os.path.join(r.imgdir, "build.f")).read().split()
+    assert len(r.artifacts("simTrace")) == 1
+    assert len(r.artifacts("simCovDb")) == 1
+    assert "cov_line_pct" in r.cov_stats()
+
+
+#---------------------------------------------------------------------------
+# xezim
+#---------------------------------------------------------------------------
+
+needs_xzm = pytest.mark.skipif("xzm" not in ALL_SIMS, reason="xezim not installed")
+
+
+@needs_xzm
+def test_xzm_none_writes_no_db(tmpdir):
+    """At `none`, the design's covergroup is NOT written out (XEZIM_COV_DB is
+    /dev/null) -- a deliberate change from xezim's default."""
+    r = CovRun(tmpdir, "xzm")
+    assert r.status == 0
+    assert not os.path.exists(os.path.join(r.rundir_run, "xezim_cov.json"))
+    assert r.artifacts("simCovDb") == []
+    assert "cov" not in r.result.runinfo
+    assert r.cov_stats() == {}
+    assert "--code-coverage" not in " ".join(r.result.runinfo["cmd"])
+
+
+@needs_xzm
+def test_xzm_func(tmpdir):
+    r = CovRun(tmpdir, "xzm", cov_param="func")
+    assert r.status == 0
+    dbs = r.artifacts("simCovDb")
+    assert len(dbs) == 1
+    assert dbs[0].files == ["xezim_cov.json"]
+    assert dbs[0].attributes == ["role=cov", "format=xezim-json"]
+    with open(os.path.join(dbs[0].basedir, "xezim_cov.json")) as fp:
+        db = json.load(fp)
+    assert db["covergroups"][0]["name"] == "cg"
+    assert "code_coverage" not in db
+    # xezim gives no functional percentage
+    assert r.cov_stats() == {}
+    assert r.result.runinfo["cov"] == {"level": "func", "kinds": ["covergroup", "user"]}
+    assert r.task_markers("sim_img", SeverityE.Warning) == []
+
+
+@needs_xzm
+def test_xzm_code(tmpdir):
+    r = CovRun(tmpdir, "xzm", cov_param="code")
+    assert r.status == 0
+    s = r.cov_stats()
+    assert _kinds_in(s) == {"line", "branch"}
+    assert 0 < s["cov_line_pct"] <= 100
+    assert "--code-coverage=stmt,branch" in r.result.runinfo["cmd"]
+
+
+@needs_xzm
+def test_xzm_full(tmpdir):
+    r = CovRun(tmpdir, "xzm", cov_param="full")
+    assert r.status == 0
+    assert _kinds_in(r.cov_stats()) == {"line", "branch", "toggle"}
+
+
+@needs_xzm
+def test_xzm_user_code_coverage_wins(tmpdir):
+    """A --code-coverage in the user's run args replaces ours."""
+    r = CovRun(tmpdir, "xzm", cov_param="code",
+               run_with={"args": ["--code-coverage=toggle"]})
+    assert r.status == 0
+    cmd = r.result.runinfo["cmd"]
+    assert [a for a in cmd if a.startswith("--code-coverage")] == ["--code-coverage=toggle"]
+    # Only kinds the level asked for are reported, and toggle isn't one at `code`
+    assert r.cov_stats() == {}
+
+
+@needs_xzm
+def test_xzm_level_change(tmpdir):
+    """Same rundir: code -> func; the run follows the new cov.json."""
+    r = CovRun(tmpdir, "xzm", cov_param="code")
+    assert "cov_line_pct" in r.cov_stats()
+    r = CovRun(tmpdir, "xzm", cov_param="func")
+    assert r.status == 0
+    assert r.cov_json()["level"] == "func"
+    assert r.cov_stats() == {}
+    assert not any(a.startswith("--code-coverage") for a in r.result.runinfo["cmd"])
+    r = CovRun(tmpdir, "xzm")
+    assert r.cov_json() is None
+    assert r.artifacts("simCovDb") == []
