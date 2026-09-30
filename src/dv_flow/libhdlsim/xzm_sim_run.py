@@ -22,6 +22,7 @@ import re
 from typing import Dict, List, Tuple
 from dv_flow.mgr import TaskDataResult
 from dv_flow.mgr.task_data import TaskMarker, SeverityE
+from dv_flow.libhdlsim import cov
 from dv_flow.libhdlsim.vl_sim_runner import VLSimRunner
 from dv_flow.libhdlsim.vl_sim_data import VlSimRunData
 from dv_flow.libhdlsim.sim_uvm_case import uvm_case_task
@@ -176,10 +177,11 @@ class SimRunner(VLSimRunner):
 
         return stats
 
-    def _artifact_spec(self) -> Dict[str, Tuple[List[str], str]]:
+    def _artifact_spec(self) -> Dict[str, Tuple]:
         spec = super()._artifact_spec()
         spec["simTrace"] = (["sim.fst", "*.vcd", "*.fst"], "trace")
-        spec["simCovDb"] = (["xezim_cov.json"], "cov")
+        spec["simCovDb"] = (["xezim_cov.json"], "cov",
+                            ["format=%s" % cov.FORMAT_XEZIM_JSON])
         return spec
 
 

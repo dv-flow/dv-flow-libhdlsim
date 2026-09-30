@@ -28,10 +28,10 @@ import time
 import dataclasses as dc
 from dv_flow.mgr import FileSet, TaskDataResult, TaskRunCtxt
 from dv_flow.mgr.task_data import TaskMarker, SeverityE
-from typing import ClassVar, Dict, List, Tuple
+from typing import ClassVar, Dict, List, Optional, Tuple
 from dv_flow.libhdlsim.log_parser import LogParser
 from dv_flow.libhdlsim.vl_sim_data import VlSimRunData
-from dv_flow.libhdlsim import sim_stats
+from dv_flow.libhdlsim import cov, sim_stats
 
 from svdep import FileCollection, TaskCheckUpToDate, TaskBuildFileCollection
 from dv_flow.libhdlsim.vl_sim_image_builder import VlTaskSimImageMemento
@@ -117,6 +117,11 @@ class VLSimRunner(object):
                 msg="No simDir input"))
             status = 1
 
+        # The run follows its image: the coverage level (and kinds) the image
+        # was built with, or None when it was built without coverage.
+        if data.imgdir:
+            data.cov = cov.read_cov_json(data.imgdir)
+
         # Handle simRunData inputs
         self.copy_sim_data(sim_data)
 
@@ -131,6 +136,9 @@ class VLSimRunner(object):
 
         rc = 0
         if not status:
+            # A coverage database left by an earlier run in this rundir must
+            # not be reported as this run's (eg a rerun at `none`).
+            self._remove_cov_db()
             self._runinfo["start_time"] = sim_stats.utcnow()
             t0 = time.monotonic()
             rc = await self.runsim(data)
@@ -232,6 +240,17 @@ class VLSimRunner(object):
         """
         return {}
 
+    def parse_cov_summary(self, rundir : str, cov_info : dict) -> Dict[str, object]:
+        """Backend hook: coverage totals for this run, as `stats` keys
+        `cov_<kind>_pct/_covered/_total` (see sim_stats.STAT_KEYS).
+
+        Called only when the image was built with coverage; `cov_info` is its
+        record ({level, kinds}), so a backend reports only the kinds that
+        level enabled. Best-effort like parse_sim_stats: return {} when the
+        database is missing or unreadable. The base returns {}.
+        """
+        return {}
+
     def _collect_stats(self, input, data : VlSimRunData, rc : int):
         """Assemble the run's `stats` + `runinfo` maps and persist them.
 
@@ -259,6 +278,13 @@ class VLSimRunner(object):
                 else:
                     self._stats[k] = v
 
+            if data.cov is not None:
+                try:
+                    self._stats.update(self.parse_cov_summary(
+                        self.rundir, data.cov) or {})
+                except Exception as e:
+                    self._log.debug("coverage summary failed: %s", e)
+
             self._stats.update(sim_stats.read_tb_stats(self.rundir))
             sim_stats.finalize(self._stats)
 
@@ -283,43 +309,64 @@ class VLSimRunner(object):
             if seed is not None:
                 self._runinfo["seed"] = seed
                 self._runinfo["seed_source"] = seed_src
+            if data.cov is not None:
+                self._runinfo["cov"] = dict(data.cov)
 
             sim_stats.write_stats_json(self.rundir, self._stats, self._runinfo)
         except Exception as e:
             self._log.debug("stats collection failed: %s", e)
 
-    def _artifact_spec(self) -> Dict[str, Tuple[List[str], str]]:
-        """Map artifact filetype -> (glob patterns, role attribute).
+    def _artifact_spec(self) -> Dict[str, Tuple]:
+        """Map artifact filetype -> (glob patterns, role[, extra attributes]).
 
-        This base spec is the Verilator layout (sim.log, VCD/FST traces). Other
-        backends override to name their own log/trace files. `simCovDb` is a
-        reserved slot: its precise glob emits nothing until a coverage database
-        is actually produced (coverage support is a labeled follow-up), so the
-        FileSet schema does not change when coverage lands.
+        The FileSet gets `role=<role>` first, then any extra attributes. This
+        base spec is the Verilator layout (sim.log, VCD/FST traces,
+        coverage.dat). Other backends override to name their own files.
+
+        `simCovDb` carries `format=<id>` (cov.FORMAT_*): the database's
+        format, which a downstream merge/report task dispatches on rather than
+        on the file name. It is present only when the run wrote a database,
+        which happens only when the image was built with coverage.
         """
         return {
             "simLog":   (["sim.log"],                   "log"),
             "simStats": ([sim_stats.STATS_FILE],        "stats"),
             "simTrace": (["*.vcd", "*.fst", "waves.*"], "trace"),
-            "simCovDb": (["coverage.dat"],              "cov"),
+            "simCovDb": (["coverage.dat"],              "cov",
+                         ["format=%s" % cov.FORMAT_VLT_DAT]),
         }
+
+    def _glob_rundir(self, globs : List[str]) -> List[str]:
+        files = []
+        for g in globs:
+            files.extend(glob.glob(os.path.join(self.rundir, g)))
+        return sorted(set(f for f in files if os.path.isfile(f)))
+
+    def _remove_cov_db(self):
+        spec = self._artifact_spec().get("simCovDb")
+        if spec is None:
+            return
+        for f in self._glob_rundir(spec[0]):
+            try:
+                os.unlink(f)
+            except OSError as e:
+                self._log.debug("could not remove stale %s: %s", f, e)
 
     def _collect_artifacts(self) -> List[FileSet]:
         """Glob the rundir per `_artifact_spec()`, emitting a FileSet only for
         filetypes whose files actually exist (so trace/coverage stay absent
         unless produced)."""
         out = []
-        for ftype, (globs, role) in self._artifact_spec().items():
-            files = []
-            for g in globs:
-                files.extend(glob.glob(os.path.join(self.rundir, g)))
-            files = sorted(set(f for f in files if os.path.isfile(f)))
+        for ftype, spec in self._artifact_spec().items():
+            globs, role = spec[0], spec[1]
+            extra = list(spec[2]) if len(spec) > 2 else []
+            files = self._glob_rundir(globs)
             if files:
                 out.append(FileSet(
                     filetype=ftype,
                     basedir=self.rundir,
                     files=[os.path.relpath(f, self.rundir) for f in files],
-                    attributes=["role=%s" % role]))
+                    attributes=["role=%s" % role] + extra))
         return out
 
     def copy_sim_data(self, sim_data : List[FileSet]):

@@ -28,7 +28,9 @@ from pydantic import BaseModel
 import pydantic.dataclasses as pdc
 from toposort import toposort
 from dv_flow.mgr import FileSet, TaskDataResult, TaskMarker, TaskRunCtxt
-from typing import Any, ClassVar, List, Tuple
+from typing import Any, ClassVar, List, Optional, Tuple
+from dv_flow.mgr.task_data import SeverityE
+from dv_flow.libhdlsim import cov
 from dv_flow.libhdlsim.log_parser import LogParser
 from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
 from svdep import FileCollection, TaskCheckUpToDate
@@ -102,6 +104,9 @@ class VlSimImageBuilder(object):
     output : List = dc.field(default_factory=list)
     memento : Any = dc.field(default=None)
     suppress : List = dc.field(default_factory=list)
+    # Coverage levels requested by consumed SimCovArgs items (validated and
+    # combined with the `cov` param in run()).
+    cov_requests : List[str] = dc.field(default_factory=list)
 
     _log : ClassVar = logging.getLogger("VlSimImage")
 
@@ -114,6 +119,43 @@ class VlSimImageBuilder(object):
 
     def getRefTime(self, rundir):
         raise NotImplementedError()
+
+    def cov_kinds(self, level : str) -> Optional[List[str]]:
+        """Backend hook: the coverage kinds (cov.KINDS) this backend enables
+        at `level`, or None when it doesn't support coverage.
+
+        The base returns None: SimImage then warns once and builds as if
+        `none`. A backend that supports coverage returns [] at 'none' and maps
+        `data.cov_level` to its own flags in build().
+        """
+        return None
+
+    def _resolve_cov(self, input, data : VlSimImageData) -> int:
+        """Set data.cov_level to the highest of the `cov` param and every
+        consumed SimCovArgs. Returns a nonzero status on an unknown level."""
+        requested = [getattr(input.params, "cov", "none") or "none"]
+        requested.extend(self.cov_requests)
+        try:
+            level = cov.max_level(*requested)
+        except ValueError as e:
+            self.markers.append(TaskMarker(
+                severity=SeverityE.Error, msg=str(e)))
+            return 1
+        if level != "none" and self.cov_kinds(level) is None:
+            self.markers.append(TaskMarker(
+                severity=SeverityE.Warning,
+                msg="%s does not support coverage yet (requested '%s'); "
+                    "building without it" % (self._sim_label(), level)))
+            level = "none"
+        data.cov_level = level
+        return 0
+
+    def _sim_label(self) -> str:
+        sim = getattr(getattr(self.input, "params", None), "sim", "") or ""
+        if sim and sim != "unset":
+            return sim
+        mod = type(self).__module__.rsplit(".", 1)[-1]
+        return mod.split("_", 1)[0]
 
     async def build(self, input, data : VlSimImageData) -> Tuple[int,bool]:
         raise NotImplementedError()
@@ -150,14 +192,25 @@ class VlSimImageBuilder(object):
 
         self._log.debug("files: %s" % str(data.files))
 
+        if self._resolve_cov(input, data) != 0:
+            return TaskDataResult(status=1, markers=self.markers)
+
         # Assemble suppress list from task params and connected SuppressWarnings datasets
         self.suppress = list(merge_tokenize(input.params.suppress_warnings)) if hasattr(input.params, 'suppress_warnings') else []
         for fs in input.inputs:
             if fs.type == "hdlsim.SuppressWarnings":
                 self.suppress.extend(fs.codes)
 
+        # The image must never carry a stale coverage record: drop any left by
+        # an earlier build, and write the current one only once this build
+        # succeeds.
+        cov.remove_cov_json(input.rundir)
+
         status,in_changed = await self.build(input, data)
 
+        if status == 0 and data.cov_level != "none":
+            cov.write_cov_json(input.rundir, data.cov_level,
+                               self.cov_kinds(data.cov_level) or [])
 
 
         self.output.append(FileSet(
@@ -295,6 +348,8 @@ class VlSimImageBuilder(object):
                 # Convert vpilibs from SimElabArgs (strings) to tuples (path, None)
                 data.vpi.extend([(vpi, None) for vpi in fs.vpilibs])
                 data.dpi.extend(fs.dpilibs)
+            elif fs.type == "hdlsim.SimCovArgs":
+                self.cov_requests.append(getattr(fs, "level", "none") or "none")
 
     def _addIncDirs(self, data, basedir, incdirs):
         self._log.debug("_addIncDirs base=%s incdirs=%s" % (basedir, incdirs))

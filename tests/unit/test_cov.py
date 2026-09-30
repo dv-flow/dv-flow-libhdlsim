@@ -218,3 +218,144 @@ def test_simcovargs_follows_package_var(tmpdir):
     # `-D hdlsim.cov=code`: a bare SimCovArgs follows it; a holder keeps its own
     assert _cov_items(tmpdir, "bare", ["hdlsim.cov=code"]) == ["code"]
     assert _cov_items(tmpdir.mkdir("h"), "holder", ["hdlsim.cov=full"]) == ["code"]
+
+
+#---------------------------------------------------------------------------
+# Real builds and runs
+#---------------------------------------------------------------------------
+
+import asyncio
+from dv_flow.mgr import TaskSetRunner, PackageLoader
+from dv_flow.mgr.task_data import SeverityE
+from dv_flow.mgr.task_graph_builder import TaskGraphBuilder
+from .sims import get_available_sims
+
+ALL_SIMS = get_available_sims()
+
+
+class CovRun(object):
+    """One SimImage + SimRun of a test design, and what came out.
+
+    The flow is written as a flow.dv (as a user would), because a DataItem
+    task built with mkTaskNode ignores its field values.
+
+    cov_param   -- SimImage `cov`
+    cov_items   -- one `uses: hdlsim.SimCovArgs` holder per level
+    img_with / run_with -- extra `with:` for SimImage / SimRun
+    extra_tasks -- more task dicts, each wired into SimImage's needs
+    """
+
+    def __init__(self, tmpdir, sim, cov_param=None, cov_items=(), top="cov_top",
+                 img_with=None, run_with=None, extra_tasks=(), rundir="rundir"):
+        d = str(tmpdir)
+        self.rundir = os.path.join(d, rundir)
+        tasks = [{"name": "src", "uses": "std.FileSet",
+                  "with": {"type": "systemVerilogSource", "base": DATA,
+                           "include": "%s.sv" % top}}]
+        needs = ["src"]
+        for i, lvl in enumerate(cov_items):
+            tasks.append({"name": "covargs%d" % i, "uses": "hdlsim.SimCovArgs",
+                          "with": {"level": lvl}})
+            needs.append("covargs%d" % i)
+        for t in extra_tasks:
+            tasks.append(t)
+            needs.append(t["name"])
+        img_with = dict(img_with or {}, top=[top])
+        if cov_param is not None:
+            img_with["cov"] = cov_param
+        tasks.append({"name": "sim_img", "uses": "hdlsim.%s.SimImage" % sim,
+                      "needs": needs, "with": img_with})
+        tasks.append({"name": "sim_run", "uses": "hdlsim.%s.SimRun" % sim,
+                      "needs": ["sim_img"],
+                      "with": dict(run_with or {}, sim=sim)})
+        flow = {"package": {"name": "t", "imports": [{"name": "hdlsim"}],
+                            "tasks": tasks}}
+        with open(os.path.join(d, "flow.dv"), "w") as fp:
+            json.dump(flow, fp, indent=1)     # JSON is YAML
+
+        loader = PackageLoader()
+        pkg = loader.load(os.path.join(d, "flow.dv"))
+        builder = TaskGraphBuilder(root_pkg=pkg, rundir=self.rundir, loader=loader)
+        runner = TaskSetRunner(self.rundir)
+        runner.builder = builder
+        sim_run = builder.mkTaskNode("t.sim_run")
+
+        self.markers = {}
+
+        def listener(task, reason):
+            if reason == "leave" and task.result is not None:
+                self.markers.setdefault(task.name, []).extend(task.result.markers)
+
+        runner.add_listener(listener)
+        out_l = asyncio.run(runner.run([sim_run]))
+        self.status = runner.status
+        self.result = None
+        for out in (out_l or []):
+            for item in out.output:
+                if getattr(item, "type", None) == "hdlsim.SimRunResult":
+                    self.result = item
+
+    def task_markers(self, frag, severity):
+        return [m for name, ms in self.markers.items() if frag in name
+                for m in ms if m.severity == severity]
+
+    @property
+    def imgdir(self):
+        return self._task_dir("sim_img")
+
+    @property
+    def rundir_run(self):
+        return self._task_dir("sim_run")
+
+    def _task_dir(self, name):
+        for cand in (name, "t." + name):
+            p = os.path.join(self.rundir, cand)
+            if os.path.isdir(p):
+                return p
+        raise AssertionError("no rundir for %s under %s: %s" % (
+            name, self.rundir, os.listdir(self.rundir)))
+
+    def cov_json(self):
+        return cov.read_cov_json(self.imgdir)
+
+    def artifacts(self, filetype):
+        return [a for a in self.result.artifacts if a.filetype == filetype]
+
+    def cov_stats(self):
+        return {k: v for k, v in self.result.stats.items() if k.startswith("cov_")}
+
+
+@pytest.mark.parametrize("sim", get_available_sims(exclude=("xzm",)))
+def test_none_is_unchanged(tmpdir, sim):
+    """The default (no request) collects nothing and reports nothing: no
+    cov.json, no runinfo.cov, no simCovDb, no cov_* stats, no warning."""
+    r = CovRun(tmpdir, sim, top="plain_top")
+    assert r.status == 0
+    assert r.result is not None
+    assert not os.path.exists(os.path.join(r.imgdir, cov.COV_FILE))
+    assert "cov" not in r.result.runinfo
+    assert r.artifacts("simCovDb") == []
+    assert r.cov_stats() == {}
+    assert r.task_markers("sim_img", SeverityE.Warning) == []
+
+
+@pytest.mark.skipif("ivl" not in ALL_SIMS, reason="iverilog not installed")
+def test_unsupported_backend_warns(tmpdir):
+    """A backend without coverage support warns once and builds as `none`."""
+    r = CovRun(tmpdir, "ivl", cov_param="code", top="plain_top")
+    assert r.status == 0
+    warns = r.task_markers("sim_img", SeverityE.Warning)
+    cov_warns = [w for w in warns if "coverage" in w.msg]
+    assert len(cov_warns) == 1
+    assert "ivl" in cov_warns[0].msg and "code" in cov_warns[0].msg
+    assert r.cov_json() is None
+    assert "cov" not in r.result.runinfo
+
+
+@pytest.mark.parametrize("sim", ALL_SIMS[:1])
+def test_unknown_level_errors(tmpdir, sim):
+    r = CovRun(tmpdir, sim, cov_items=["medium"], top="plain_top")
+    assert r.status != 0
+    errs = r.task_markers("sim_img", SeverityE.Error)
+    assert any("medium" in e.msg and "none, func, code, full" in e.msg
+               for e in errs), errs
