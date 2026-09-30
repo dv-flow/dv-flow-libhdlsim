@@ -158,6 +158,7 @@ Consumes
 * verilogVPI 
 * hdlsim.SimCompileArgs
 * hdlsim.SimElabArgs
+* hdlsim.SimCovArgs
 * hdlsim.SuppressWarnings
 
 
@@ -178,6 +179,9 @@ Parameters
 * **incdirs** - [Optional] List of extra include directories
 * **defines** - [Optional] List of extra defines
 * **suppress_warnings** - [Optional] List of warning codes to suppress from becoming markers (e.g., TFIPC, vlog-2623)
+* **cov** - [Optional] Coverage level: ``none`` (default), ``func``, ``code`` or ``full``.
+  The image is built at the highest of this and every consumed ``hdlsim.SimCovArgs``.
+  See `Coverage`_.
 
 Task: SimRun
 ============
@@ -245,6 +249,19 @@ Parameters
 * **vpilibs** - [Optional] List of VPI libraries
 
 
+Type: SimCovArgs
+================
+The SimCovArgs type requests coverage collection from SimImage (and, through
+the image, SimRun). See `Coverage`_.
+
+Parameters
+----------
+
+* **level** - [Optional] ``none``, ``func``, ``code`` or ``full``. Defaults to
+  the package variable ``hdlsim.cov`` (itself ``none``), so a bare
+  ``uses: hdlsim.SimCovArgs`` follows ``-D hdlsim.cov=<level>``.
+
+
 
 Type: SuppressWarnings
 ======================
@@ -300,6 +317,134 @@ Parameters
 * **codes** - List of warning codes to suppress (e.g., TFIPC, vlog-2623, PINCONNECTS)
 
 
+Coverage
+========
+
+SimImage can build a coverage-instrumented image, and SimRun then collects
+coverage as it runs. Coverage is off by default. Ask for it with a *level*.
+Each level includes the ones below it.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Level
+     - Collects
+   * - ``none``
+     - Nothing (the default)
+   * - ``func``
+     - Functional coverage: covergroups and ``cover property``
+   * - ``code``
+     - Adds line (statement) and branch coverage, plus expression coverage where the simulator has it
+   * - ``full``
+     - Adds toggle coverage, plus FSM coverage where the simulator has it
+
+What each simulator collects at each level:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Level
+     - vlt (Verilator)
+     - xzm (xezim)
+   * - ``func``
+     - ``--coverage-user``: covergroups, ``cover property``
+     - covergroups, ``cover property``
+   * - ``code``
+     - adds ``--coverage-line --coverage-expr``: line, branch, expression
+     - adds ``--code-coverage=stmt,branch``: statement, branch
+   * - ``full``
+     - adds ``--coverage-toggle --coverage-fsm``: toggle, FSM state and arc
+     - adds ``toggle`` to ``--code-coverage``
+
+The other simulators don't support coverage yet. Asking them for a level gives
+one warning, and the image is built without coverage.
+
+Asking for coverage
+-------------------
+
+There are three ways, and the image uses the highest level any of them asks for:
+
+* From the command line, for a flow that wires a bare ``hdlsim.SimCovArgs``
+  into SimImage:
+
+  .. code-block:: yaml
+
+      - name: cov
+        uses: hdlsim.SimCovArgs       # level follows hdlsim.cov
+      - name: build
+        uses: hdlsim.SimImage
+        needs: [rtl, tb, cov]
+        with: { top: [tb_top] }
+
+  .. code-block:: bash
+
+      dfm run build -D hdlsim.cov=code
+
+* A holder that fixes the level: ``uses: hdlsim.SimCovArgs`` with
+  ``with: { level: code }``.
+* SimImage's ``cov`` parameter: ``with: { top: [tb_top], cov: full }``.
+
+An unknown level is an error that lists the valid ones. Changing the level
+rebuilds the image. SimRun has no coverage parameter: a run collects what its
+image was built for.
+
+Where the results go
+--------------------
+
+* **The database.** It is a ``simCovDb`` FileSet in ``SimRunResult.artifacts``
+  (and from there in ``TestResult``/``SuiteResult``), with attributes
+  ``role=cov`` and ``format=<id>``:
+
+  - ``format=vlt-dat``: Verilator ``coverage.dat``
+  - ``format=xezim-json``: xezim ``xezim_cov.json``
+
+  A tool that reads the database should choose its decoder by ``format=``, not
+  by file name. The database is inside the result items; it is not a separate
+  output of SimRun.
+* **Summary stats.** ``SimRunResult.stats`` gets ``cov_<kind>_pct``,
+  ``cov_<kind>_covered`` and ``cov_<kind>_total`` for each kind the level
+  measured. The kinds are ``line``, ``branch``, ``expr``, ``toggle``,
+  ``fsm_state``, ``fsm_arc``, ``covergroup`` and ``user``; xezim's statement
+  coverage is reported as ``line``. A kind with nothing to cover (0 of 0)
+  is left out.
+* **Provenance.** ``SimRunResult.runinfo.cov`` is ``{level, kinds}``. It is
+  absent at ``none``.
+* **Suites.** ``SimSuiteReport`` rolls ``cov_<kind>_pct`` up as
+  ``cov_<kind>_pct_max``: the best single case. That is **not** merged
+  coverage, and hit counts are not summed. Per-case percentages and the level
+  appear in ``junit.xml`` properties and ``ctrf.json`` ``extra``, and the
+  printed summary gets a ``coverage`` line.
+
+Merging databases across runs and producing coverage reports are not
+provided yet.
+
+Limitations
+-----------
+
+* **Verilator: ``get_coverage()`` returns 0.** Bins are recorded correctly in
+  ``coverage.dat``, but ``cg.get_coverage()`` and ``get_inst_coverage()`` are
+  not implemented, so a testbench that prints coverage from a ``final`` block
+  reports 0 on Verilator.
+* **Verilator instruments the whole design, UVM included.** It has no module
+  or instance selector, so at ``code`` and ``full`` the UVM library's code is
+  counted too, and the line and branch percentages mostly measure UVM.
+* **xezim reports no functional percentage.** Its database lists the bins
+  that were hit but not the ones that weren't, so ``func`` gives a database
+  and no ``cov_*`` stats. Code-coverage totals are reported.
+* **xezim at ``none`` writes no database.** xezim normally writes
+  ``xezim_cov.json`` whenever the design has a covergroup. SimRun now sends it
+  to ``/dev/null`` unless a level is set.
+* **xezim ``--code-coverage`` in ``args`` wins.** If the run's ``args``
+  already ask for code coverage (``--code-coverage``, ``-coverage`` or
+  ``+cover``), SimRun doesn't add its own flag. Stats still report only the
+  kinds the level covers.
+* **Cost.** Toggle instrumentation (``full``) grows with the number of
+  signals, so it can slow the build and the run of a large design noticeably.
+  Use ``code`` for routine regressions.
+* **cocotb with Verilator works.** cocotb's Verilator main writes
+  ``coverage.dat`` at exit.
+
+
 Simulator Support
 ================= 
 
@@ -333,6 +478,7 @@ The following summarizes supported features by simulator package, based on the c
 
 ivl (Icarus Verilog)
 --------------------
+- Coverage: Not supported (a requested level gives a warning)
 - DPI: Not supported (SimRun errors if dpilibs provided)
 - VPI: Not supported
 - Trace: Not exposed
@@ -342,6 +488,7 @@ ivl (Icarus Verilog)
 
 vlt (Verilator)
 ---------------
+- Coverage: ``func``, ``code``, ``full`` (build-time ``--coverage-*`` flags; ``coverage.dat``, summarized with ``verilator_coverage``). See `Coverage`_.
 - DPI: Supported (link prebuilt libraries via -LDFLAGS, and/or compile C sources)
 - VPI: Not supported
 - Trace: Supported (SimImage --trace; SimRun adds +verilator+debug when trace=true)
@@ -351,6 +498,7 @@ vlt (Verilator)
 
 mti (Siemens Questa/ModelSim)
 -----------------------------
+- Coverage: Not supported yet (a requested level gives a warning)
 - DPI: Supported (compile C sources via vlog; runtime -sv_lib)
 - VPI: Supported (runtime -pli)
 - Trace: Not currently exposed by tasks
@@ -360,6 +508,7 @@ mti (Siemens Questa/ModelSim)
 
 vcs (Synopsys VCS)
 ------------------
+- Coverage: Not supported yet (a requested level gives a warning)
 - DPI: Not supported by SimImage (building); runtime load of prebuilt libs via -sv_lib supported in SimRun
 - VPI: Supported (+vpi/-debug_access and -load <lib>)
 - Trace: Not currently exposed by tasks
@@ -369,6 +518,7 @@ vcs (Synopsys VCS)
 
 xsm (AMD Xilinx XSIM)
 ---------------------
+- Coverage: Not supported yet (a requested level gives a warning)
 - DPI: Supported (xelab --sv_root/--sv_lib)
 - VPI: Not supported
 - Trace: Not currently exposed by tasks
@@ -378,12 +528,14 @@ xsm (AMD Xilinx XSIM)
 
 xcm (Cadence Xcelium)
 ---------------------
+- Coverage: Not supported yet (a requested level gives a warning)
 - Status: Experimental/incomplete in this repository; functionality may be outdated
 - DPI/VPI/Trace/Valgrind/Incremental: TBD
 - Special parameters: TBD
 
 xzm (xezim)
 -----------
+- Coverage: ``func``, ``code``, ``full`` (run-time; ``xezim_cov.json``). No functional percentage. See `Coverage`_.
 - DPI: Supported. C/C++ sources given to SimImage are compiled into a shared
   library (`libxzm_dpi.so`, needs `cc`/`c++`); it and prebuilt libraries are
   loaded at run time with --dpi-lib. A design that `export`s SV functions to

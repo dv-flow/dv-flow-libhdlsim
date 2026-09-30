@@ -317,6 +317,16 @@ package:
                 top: [tb_top]
           ```
           
+          ## Coverage
+          
+          Wire `uses: hdlsim.SimCovArgs` into SimImage and set the level with
+          `-D hdlsim.cov=func|code|full` (or `with: { level: code }`). func =
+          covergroups + `cover property` (`--coverage-user`); code adds line,
+          branch, expression; full adds toggle and FSM. The run writes
+          `coverage.dat` (a `simCovDb` artifact, `format=vlt-dat`) and reports
+          `cov_<kind>_pct` stats. `cg.get_coverage()` returns 0 on Verilator,
+          and UVM code is instrumented along with the design.
+          
           ## Tasks
           
           - `SimImage`: Compile HDL to simulation executable

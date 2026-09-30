@@ -207,6 +207,17 @@ package:
           `trace_fmt: vcd` the testbench's own `$dumpfile`/`$dumpvars`.
           Scope an FST dump with `args: [--fst-scope, tb.dut]`.
 
+          ## Coverage
+
+          Wire `uses: hdlsim.SimCovArgs` into SimImage and set the level with
+          `-D hdlsim.cov=func|code|full`. Coverage is collected at run time
+          (the image doesn't change): func = covergroups + `cover property`;
+          code adds `--code-coverage=stmt,branch`; full adds toggle. The
+          database is `xezim_cov.json` (a `simCovDb` artifact,
+          `format=xezim-json`); at `none` it is not written. Only code
+          coverage gets `cov_<kind>_pct` stats: xezim gives no functional
+          percentage. A `--code-coverage` in `args` replaces SimRun's.
+
           ## DPI and VPI
 
           - C/C++ sources given to SimImage are compiled into

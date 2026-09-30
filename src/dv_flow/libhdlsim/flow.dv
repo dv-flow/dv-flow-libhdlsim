@@ -911,6 +911,10 @@ package:
               errors, warnings, fatals, infos
             testbench-reported (optional tb_stats.json in the rundir):
               cycles, transactions, plus any custom scalar counters
+            coverage (image built with a coverage level; vlt, xzm):
+              cov_<kind>_pct, cov_<kind>_covered, cov_<kind>_total for each
+              kind measured (line, branch, expr, toggle, fsm_state, fsm_arc,
+              covergroup, user)
         type: map
       runinfo:
         doc: |
@@ -918,11 +922,17 @@ package:
           case_name, testname, sim, sim_version, mode, seed, seed_source, cmd,
           args, plusargs, dpilibs, vpilibs, imgdir, rundir, logfile, trace,
           valgrind, finish_reason, exit_code, host, user, nproc, start_time,
-          end_time. Same sparse rule as `stats`: `seed` is absent (not 0) when
-          no seed was explicitly applied.
+          end_time, cov ({level, kinds}; absent at coverage level none). Same
+          sparse rule as `stats`: `seed` is absent (not 0) when no seed was
+          explicitly applied.
         type: map
       artifacts:
-        doc: Collected artifact FileSets (simLog / simStats / simTrace / simCovDb)
+        doc: |
+          Collected artifact FileSets (simLog / simStats / simTrace / simCovDb),
+          each with a `role=` attribute. simCovDb (present only when the run
+          wrote a coverage database) also carries `format=` -- vlt-dat
+          (Verilator coverage.dat) or xezim-json (xezim_cov.json) -- which a
+          reader dispatches on.
         type: list
 
   - name: TestResult

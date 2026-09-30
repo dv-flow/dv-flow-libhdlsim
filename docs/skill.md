@@ -76,10 +76,11 @@ Compiles HDL sources into a simulation executable.
 | `incdirs` | list | Include directories |
 | `defines` | list | Preprocessor defines |
 | `suppress_warnings` | list | Warning codes to suppress from markers |
+| `cov` | str | Coverage level: none (default), func, code, full |
 
 Consumes: systemVerilogSource, verilogSource, verilogIncDir,
 systemVerilogInclude, simLib, cSource, cppSource, systemVerilogDPI,
-verilogVPI, SimCompileArgs, SimElabArgs, SuppressWarnings
+verilogVPI, SimCompileArgs, SimElabArgs, SimCovArgs, SuppressWarnings
 
 ### SimRun
 
@@ -171,6 +172,15 @@ Additional runtime arguments for SimRun.
 | `plusargs` | list | Simulation plusargs |
 | `dpilibs` | list | DPI libraries to load |
 | `vpilibs` | list | VPI libraries to load |
+
+### SimCovArgs
+
+Requests coverage collection. SimImage builds at the highest level among its
+`cov` param and every SimCovArgs it consumes; SimRun follows the image.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `level` | str | none, func, code or full (cumulative). Defaults to `${{ hdlsim.cov }}` |
 
 ### SuppressWarnings
 
@@ -282,6 +292,42 @@ Key points:
 - `SimRunArgs` for runtime flags
 - `std.FileSet` with `type: simRunData` to copy files into the test rundir
 - Feed targets use fully-qualified names (`package.task`)
+
+## Collecting Coverage
+
+Levels are cumulative: `func` = covergroups and `cover property`; `code` adds
+line/statement, branch (and expression on Verilator); `full` adds toggle (and
+FSM on Verilator). Supported on `vlt` and `xzm`; other simulators warn and
+build without coverage.
+
+Wire a bare `SimCovArgs` into the image and pick the level on the command line:
+
+```yaml
+tasks:
+  - name: cov
+    uses: hdlsim.SimCovArgs      # level follows hdlsim.cov (default none)
+  - name: build
+    uses: hdlsim.SimImage
+    needs: [rtl, tb, cov]
+    with: { top: [tb_top] }
+```
+
+```bash
+dfm run tests -D hdlsim.sim=vlt -D hdlsim.cov=code
+```
+
+Or fix the level in a holder (`with: { level: code }`), or on SimImage
+(`with: { cov: code }`).
+
+Results:
+- `SimRunResult.artifacts` has a `simCovDb` FileSet with `role=cov` and
+  `format=vlt-dat` (Verilator `coverage.dat`) or `format=xezim-json`
+  (`xezim_cov.json`). Choose a decoder by `format=`.
+- `stats` has `cov_<kind>_pct/_covered/_total` for each kind measured;
+  `runinfo.cov` is `{level, kinds}`.
+- `SimSuiteReport` gives `cov_<kind>_pct_max` (best case, not merged).
+- xezim reports no functional percentage (database only). On Verilator,
+  `cg.get_coverage()` returns 0 and UVM code is instrumented too.
 
 ## Selecting a Simulator (abstract tasks)
 
