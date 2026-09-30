@@ -327,7 +327,10 @@ Results:
   `runinfo.cov` is `{level, kinds}`.
 - `SimSuiteReport` gives `cov_<kind>_pct_max` (best case, not merged).
 - xezim reports no functional percentage (database only). On Verilator,
-  `cg.get_coverage()` returns 0 and UVM code is instrumented too.
+  `cg.get_coverage()` returns 0.
+- UVM is instrumented along with the design on both simulators, so `code`
+  percentages on a UVM bench mostly measure UVM. On xezim, run `args:
+  [--code-coverage-scope, <dut-instance>]` narrows it.
 
 ## Selecting a Simulator (abstract tasks)
 

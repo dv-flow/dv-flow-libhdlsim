@@ -216,7 +216,9 @@ package:
           database is `xezim_cov.json` (a `simCovDb` artifact,
           `format=xezim-json`); at `none` it is not written. Only code
           coverage gets `cov_<kind>_pct` stats: xezim gives no functional
-          percentage. A `--code-coverage` in `args` replaces SimRun's.
+          percentage. A `--code-coverage` in `args` replaces SimRun's. UVM
+          is counted too; `args: [--code-coverage-scope, tb.dut]` narrows
+          code coverage to the DUT.
 
           ## DPI and VPI
 

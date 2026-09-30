@@ -425,9 +425,11 @@ Limitations
   ``coverage.dat``, but ``cg.get_coverage()`` and ``get_inst_coverage()`` are
   not implemented, so a testbench that prints coverage from a ``final`` block
   reports 0 on Verilator.
-* **Verilator instruments the whole design, UVM included.** It has no module
-  or instance selector, so at ``code`` and ``full`` the UVM library's code is
-  counted too, and the line and branch percentages mostly measure UVM.
+* **UVM is counted too.** No exclusions are applied, so at ``code`` and
+  ``full`` the UVM library's code is instrumented along with the design, on
+  both simulators, and the line and branch percentages mostly measure UVM.
+  Verilator has no module or instance selector; on xezim, a raw
+  ``--code-coverage-scope <instance>`` in the run's ``args`` narrows it.
 * **xezim reports no functional percentage.** Its database lists the bins
   that were hit but not the ones that weren't, so ``func`` gives a database
   and no ``cov_*`` stats. Code-coverage totals are reported.
