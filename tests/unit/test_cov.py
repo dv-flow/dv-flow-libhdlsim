@@ -564,3 +564,92 @@ def test_xzm_level_change(tmpdir):
     r = CovRun(tmpdir, "xzm")
     assert r.cov_json() is None
     assert r.artifacts("simCovDb") == []
+
+
+#---------------------------------------------------------------------------
+# Suite roll-up
+#---------------------------------------------------------------------------
+
+@needs_vlt
+def test_vlt_suite_rollup(tmpdir):
+    """Two cases on one `code` image -> SimSuiteReport: each TestResult keeps
+    its own cov_* stats and simCovDb; the SuiteResult rolls up the best
+    percentage; junit.xml / ctrf.json carry the level and percentages."""
+    d = str(tmpdir)
+    tasks = [
+        {"name": "src", "uses": "std.FileSet",
+         "with": {"type": "systemVerilogSource", "base": DATA,
+                  "include": "cov_top.sv"}},
+        {"name": "covargs", "uses": "hdlsim.SimCovArgs", "with": {"level": "code"}},
+        {"name": "img", "uses": "hdlsim.vlt.SimImage", "needs": ["src", "covargs"],
+         "with": {"top": ["cov_top"]}},
+    ]
+    for c in ("c0", "c1"):
+        tasks.append({"name": "run_" + c, "uses": "hdlsim.vlt.SimRun",
+                      "needs": ["img"], "with": {"mode": "test", "sim": "vlt"}})
+        tasks.append({"name": c, "uses": "hdlsim.SimCheck",
+                      "needs": ["run_" + c]})
+    tasks.append({"name": "report", "uses": "hdlsim.SimSuiteReport",
+                  "needs": ["c0", "c1"]})
+    with open(os.path.join(d, "flow.dv"), "w") as fp:
+        json.dump({"package": {"name": "t", "imports": [{"name": "hdlsim"}],
+                               "tasks": tasks}}, fp)
+
+    loader = PackageLoader()
+    pkg = loader.load(os.path.join(d, "flow.dv"))
+    rundir = os.path.join(d, "rundir")
+    builder = TaskGraphBuilder(root_pkg=pkg, rundir=rundir, loader=loader)
+    runner = TaskSetRunner(rundir)
+    runner.builder = builder
+    report = builder.mkTaskNode("t.report")
+    asyncio.run(runner.run([report]))
+    assert runner.status == 0
+
+    sr = next(it for it in report.output.output
+              if getattr(it, "type", None) == "hdlsim.SuiteResult")
+    assert sr.total == 2 and sr.passed == 2
+    assert sr.stats["cov_line_pct_max"] > 0
+    assert "cov_line_covered" not in sr.stats
+    dbs = []
+    for tr in sr.results:
+        assert tr.stats["cov_line_pct"] > 0
+        assert tr.runinfo["cov"]["level"] == "code"
+        for a in tr.artifacts:
+            a = a if isinstance(a, dict) else a.model_dump()
+            if a["filetype"] == "simCovDb":
+                assert "format=vlt-dat" in a["attributes"]
+                dbs.append(os.path.join(a["basedir"], a["files"][0]))
+    assert len(dbs) == 2 and len(set(dbs)) == 2
+    assert all(os.path.isfile(p) for p in dbs)
+
+    rdir = next(os.path.join(rundir, n) for n in os.listdir(rundir)
+                if n.endswith("report"))
+    junit = open(os.path.join(rdir, "junit.xml")).read()
+    assert '<property name="cov_level" value="code"/>' in junit
+    assert 'name="cov_line_pct"' in junit
+    with open(os.path.join(rdir, "ctrf.json")) as fp:
+        ctrf = json.load(fp)
+    extra = ctrf["results"]["tests"][0]["extra"]
+    assert extra["cov_level"] == "code" and extra["cov_line_pct"] > 0
+
+
+def test_suite_summary_coverage_line():
+    """SimSuiteReport's printed summary gains a coverage line (best case per
+    kind), and only for kinds some case reported."""
+    from dv_flow.libhdlsim import sim_check
+
+    class _Ctxt(object):
+        def __init__(self):
+            self.lines = []
+
+        def info(self, msg):
+            self.lines.append(msg)
+
+    ctxt = _Ctxt()
+    from dv_flow.libhdlsim import sim_stats
+    agg = sim_stats.aggregate([
+        {"cov_line_pct": 40.0, "cov_branch_pct": 25.5},
+        {"cov_line_pct": 70.0}])
+    sim_check._report_stats(ctxt, [], agg)
+    cov_lines = [l for l in ctxt.lines if l.strip().startswith("coverage")]
+    assert cov_lines == ["  coverage  line=70.00%  branch=25.50%"]

@@ -37,7 +37,7 @@ import os
 import time
 import uuid
 from dv_flow.mgr import FileSet, TaskDataResult
-from dv_flow.libhdlsim import sim_stats
+from dv_flow.libhdlsim import cov, sim_stats
 from dv_flow.libhdlsim.uvm_log_parser import parse_uvm_log
 
 
@@ -333,6 +333,9 @@ def _report_stats(ctxt, results, agg):
     _line("severity", [("errors", "errors", _fmt),
                        ("warnings", "warnings", _fmt),
                        ("fatals", "fatals", _fmt)])
+    # Best single case per kind -- not a merged figure (see sim_stats).
+    _line("coverage", [(k, "cov_%s_pct_max" % k, lambda v: "%s%%" % _fmt(v))
+                       for k in cov.KINDS])
 
     ranked = sorted(
         ((getattr(r, "walltime_s", 0.0) or 0.0, getattr(r, "name", "?"))
@@ -388,14 +391,27 @@ _JUNIT_PROP_INFO = ("sim", "sim_version", "seed", "host", "start_time",
                     "finish_reason")
 
 
+def _cov_props(stats, runinfo):
+    """The case's coverage level and per-kind percentages, when collected."""
+    info = runinfo.get("cov")
+    if not isinstance(info, dict) or not info.get("level"):
+        return []
+    props = [("cov_level", info["level"])]
+    props += [("cov_%s_pct" % k, stats["cov_%s_pct" % k]) for k in cov.KINDS
+              if stats.get("cov_%s_pct" % k) is not None]
+    return props
+
+
 def _junit_props(r):
     """(name, value) pairs for a case's <properties> block: the reproduction
-    handles (sim, seed, host) and the headline metrics, when present."""
+    handles (sim, seed, host), the headline metrics and the coverage summary,
+    when present."""
     stats = _case_stats(r)
     runinfo = getattr(r, "runinfo", None)
     runinfo = runinfo if isinstance(runinfo, dict) else {}
     props = [(k, runinfo[k]) for k in _JUNIT_PROP_INFO if runinfo.get(k) not in (None, "")]
     props += [(k, stats[k]) for k in _JUNIT_PROP_STATS if stats.get(k) is not None]
+    props += _cov_props(stats, runinfo)
     return props
 
 
@@ -497,6 +513,7 @@ def _ctrf_test(r):
     extra = {k: runinfo[k] for k in _CTRF_EXTRA_INFO
              if runinfo.get(k) not in (None, "", [])}
     extra.update({k: stats[k] for k in _JUNIT_PROP_STATS if stats.get(k) is not None})
+    extra.update(dict(_cov_props(stats, runinfo)))
     rundir = runinfo.get("rundir")
     logfile = runinfo.get("logfile")
     if rundir and logfile:
