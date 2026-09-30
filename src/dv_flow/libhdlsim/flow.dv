@@ -36,6 +36,13 @@ package:
     sim:
       type: str
       value: "unset"
+    # Global coverage level: the default of every hdlsim.SimCovArgs `level`,
+    # so `-D hdlsim.cov=code` flips a flow that wires in a bare
+    # `uses: hdlsim.SimCovArgs`. See SimCovArgs.
+    cov:
+      type: str
+      value: "none"
+      doc: Coverage level (none | func | code | full); see hdlsim.SimCovArgs
 
   tasks:
   # `produces:` is declared ONCE on each generic export; the per-simulator
@@ -200,6 +207,7 @@ package:
     - filetype: verilatorMain
     - type: hdlsim.SimElabArgs
     - type: hdlsim.SimCompileArgs
+    - type: hdlsim.SimCovArgs
     - type: hdlsim.SuppressWarnings
     with:
       sim:
@@ -221,6 +229,14 @@ package:
       trace:
         doc: Enable waveform tracing
         type: bool
+      cov:
+        doc: |
+          Coverage level: none | func | code | full (cumulative). The image is
+          built at the highest of this and every consumed hdlsim.SimCovArgs
+          `level`; SimRun follows the image. A backend without coverage
+          support warns once and builds without it.
+        type: str
+        value: "none"
       timing:
         doc: Enable timing simulation
         type: bool
@@ -806,6 +822,24 @@ package:
       vpilibs:
         doc: VPI libraries to link
         type: list
+
+  - name: SimCovArgs
+    doc: Coverage collection request for SimImage (and, via the image, SimRun)
+    with:
+      level:
+        doc: |
+          Coverage level. Each includes the ones below it:
+            none -- collect nothing
+            func -- functional coverage: covergroups and `cover property`
+            code -- adds line/statement, branch and (where supported) expression
+            full -- adds toggle and (where supported) FSM
+          Defaults to the package `cov` var, so a bare `uses: hdlsim.SimCovArgs`
+          follows `-D hdlsim.cov=<level>`, while a holder sets it with
+          `with: { level: code }`. SimImage takes the highest level across its
+          `cov` param and every SimCovArgs it consumes. What each simulator
+          collects at each level is in the package documentation.
+        type: str
+        value: "${{ hdlsim.cov }}"
 
   - name: SimRunArgs
     doc: Additional runtime arguments for SimRun

@@ -177,6 +177,27 @@ def test_aggregate_empty():
     assert ss.aggregate([]) == {}
 
 
+def test_cov_keys_declared():
+    # Every coverage kind has a max-rolled percentage and per-case counts.
+    for k in ("line", "branch", "toggle", "covergroup", "user"):
+        assert ss.STAT_KEYS["cov_%s_pct" % k][1] == "max"
+        assert ss.STAT_KEYS["cov_%s_covered" % k][1] == "none"
+        assert ss.STAT_KEYS["cov_%s_total" % k][1] == "none"
+    assert "cov" in ss.INFO_KEYS
+
+
+def test_aggregate_cov():
+    # The percentage rolls up as the best run; hit counts are not summed
+    # (summing per-run hits is not a merge).
+    agg = ss.aggregate([
+        {"cov_line_pct": 40.0, "cov_line_covered": 4, "cov_line_total": 10},
+        {"cov_line_pct": 70.0, "cov_line_covered": 7, "cov_line_total": 10},
+    ])
+    assert agg["cov_line_pct_max"] == 70.0
+    assert "cov_line_pct" not in agg and "cov_line_pct_mean" not in agg
+    assert "cov_line_covered" not in agg and "cov_line_total" not in agg
+
+
 #---------------------------------------------------------------------------
 # Tier 2: Verilator simulation-report parsing
 #---------------------------------------------------------------------------

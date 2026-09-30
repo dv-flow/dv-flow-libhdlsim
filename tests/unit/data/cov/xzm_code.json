@@ -1,0 +1,285 @@
+{
+ "sim_time": 100,
+ "assertion_sites": 1,
+ "assertion_pass_total": 1,
+ "assertion_fail_total": 0,
+ "assertions": [
+  {
+   "file": "cov_top.sv",
+   "line": 42,
+   "span_start": 728,
+   "kind": "cover",
+   "pass": 1,
+   "fail": 0
+  }
+ ],
+ "covergroups": [
+  {
+   "name": "cg",
+   "samples": 10,
+   "coverpoints": {
+    "cp_count": 10,
+    "cp_flag": 2
+   },
+   "crosses": {},
+   "bins": {
+    "cp_flag.hit_low": 8,
+    "cp_count.lo": 8,
+    "cp_flag.hit_high": 2
+   }
+  }
+ ],
+ "code_coverage": {
+  "kinds": [
+   "statement",
+   "branch"
+  ],
+  "statement": {
+   "covered": 12,
+   "total": 12,
+   "percent": 100.0
+  },
+  "branch": {
+   "covered": 8,
+   "total": 9,
+   "percent": 88.89
+  },
+  "scopes": [
+   {
+    "scope": "cov_top",
+    "design_unit": "cov_top",
+    "kind": "instance",
+    "statement": {
+     "covered": 12,
+     "total": 12,
+     "percent": 100.0
+    },
+    "branch": {
+     "covered": 8,
+     "total": 9,
+     "percent": 88.89
+    },
+    "statements": [
+     {
+      "file": "cov_top.sv",
+      "line": 13,
+      "kind": "always",
+      "count": 19
+     },
+     {
+      "file": "cov_top.sv",
+      "line": 13,
+      "kind": "statement",
+      "count": 19
+     }
+    ],
+    "branches": [
+     {
+      "file": "cov_top.sv",
+      "line": 17,
+      "kind": "if",
+      "arms": [
+       {
+        "line": 18,
+        "arm": "if",
+        "count": 2
+       },
+       {
+        "line": 20,
+        "arm": "else",
+        "count": 8
+       }
+      ]
+     },
+     {
+      "file": "cov_top.sv",
+      "line": 24,
+      "kind": "case",
+      "arms": [
+       {
+        "line": 25,
+        "arm": "item",
+        "count": 6
+       },
+       {
+        "line": 26,
+        "arm": "item",
+        "count": 4
+       },
+       {
+        "line": 24,
+        "arm": "default (implicit)",
+        "count": 0
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "design_units": [
+   {
+    "design_unit": "cov_top",
+    "instances": 1,
+    "statement": {
+     "covered": 12,
+     "total": 12,
+     "percent": 100.0
+    },
+    "branch": {
+     "covered": 8,
+     "total": 9,
+     "percent": 88.89
+    },
+    "statements": [
+     {
+      "file": "/home/mballance/projects/dv-flow/dv-flow-libhdlsim/tests/unit/data/cov/cov_top.sv",
+      "line": 13,
+      "kind": "always",
+      "count": 19
+     },
+     {
+      "file": "/home/mballance/projects/dv-flow/dv-flow-libhdlsim/tests/unit/data/cov/cov_top.sv",
+      "line": 13,
+      "kind": "statement",
+      "count": 19
+     },
+     {
+      "file": "/home/mballance/projects/dv-flow/dv-flow-libhdlsim/tests/unit/data/cov/cov_top.sv",
+      "line": 15,
+      "kind": "always",
+      "count": 10
+     },
+     {
+      "file": "/home/mballance/projects/dv-flow/dv-flow-libhdlsim/tests/unit/data/cov/cov_top.sv",
+      "line": 16,
+      "kind": "statement",
+      "count": 10
+     },
+     {
+      "file": "/home/mballance/projects/dv-flow/dv-flow-libhdlsim/tests/unit/data/cov/cov_top.sv",
+      "line": 18,
+      "kind": "statement",
+      "count": 2
+     },
+     {
+      "file": "/home/mballance/projects/dv-flow/dv-flow-libhdlsim/tests/unit/data/cov/cov_top.sv",
+      "line": 20,
+      "kind": "statement",
+      "count": 8
+     },
+     {
+      "file": "/home/mballance/projects/dv-flow/dv-flow-libhdlsim/tests/unit/data/cov/cov_top.sv",
+      "line": 23,
+      "kind": "always",
+      "count": 10
+     },
+     {
+      "file": "/home/mballance/projects/dv-flow/dv-flow-libhdlsim/tests/unit/data/cov/cov_top.sv",
+      "line": 25,
+      "kind": "statement",
+      "count": 1
+     },
+     {
+      "file": "/home/mballance/projects/dv-flow/dv-flow-libhdlsim/tests/unit/data/cov/cov_top.sv",
+      "line": 26,
+      "kind": "statement",
+      "count": 1
+     },
+     {
+      "file": "/home/mballance/projects/dv-flow/dv-flow-libhdlsim/tests/unit/data/cov/cov_top.sv",
+      "line": 45,
+      "kind": "delay",
+      "count": 1
+     },
+     {
+      "file": "/home/mballance/projects/dv-flow/dv-flow-libhdlsim/tests/unit/data/cov/cov_top.sv",
+      "line": 46,
+      "kind": "statement",
+      "count": 1
+     },
+     {
+      "file": "/home/mballance/projects/dv-flow/dv-flow-libhdlsim/tests/unit/data/cov/cov_top.sv",
+      "line": 47,
+      "kind": "statement",
+      "count": 1
+     }
+    ],
+    "branches": [
+     {
+      "file": "/home/mballance/projects/dv-flow/dv-flow-libhdlsim/tests/unit/data/cov/cov_top.sv",
+      "line": 17,
+      "kind": "if",
+      "arms": [
+       {
+        "line": 18,
+        "arm": "if",
+        "count": 2
+       },
+       {
+        "line": 20,
+        "arm": "else",
+        "count": 8
+       }
+      ]
+     },
+     {
+      "file": "/home/mballance/projects/dv-flow/dv-flow-libhdlsim/tests/unit/data/cov/cov_top.sv",
+      "line": 24,
+      "kind": "case",
+      "arms": [
+       {
+        "line": 25,
+        "arm": "item",
+        "count": 6
+       },
+       {
+        "line": 26,
+        "arm": "item",
+        "count": 4
+       },
+       {
+        "line": 24,
+        "arm": "default (implicit)",
+        "count": 0
+       }
+      ]
+     },
+     {
+      "file": "/home/mballance/projects/dv-flow/dv-flow-libhdlsim/tests/unit/data/cov/cov_top.sv",
+      "line": 25,
+      "kind": "if",
+      "arms": [
+       {
+        "line": 25,
+        "arm": "if",
+        "count": 1
+       },
+       {
+        "line": 25,
+        "arm": "else (implicit)",
+        "count": 5
+       }
+      ]
+     },
+     {
+      "file": "/home/mballance/projects/dv-flow/dv-flow-libhdlsim/tests/unit/data/cov/cov_top.sv",
+      "line": 26,
+      "kind": "if",
+      "arms": [
+       {
+        "line": 26,
+        "arm": "if",
+        "count": 1
+       },
+       {
+        "line": 26,
+        "arm": "else (implicit)",
+        "count": 3
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

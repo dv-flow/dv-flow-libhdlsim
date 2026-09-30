@@ -39,6 +39,9 @@ Three collection tiers, in decreasing portability:
 2. *Simulator-reported* -- simulated time, the simulator's own wall/CPU/memory
    accounting, thread count, finish reason. Parsed per backend by the
    ``VLSimRunner.parse_sim_stats`` hook; only Verilator implements it today.
+   Coverage totals (``cov_<kind>_pct/_covered/_total``) are tier 2 as well:
+   the ``VLSimRunner.parse_cov_summary`` hook, run only when the image was
+   built with coverage (see :mod:`cov`).
 3. *Testbench-reported* (:func:`read_tb_stats`) -- an optional ``tb_stats.json``
    the testbench itself may drop in the rundir (cycle counts, transaction
    counts, custom counters). Merged when present, ignored when not.
@@ -56,6 +59,8 @@ import socket
 import subprocess
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
+
+from . import cov as _cov
 
 _log = logging.getLogger("sim_stats")
 
@@ -108,6 +113,16 @@ STAT_KEYS : Dict[str, Tuple[str, str, str]] = {
     "transactions":  ("",    "sum", "Transactions driven/observed (testbench-reported)"),
 }
 
+# -- coverage summary (tier 2: parse_cov_summary) ---------------------------
+# Per kind: the percentage rolls up as the best single run (`_pct_max`) -- a
+# mean of per-run percentages is not a merged figure, and summing per-run hit
+# counts is not a merge either, so `_covered`/`_total` stay per-case.
+for _k in _cov.KINDS:
+    STAT_KEYS["cov_%s_pct" % _k] = ("%", "max", "%s coverage percentage" % _k)
+    STAT_KEYS["cov_%s_covered" % _k] = ("", "none", "%s coverage points hit" % _k)
+    STAT_KEYS["cov_%s_total" % _k] = ("", "none", "%s coverage points" % _k)
+del _k
+
 # key -> doc. Provenance: what was run, how, and where.
 INFO_KEYS : Dict[str, str] = {
     "case_name":    "Case name recorded for this run",
@@ -127,6 +142,7 @@ INFO_KEYS : Dict[str, str] = {
     "logfile":      "Simulation log file, relative to rundir",
     "trace":        "Whether waveform tracing was requested",
     "valgrind":     "Whether the run was executed under valgrind",
+    "cov":          "Coverage level and kinds collected ({level, kinds}); absent at none",
     "finish_reason":"How the run ended ($finish / $stop / end / signal)",
     "exit_code":    "Simulator process exit code",
     "host":         "Host the run executed on",

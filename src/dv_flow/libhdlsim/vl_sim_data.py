@@ -40,6 +40,9 @@ class VlSimImageData(object):
     trace_fmt : str = dc.field(default="none")
     timing : bool = dc.field(default=True)
     full64 : bool = dc.field(default=True)
+    # Coverage level (cov.LEVELS): the highest of SimImage's `cov` param and
+    # every consumed SimCovArgs. Recorded in <imgdir>/cov.json for the run.
+    cov_level : str = dc.field(default="none")
 
 @dc.dataclass
 class VlSimRunData(object):
@@ -51,4 +54,7 @@ class VlSimRunData(object):
     trace : bool = dc.field(default=False)
     full64 : bool = dc.field(default=True)
     valgrind : bool = dc.field(default=False)
+    # The image's coverage record ({level, kinds}, from cov.json); None when
+    # the image was built without coverage.
+    cov : Optional[dict] = dc.field(default=None)
 
