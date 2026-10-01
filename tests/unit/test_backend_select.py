@@ -284,3 +284,62 @@ def test_backend_entry_resolves(tmpdir, family, sim, concrete):
     if isinstance(body, str) and body.startswith("dv_flow."):
         mod, _, attr = body.rpartition(".")
         assert callable(getattr(importlib.import_module(mod), attr)), body
+
+
+# --- Backend-specific tasks not named after their family ---------------------
+# `hdlsim.xcm.SimPrimary` and `hdlsim.vlt.ProtectLib` both `uses: hdlsim.SimImage`
+# but have their own leaf name. They are already bound to a simulator, so the
+# elaborator must build them unchanged -- not demand a `sim`, and not rebind them
+# to `hdlsim.<sim>.SimImage` (which would discard their implementation).
+
+class _StubTask:
+    def __init__(self, name, uses=None):
+        self.name = name
+        self.uses = uses
+
+
+class _StubCtxt:
+    def __init__(self):
+        self.built = None
+
+    def buildDefault(self, task, name):
+        self.built = (task, name)
+        return task
+
+    def resolveParam(self, task, name, dflt):
+        return dflt
+
+    def error(self, msg):
+        raise AssertionError("unexpected error: %s" % msg)
+
+
+@pytest.mark.parametrize("concrete", [
+    "hdlsim.xcm.SimPrimary",
+    "hdlsim.vlt.ProtectLib",
+    "hdlsim.vlt.SimImage",
+    "foo.hdlsim.vlt.ProtectLib"])
+def test_backend_specific_task_is_concrete(concrete):
+    from dv_flow.libhdlsim.backend_select import _chain_is_concrete, elaborate
+    task = _StubTask(concrete, uses=_StubTask("hdlsim.SimImage"))
+    assert _chain_is_concrete(task)
+    ctxt = _StubCtxt()
+    assert elaborate(ctxt, task, "t") is task
+    assert ctxt.built == (task, "t")
+
+
+def test_abstract_task_is_not_concrete():
+    from dv_flow.libhdlsim.backend_select import _chain_is_concrete
+    user = _StubTask("foo.build", uses=_StubTask("hdlsim.SimImage"))
+    assert not _chain_is_concrete(user)
+
+
+@pytest.mark.parametrize("concrete,body", [
+    ("hdlsim.xcm.SimPrimary", "xcm_sim_primary"),
+    ("hdlsim.vlt.ProtectLib", "vlt_protect_lib")])
+def test_backend_specific_task_builds_without_sim(tmpdir, concrete, body):
+    # Building the graph needs only the package, not the simulator.
+    sim = concrete.split(".")[1]
+    rgy = PackageLoader().load_rgy(["std", "hdlsim.%s" % sim])
+    node = TaskGraphBuilder(rgy, os.path.join(str(tmpdir), "rundir")).mkTaskNode(
+        concrete, name="t", top=["top"])
+    assert body in _backend(node)

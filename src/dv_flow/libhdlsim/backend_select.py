@@ -38,7 +38,7 @@ import difflib
 
 
 # All simulator sub-package leaf ids. Used to recognize an explicit concrete
-# task (`hdlsim.<sim>.<Family>`) structurally, independent of whether that
+# task (`hdlsim.<sim>.<Task>`) structurally, independent of whether that
 # sim/family pair appears in the selection registry below.
 SIMS = ("vlt", "vcs", "mti", "xsm", "xcm", "ivl", "xzm")
 
@@ -121,15 +121,20 @@ def _family_of(task):
     return None
 
 
-def _chain_is_concrete(task, family):
+def _chain_is_concrete(task):
     """True if a concrete backend already appears in the task's own type or its
     `uses` chain -- the user selected a simulator explicitly (e.g.
     `uses: hdlsim.vlt.SimImage`), so we build as-is. Recognized structurally as
-    any `hdlsim.<sim>.<family>`.
+    any `hdlsim.<sim>.<task>`: the leaf need not be the family name, since any
+    task defined in a backend package is already bound to that simulator (e.g.
+    `hdlsim.xcm.SimPrimary` or `hdlsim.vlt.ProtectLib`, both of which
+    `uses: hdlsim.SimImage`). Rebinding such a task would either fail for lack
+    of a `sim` or silently discard its implementation in favor of
+    `hdlsim.<sim>.SimImage`.
 
-    Matching is on the trailing `<sim>.<family>` LEAF, not the fully-qualified
+    Matching is on the trailing `<sim>.<task>` segments, not the fully-qualified
     name: under a `uses:`-based package-inheritance chain the concrete backend
-    is re-exposed under alias-qualified names (e.g. `<pkg>.hdlsim.<sim>.<family>`
+    is re-exposed under alias-qualified names (e.g. `<pkg>.hdlsim.<sim>.<task>`
     or a subtree-scoped name), so a full-name match would miss it -- and, since
     the concrete backend `uses:` the abstract type (which carries this
     `elaborate:` clause), missing it re-fires the elaborator forever. `_family_of`
@@ -141,8 +146,8 @@ def _chain_is_concrete(task, family):
         nm = getattr(cur, 'name', None)
         if nm:
             parts = nm.split('.')
-            # trailing two segments are `<sim>.<family>`
-            if len(parts) >= 2 and parts[-1] == family and parts[-2] in SIMS:
+            # trailing two segments are `<sim>.<task>`
+            if len(parts) >= 2 and parts[-2] in SIMS:
                 return True
         cur = getattr(cur, 'uses', None)
     return False
@@ -160,8 +165,9 @@ def elaborate(ctxt, task, name):
         return ctxt.buildDefault(task, name)
     backends = SIM_BACKENDS[family]
 
-    # Explicit concrete usage (hdlsim.vlt.SimImage) -> build unchanged.
-    if _chain_is_concrete(task, family):
+    # Explicit concrete usage (hdlsim.vlt.SimImage, hdlsim.xcm.SimPrimary)
+    # -> build unchanged.
+    if _chain_is_concrete(task):
         return ctxt.buildDefault(task, name)
 
     sim = ctxt.resolveParam(task, 'sim', 'unset')
