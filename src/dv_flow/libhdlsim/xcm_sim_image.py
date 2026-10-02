@@ -27,11 +27,18 @@ from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
 from dv_flow.mgr import FileSet
 from svdep import TaskBuildFileCollection
 from .util import xcelium_cds_lib
+from .xcm_sim_run import check_xcm_pli, xcm_pli_args
 
 class SimImageBuilder(VlSimImageBuilder):
 
     # Xcelium loads VPI at run time (xmsim -loadvpi), so forward to SimRun.
     forward_vpi = True
+    # PLI 1.0 is loaded at elaboration (registers the systfs) and again at
+    # run time (a table-only library can only be bound by xmsim).
+    forward_pli = True
+
+    def check_pli(self, data : VlSimImageData) -> int:
+        return check_xcm_pli(data.pli, self.markers)
 
     def getRefTime(self, rundir):
         if os.path.isfile(os.path.join(rundir, 'simv_opt.d')):
@@ -100,8 +107,11 @@ class SimImageBuilder(VlSimImageBuilder):
             # VPI libraries (eg cocotb) require read/write/connectivity access
             # to be granted at elaboration; the lib itself is loaded at run time
             # via 'xmsim -loadvpi' (see xcm_sim_run).
-            if len(data.vpi):
+            # PLI 1.0 libraries that ask for `access` need the same.
+            if len(data.vpi) or any(l.access for l in data.pli):
                 cmd.extend(['-access', '+rwc'])
+
+            cmd.extend(xcm_pli_args(data.pli, sim=False))
 
             for top in input.params.top:
                 cmd.append(top)

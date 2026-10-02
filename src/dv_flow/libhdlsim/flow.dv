@@ -142,6 +142,83 @@ package:
         doc: Preprocessor defines
         type: list
 
+  - export: SimPLI
+    desc: Attach a pre-built PLI 1.0 (or VPI) shared library to a simulation
+    doc: |
+      SimPLI takes an already-built PLI shared library (and, optionally, its
+      VCS-format `.tab` table file) and describes it so that SimImage hands it
+      to whichever simulator is selected, with the right flags at elaboration
+      and/or run time. SimPLI compiles nothing and runs no tool.
+
+      Attach SimPLI to SimImage (not SimRun). Simulators that load PLI at run
+      time get it forwarded from the image, as with VPI.
+
+      | sim | PLI 1.0 needs | Flags |
+      |-----|---------------|-------|
+      | xcm | `boot` or `tab` | `xmelab -loadpli1 lib:boot`; `xmsim -loadpli1 lib:boot [-plimapfile tab]` |
+      | mti | nothing (veriusertfs/init_usertfs), or `tab` | `vsim -pli lib [-tab tab]` |
+      | vcs | `tab` | `vcs -P tab lib` (linked into simv) |
+      | ivl | `boot` (no `tab`) | `vvp -mcadpli ... -cadpli=lib:boot` |
+      | vlt, xsm, xzm | not supported | Error |
+
+      `interface: vpi` emits the ordinary `verilogVPI` FileSet instead
+      (`boot` becomes its `entrypoint=`), so one task attaches either kind.
+
+      Example:
+      ```yaml
+      - name: novas
+        uses: hdlsim.SimPLI
+        with:
+          lib: /tools/verdi/share/PLI/VCS/LINUX64/libnovas.so
+          tab: /tools/verdi/share/PLI/VCS/LINUX64/novas.tab
+      - name: build
+        uses: hdlsim.SimImage
+        needs: [rtl, tb, novas]
+      ```
+    pytask: dv_flow.libhdlsim.sim_pli.SimPLI
+    produces:
+    - type: std.FileSet
+      filetype: verilogPLI
+    - type: std.FileSet
+      filetype: verilogVPI
+    consumes:
+    - filetype: sharedLib
+    # Cheap, and it must re-check the library on every run: the FileSet it
+    # emits carries only paths, so a library rebuilt in place is reported as a
+    # change (see sim_pli.py).
+    uptodate: false
+    with:
+      lib:
+        doc: |
+          Path to the shared library (relative to the flow's directory).
+          Empty: take it from consumed sharedLib FileSets (one FileSet each).
+        type: str
+        value: ""
+      tab:
+        doc: |
+          Optional PLI 1.0 table file (VCS .tab format). Required on VCS;
+          used by Questa (-tab) and Xcelium (-plimapfile).
+        type: str
+        value: ""
+      boot:
+        doc: |
+          Boot routine. PLI 1.0: returns the s_tfcell table (Xcelium
+          -loadpli1 lib:boot, Icarus cadpli). VPI: the startup routine
+          (becomes the verilogVPI `entrypoint=`).
+        type: str
+        value: ""
+      interface:
+        doc: "pli1 (TF/ACC routines) or vpi"
+        type: str
+        value: "pli1"
+      access:
+        doc: |
+          Grant the design the read/write/connectivity visibility a PLI
+          library needs (xcm -access +rwc, mti vopt +acc, vcs -debug_access).
+          Costs simulation performance.
+        type: bool
+        value: true
+
   - export: SimLibUVM
     elaborate: dv_flow.libhdlsim.backend_select:elaborate
     desc: Provides UVM (Universal Verification Methodology) library support
@@ -174,6 +251,8 @@ package:
     # "may produce" -- which is what `produces:` means.
     - type: std.FileSet
       filetype: verilogVPI
+    - type: std.FileSet
+      filetype: verilogPLI
     desc: Compiles HDL sources into a simulation executable
     doc: |
       SimImage compiles SystemVerilog/Verilog source files into a simulation
@@ -204,6 +283,7 @@ package:
     - filetype: verilogSource
     - filetype: systemVerilogDPI
     - filetype: verilogVPI
+    - filetype: verilogPLI
     - filetype: verilatorMain
     - type: hdlsim.SimElabArgs
     - type: hdlsim.SimCompileArgs
@@ -283,6 +363,7 @@ package:
     - filetype: simDir
     - filetype: systemVerilogDPI
     - filetype: verilogVPI
+    - filetype: verilogPLI
     - filetype: simRunData
     - type: hdlsim.SimRunArgs
     uptodate: false
@@ -640,6 +721,14 @@ package:
           
           ### SimLibUVM
           Provides UVM library support for the simulator.
+          
+          ### SimPLI
+          Attaches a pre-built PLI 1.0 library (and optional VCS-format `.tab`
+          file) to a simulation; it compiles nothing. Put it in SimImage's
+          `needs`, never SimRun's. `lib`, `tab`, `boot` (the routine returning
+          the s_tfcell table), `interface: pli1|vpi`. Xcelium needs `boot` or
+          `tab`, VCS needs `tab`, Icarus needs `boot`; Questa needs neither
+          (veriusertfs). Verilator, xsim and xezim reject PLI 1.0 with an Error.
           
           ## With UVM
           

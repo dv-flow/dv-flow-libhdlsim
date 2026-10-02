@@ -1,5 +1,59 @@
+import os
 import dataclasses as dc
 from typing import List, Optional, Tuple
+
+@dc.dataclass
+class PliLib(object):
+    """A pre-built PLI 1.0 (TF/ACC) library, as carried by a `verilogPLI`
+    FileSet (see SimPLI). `boot` is the routine returning the s_tfcell table;
+    `tab` is a VCS-format table file; `access` asks for design visibility."""
+    path : str
+    boot : Optional[str] = None
+    tab : Optional[str] = None
+    access : bool = True
+
+    def key(self):
+        return (self.path, self.boot, self.tab)
+
+    def attributes(self) -> List[str]:
+        attrs = []
+        if self.boot:
+            attrs.append("boot=%s" % self.boot)
+        if self.tab:
+            attrs.append("tab=%s" % self.tab)
+        attrs.append("access=%d" % (1 if self.access else 0))
+        return attrs
+
+def pli_from_fileset(fs) -> List[PliLib]:
+    """One PliLib per file of a `verilogPLI` FileSet, from its `boot=`,
+    `tab=` and `access=` attributes. A relative `tab=` is taken against the
+    FileSet basedir."""
+    boot = None
+    tab = None
+    access = True
+    for attr in (getattr(fs, "attributes", None) or []):
+        key, sep, val = attr.partition("=")
+        if not sep:
+            continue
+        if key == "boot":
+            boot = val or None
+        elif key == "tab":
+            tab = val or None
+        elif key == "access":
+            access = val.strip().lower() not in ("0", "false", "no", "off", "")
+    if tab and not os.path.isabs(tab):
+        tab = os.path.join(fs.basedir, tab)
+    return [PliLib(path=os.path.join(fs.basedir, f), boot=boot, tab=tab, access=access)
+            for f in fs.files]
+
+def pli_add(libs : List[PliLib], new : List[PliLib]):
+    """Append `new` to `libs` in order, dropping any (path, boot, tab) already
+    present. A diamond in the flow graph can deliver one library twice."""
+    seen = set(l.key() for l in libs)
+    for lib in new:
+        if lib.key() not in seen:
+            seen.add(lib.key())
+            libs.append(lib)
 
 @dc.dataclass
 class VlSimImageData(object):
@@ -19,6 +73,8 @@ class VlSimImageData(object):
     primtops : List[str] = dc.field(default_factory=list)
     dpi : List[str] = dc.field(default_factory=list)
     vpi : List[Tuple[str, Optional[str]]] = dc.field(default_factory=list)
+    # PLI 1.0 libraries (verilogPLI FileSets), in load order.
+    pli : List[PliLib] = dc.field(default_factory=list)
     # Request the simulator's VPI runtime without necessarily linking an
     # external VPI library. Anything that calls VPI from C needs this -- a
     # cocotb main, or the UVM DPI layer (uvm_hdl_verilator.c, uvm_svcmd_dpi.c).
@@ -51,6 +107,7 @@ class VlSimRunData(object):
     plusargs : List[str] = dc.field(default_factory=list)
     dpilibs : List[str] = dc.field(default_factory=list)
     vpilibs : List[Tuple[str, Optional[str]]] = dc.field(default_factory=list)
+    plilibs : List[PliLib] = dc.field(default_factory=list)
     trace : bool = dc.field(default=False)
     full64 : bool = dc.field(default=True)
     valgrind : bool = dc.field(default=False)

@@ -27,10 +27,28 @@ from dv_flow.libhdlsim.vl_sim_image_builder import (
     VlSimImageBuilder, VlTaskSimImageMemento, check_sim_image_uptodate)
 from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
 from dv_flow.mgr import FileSet
+from dv_flow.mgr.task_data import TaskMarker, SeverityE
 from svdep import TaskBuildFileCollection
 from .vcs_log_parser import VcsLogParser
 
 class SimImageBuilder(VlSimImageBuilder):
+
+    def check_pli(self, data : VlSimImageData) -> int:
+        # VCS PLI 1.0 is table-driven: it does not scan for veriusertfs, and
+        # has no boot-routine form.
+        status = 0
+        for lib in data.pli:
+            if not lib.tab:
+                self.markers.append(TaskMarker(
+                    severity=SeverityE.Error,
+                    msg="VCS needs a `tab` file to load PLI 1.0 library %s" % lib.path))
+                status = 1
+            elif lib.boot:
+                self.markers.append(TaskMarker(
+                    severity=SeverityE.Warning,
+                    msg="VCS ignores `boot` (%s) for PLI 1.0 library %s; the "
+                        "`tab` file names its functions" % (lib.boot, lib.path)))
+        return status
 
     def getRefTime(self, rundir):
         if os.path.isfile(os.path.join(rundir, 'simv')):
@@ -105,6 +123,21 @@ class SimImageBuilder(VlSimImageBuilder):
                         cmd.extend(["-load", f"{lib_path}:{entrypoint}"])
                     else:
                         cmd.extend(["-load", lib_path])
+
+            # PLI 1.0: link each library into simv with its table, and give
+            # simv an rpath so the .so is found at run time.
+            # TODO: unverified on VCS (no VCS on the development host).
+            if len(data.pli):
+                if any(l.access for l in data.pli) and "-debug_access" not in cmd:
+                    cmd.append("-debug_access")
+                rpaths = []
+                for lib in data.pli:
+                    cmd.extend(["-P", lib.tab, lib.path])
+                    libdir = os.path.dirname(lib.path)
+                    if libdir not in rpaths:
+                        rpaths.append(libdir)
+                for libdir in rpaths:
+                    cmd.extend(["-LDFLAGS", "-Wl,-rpath,%s" % libdir])
 
             if len(data.dpi):
                 for dpi in data.dpi:

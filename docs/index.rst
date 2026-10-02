@@ -137,6 +137,77 @@ Parameters
 * **incdirs** - [Optional] List of extra include directories
 * **defines** - [Optional] List of extra defines
 
+Task: SimPLI
+============
+The SimPLI task attaches an already-built PLI 1.0 shared library (and,
+optionally, its VCS-format ``.tab`` table file) to a simulation. It compiles
+nothing and runs no tool: it checks the files exist and describes them as a
+``verilogPLI`` FileSet, which each simulator maps to its own flags.
+
+Attach SimPLI to SimImage, not SimRun. Simulators that load PLI at run time
+get it forwarded from the image, as with VPI.
+
+With ``interface: vpi`` it emits an ordinary ``verilogVPI`` FileSet instead
+(``boot`` becomes its ``entrypoint=``), so one task attaches either kind of
+library.
+
+Example
+-------
+
+.. code-block:: yaml
+
+    - name: novas
+      uses: hdlsim.SimPLI
+      with:
+        lib: /tools/verdi/share/PLI/VCS/LINUX64/libnovas.so
+        tab: /tools/verdi/share/PLI/VCS/LINUX64/novas.tab
+
+    - name: build
+      uses: hdlsim.SimImage
+      needs: [rtl, tb, novas]
+
+Consumes
+--------
+
+* sharedLib -- used as the library when ``lib`` is empty (one FileSet each)
+
+Produces
+--------
+
+* verilogPLI (``interface: pli1``), with attributes ``boot=``, ``tab=`` and ``access=``
+* verilogVPI (``interface: vpi``)
+
+Parameters
+----------
+
+* **lib** - Path to the shared library, relative to the flow's directory
+* **tab** - [Optional] PLI 1.0 table file (VCS ``.tab`` format)
+* **boot** - [Optional] Boot routine. PLI 1.0: returns the ``s_tfcell`` table.
+  VPI: the startup routine.
+* **interface** - ``pli1`` (default) or ``vpi``
+* **access** - [Optional] Grant the design the visibility a PLI library needs
+  (default true; costs simulation performance)
+
+Simulator support
+-----------------
+
+==============  =====================  ==========================================================
+sim             PLI 1.0 needs          Flags
+==============  =====================  ==========================================================
+xcm             ``boot`` or ``tab``    ``xmelab -loadpli1 lib:boot`` (and ``-access +rwc``);
+                                       ``xmsim -loadpli1 lib:boot [-plimapfile tab]``
+mti             nothing, or ``tab``    ``vsim -pli lib [-tab tab]``; ``vopt +acc``. Questa finds
+                                       the systfs through ``veriusertfs``/``init_usertfs`` and
+                                       ignores ``boot`` (with a warning).
+vcs             ``tab``                ``vcs -P tab lib -LDFLAGS -Wl,-rpath,<dir>`` (and
+                                       ``-debug_access``); linked into simv. Unverified.
+ivl             ``boot``, no ``tab``   ``vvp -mcadpli simv.vpp -cadpli=lib:boot``. Needs an
+                                       Icarus built with cadpli. Unverified.
+vlt, xsm, xzm   not supported          SimImage reports an Error
+==============  =====================  ==========================================================
+
+A library or table rebuilt in place makes the image rebuild.
+
 Task: SimImage
 ==============
 The SimImage task elaborates HDL source and/or precompiled libraries into
@@ -156,6 +227,7 @@ Consumes
 * verilogSource 
 * systemVerilogDPI 
 * verilogVPI 
+* verilogPLI -- see `Task: SimPLI`_
 * hdlsim.SimCompileArgs
 * hdlsim.SimElabArgs
 * hdlsim.SimCovArgs
@@ -196,6 +268,7 @@ Consumes
 * simDir 
 * systemVerilogDPI
 * verilogVPI
+* verilogPLI -- normally forwarded by SimImage; see `Task: SimPLI`_
 * hdlsim.SimRunArgs
 * simRunData -- Files to copy to the run directory
 
@@ -483,6 +556,7 @@ ivl (Icarus Verilog)
 - Coverage: Not supported (a requested level gives a warning)
 - DPI: Not supported (SimRun errors if dpilibs provided)
 - VPI: Not supported
+- PLI 1.0: Through cadpli (``boot`` required, no ``tab``). Unverified.
 - Trace: Not exposed
 - Valgrind: Not exposed
 - Incremental compile: Yes (file-dependency cache/memento)
@@ -493,6 +567,7 @@ vlt (Verilator)
 - Coverage: ``func``, ``code``, ``full`` (build-time ``--coverage-*`` flags; ``coverage.dat``, summarized with ``verilator_coverage``). See `Coverage`_.
 - DPI: Supported (link prebuilt libraries via -LDFLAGS, and/or compile C sources)
 - VPI: Not supported
+- PLI 1.0: Not supported
 - Trace: Supported (SimImage --trace; SimRun adds +verilator+debug when trace=true)
 - Valgrind: Not exposed
 - Incremental compile: Yes (tool reports "Nothing to be done" to skip)
@@ -503,6 +578,7 @@ mti (Siemens Questa/ModelSim)
 - Coverage: Not supported yet (a requested level gives a warning)
 - DPI: Supported (compile C sources via vlog; runtime -sv_lib)
 - VPI: Supported (runtime -pli)
+- PLI 1.0: Supported (runtime -pli, -tab)
 - Trace: Not currently exposed by tasks
 - Valgrind: Supported (-valgrind --tool=memcheck)
 - Incremental compile: Yes (vlog -incr; detected via log parsing)
@@ -513,6 +589,7 @@ vcs (Synopsys VCS)
 - Coverage: Not supported yet (a requested level gives a warning)
 - DPI: Not supported by SimImage (building); runtime load of prebuilt libs via -sv_lib supported in SimRun
 - VPI: Supported (+vpi/-debug_access and -load <lib>)
+- PLI 1.0: Supported (-P <tab> <lib>, linked into simv; ``tab`` required). Unverified.
 - Trace: Not currently exposed by tasks
 - Valgrind: Not exposed
 - Incremental compile: Yes (vlogan -incr_vlogan; detected via log parsing)
@@ -523,6 +600,7 @@ xsm (AMD Xilinx XSIM)
 - Coverage: Not supported yet (a requested level gives a warning)
 - DPI: Supported (xelab --sv_root/--sv_lib)
 - VPI: Not supported
+- PLI 1.0: Not supported
 - Trace: Not currently exposed by tasks
 - Valgrind: Not exposed
 - Incremental compile: Yes (xvlog --incr; detected via log parsing)
@@ -532,7 +610,15 @@ xcm (Cadence Xcelium)
 ---------------------
 - Coverage: Not supported yet (a requested level gives a warning)
 - Status: Experimental/incomplete in this repository; functionality may be outdated
+- PLI 1.0: Supported (xmelab/xmsim -loadpli1, xmsim -plimapfile; ``boot`` or ``tab`` required)
 - DPI/VPI/Trace/Valgrind/Incremental: TBD
+- UVM: SimLibUVM compiles the UVM bundled with Xcelium (``uvmhome``,
+  default ``CDNS-1.2``, or an absolute path) once into the logical library
+  ``uvm``. The UVM PLI library is passed on as a ``verilogPLI`` FileSet
+  (loaded with ``-loadpli1`` at elaboration and run time), and the UVM
+  PLI/DPI libraries with ``-sv_lib`` at run time. A UVM without the
+  prebuilt DPI library is built
+  with ``UVM_NO_DPI``.
 - Special parameters: TBD
 
 xzm (xezim)
@@ -545,6 +631,7 @@ xzm (xezim)
 - VPI: Supported at run time (--vpi-lib). Only `vlog_startup_routines` is
   run; an `entrypoint=` attribute is ignored with a warning. cocotb 2.x works
   this way with its Icarus VPI library.
+- PLI 1.0: Not supported
 - Trace: Supported at run time. `trace: true`, or the debug elab preset's
   `trace_fmt`, gives FST (`sim.fst`) by default, or with `trace_fmt: vcd`
   the testbench's own `$dumpfile`/`$dumpvars`.

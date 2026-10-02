@@ -68,6 +68,7 @@ SIM_BACKENDS = {
         "vcs": "hdlsim.vcs.SimLib",
         "mti": "hdlsim.mti.SimLib",
         "xsm": "hdlsim.xsm.SimLib",
+        "xcm": "hdlsim.xcm.SimLib",
         "xzm": "hdlsim.xzm.SimLib",
     },
     "SimLibUVM": {
@@ -75,6 +76,7 @@ SIM_BACKENDS = {
         "vcs": "hdlsim.vcs.SimLibUVM",
         "mti": "hdlsim.mti.SimLibUVM",
         "xsm": "hdlsim.xsm.SimLibUVM",
+        "xcm": "hdlsim.xcm.SimLibUVM",
         "xzm": "hdlsim.xzm.SimLibUVM",
     },
     # SimUVMCase = run-a-UVM-test-and-check in one leaf task (compact,

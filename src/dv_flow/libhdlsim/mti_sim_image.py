@@ -32,6 +32,12 @@ class SimImageBuilder(VlSimImageBuilder):
 
     # Questa/ModelSim loads VPI at run time (vsim -pli), so forward to SimRun.
     forward_vpi = True
+    # PLI 1.0 binds at vsim time too (vlog/vopt accept unknown systfs).
+    forward_pli = True
+
+    def check_pli(self, data : VlSimImageData) -> int:
+        # Any library can load: via veriusertfs/init_usertfs, or -tab.
+        return 0
 
     def getRefTime(self, rundir):
         if os.path.isfile(os.path.join(rundir, 'simv_opt.d')):
@@ -95,6 +101,11 @@ class SimImageBuilder(VlSimImageBuilder):
 
             cmd.extend(data.args)
             cmd.extend(data.elabargs)
+
+            # Design visibility for PLI 1.0 libraries that ask for it.
+            # TODO: unverified whether Questa 2026 prefers -access=rw+/.
+            if any(l.access for l in data.pli):
+                cmd.append('+acc')
 
             # Add in libraries
             for lib in data.libs:

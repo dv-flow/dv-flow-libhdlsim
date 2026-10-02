@@ -30,7 +30,7 @@ from dv_flow.mgr import FileSet, TaskDataResult, TaskRunCtxt
 from dv_flow.mgr.task_data import TaskMarker, SeverityE
 from typing import ClassVar, Dict, List, Tuple
 from dv_flow.libhdlsim.log_parser import LogParser
-from dv_flow.libhdlsim.vl_sim_data import VlSimRunData
+from dv_flow.libhdlsim.vl_sim_data import VlSimRunData, pli_add, pli_from_fileset
 from dv_flow.libhdlsim import cov, sim_stats
 
 from svdep import FileCollection, TaskCheckUpToDate, TaskBuildFileCollection
@@ -97,6 +97,8 @@ class VLSimRunner(object):
                     
                     for f in inp.files:
                         data.vpilibs.append((os.path.join(inp.basedir, f), entrypoint))
+                elif inp.filetype == "verilogPLI":
+                    pli_add(data.plilibs, pli_from_fileset(inp))
                 elif inp.filetype == "simRunData":
                     sim_data.append(inp)
             elif inp.type == "hdlsim.SimRunArgs":
@@ -121,6 +123,9 @@ class VLSimRunner(object):
         # was built with, or None when it was built without coverage.
         if data.imgdir:
             data.cov = cov.read_cov_json(data.imgdir)
+
+        if not status:
+            status |= self.check_pli(data)
 
         # Handle simRunData inputs
         self.copy_sim_data(sim_data)
@@ -190,6 +195,23 @@ class VLSimRunner(object):
                     basedir=input.rundir),
             ]
         )
+
+    def check_pli(self, data : VlSimRunData) -> int:
+        """Backend hook: validate data.plilibs before the run. Returns a
+        nonzero status (with an Error marker) to fail the run without starting
+        the simulator.
+
+        The base rejects any PLI library. Backends that load PLI 1.0 at run
+        time override; so does VCS, which links PLI into simv.
+        """
+        if len(data.plilibs):
+            self.markers.append(TaskMarker(
+                severity=SeverityE.Error,
+                msg="%s does not support PLI 1.0 libraries (%s)" % (
+                    self.sim_name or "this simulator",
+                    ", ".join(l.path for l in data.plilibs))))
+            return 1
+        return 0
 
     async def runsim(self, data : VlSimRunData):
         self.markers.append(TaskMarker(
@@ -301,6 +323,7 @@ class VLSimRunner(object):
                 plusargs=list(data.plusargs),
                 dpilibs=list(data.dpilibs),
                 vpilibs=[v[0] for v in data.vpilibs],
+                plilibs=[l.path for l in data.plilibs],
                 imgdir=data.imgdir or "",
                 rundir=self.rundir,
                 trace=bool(data.trace),

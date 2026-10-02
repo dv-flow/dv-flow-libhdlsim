@@ -25,12 +25,18 @@ from typing import List
 from dv_flow.mgr import TaskData, TaskMarker
 from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder, VlTaskSimImageMemento, check_sim_image_uptodate
 from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
+from .ivl_sim_run import check_ivl_pli
 from svdep import FileCollection, TaskCheckUpToDate, TaskBuildFileCollection
 
 class SimImageBuilder(VlSimImageBuilder):
 
     # Icarus loads VPI at run time (vvp -m), so forward VPI libs to SimRun.
     forward_vpi = True
+    # PLI 1.0 too (vvp -mcadpli -cadpli=lib:boot).
+    forward_pli = True
+
+    def check_pli(self, data : VlSimImageData) -> int:
+        return check_ivl_pli(data.pli, self.markers)
 
     def getRefTime(self, rundir):
         if os.path.isfile(os.path.join(rundir, 'simv.vpp')):

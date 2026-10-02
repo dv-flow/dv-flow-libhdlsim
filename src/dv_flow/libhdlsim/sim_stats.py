@@ -137,6 +137,7 @@ INFO_KEYS : Dict[str, str] = {
     "plusargs":     "Plusargs applied to the run",
     "dpilibs":      "DPI libraries loaded",
     "vpilibs":      "VPI libraries loaded",
+    "plilibs":      "PLI 1.0 libraries loaded",
     "imgdir":       "Simulation image directory the run used",
     "rundir":       "Directory the run executed in",
     "logfile":      "Simulation log file, relative to rundir",

@@ -24,12 +24,24 @@ import json
 import os
 from typing import List
 from dv_flow.mgr import TaskDataResult, FileSet
+from dv_flow.mgr.task_data import TaskMarker, SeverityE
 from dv_flow.libhdlsim.vl_sim_runner import VLSimRunner
 from dv_flow.libhdlsim.sim_uvm_case import uvm_case_task
 from dv_flow.libhdlsim.vl_sim_data import VlSimRunData
 
 class SimRunner(VLSimRunner):
     sim_name = "mti"
+
+    def check_pli(self, data : VlSimRunData) -> int:
+        # Questa binds PLI 1.0 systfs through the library's veriusertfs or
+        # init_usertfs(), or a -tab file. It has no lib:boot form.
+        for lib in data.plilibs:
+            if lib.boot and not lib.tab:
+                self.markers.append(TaskMarker(
+                    severity=SeverityE.Warning,
+                    msg="Questa ignores `boot` (%s) for PLI 1.0; library %s must "
+                        "export veriusertfs or init_usertfs" % (lib.boot, lib.path)))
+        return 0
 
     async def runsim(self, data : VlSimRunData):
         status = 0
@@ -55,7 +67,12 @@ class SimRunner(VLSimRunner):
                 cmd.extend(['-pli', f'{pli_path}:{entrypoint}'])
             else:
                 cmd.extend(['-pli', pli_path])
-        
+
+        for lib in data.plilibs:
+            cmd.extend(['-pli', lib.path])
+            if lib.tab:
+                cmd.extend(['-tab', lib.tab])
+
         for dpi in data.dpilibs:
             dpi_libdir = os.path.dirname(dpi)
             dpi_file = os.path.basename(dpi)

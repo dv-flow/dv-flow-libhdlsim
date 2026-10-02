@@ -80,7 +80,7 @@ Compiles HDL sources into a simulation executable.
 
 Consumes: systemVerilogSource, verilogSource, verilogIncDir,
 systemVerilogInclude, simLib, cSource, cppSource, systemVerilogDPI,
-verilogVPI, SimCompileArgs, SimElabArgs, SimCovArgs, SuppressWarnings
+verilogVPI, verilogPLI, SimCompileArgs, SimElabArgs, SimCovArgs, SuppressWarnings
 
 ### SimRun
 
@@ -95,7 +95,7 @@ Executes a compiled simulation.
 | `trace` | bool | Enable runtime tracing |
 | `valgrind` | bool | Run under valgrind |
 
-Consumes: simDir, systemVerilogDPI, verilogVPI, simRunData, SimRunArgs
+Consumes: simDir, systemVerilogDPI, verilogVPI, verilogPLI, simRunData, SimRunArgs
 
 SimRun has `uptodate: false` -- it always re-executes.
 
@@ -112,6 +112,39 @@ shared libraries to improve compilation time.
 | `defines` | list | Preprocessor defines |
 | `propagate_incdirs` | bool | Propagate include dirs to consumers (default: true) |
 | `suppress_warnings` | list | Warning codes to suppress from markers |
+
+### SimPLI
+
+Attaches an already-built PLI 1.0 shared library (and, optionally, its
+VCS-format `.tab` file) to a simulation. It compiles nothing. Put it in
+SimImage's `needs`, not SimRun's.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `lib` | str | Shared library path (relative to the flow). Empty: use consumed `sharedLib` FileSets |
+| `tab` | str | PLI 1.0 table file (VCS `.tab` format) |
+| `boot` | str | Boot routine: returns the `s_tfcell` table (PLI 1.0), or the VPI startup routine |
+| `interface` | str | `pli1` (default) or `vpi` (emits a `verilogVPI` FileSet) |
+| `access` | bool | Grant design visibility to the library (default: true) |
+
+```yaml
+- name: novas
+  uses: hdlsim.SimPLI
+  with:
+    lib: /tools/verdi/share/PLI/VCS/LINUX64/libnovas.so
+    tab: /tools/verdi/share/PLI/VCS/LINUX64/novas.tab
+- name: build
+  uses: hdlsim.SimImage
+  needs: [rtl, tb, novas]
+```
+
+| sim | PLI 1.0 needs | Flags |
+|-----|---------------|-------|
+| xcm | `boot` or `tab` | `xmelab -loadpli1 lib:boot`; `xmsim -loadpli1 lib:boot [-plimapfile tab]` |
+| mti | nothing (veriusertfs), or `tab` | `vsim -pli lib [-tab tab]` |
+| vcs | `tab` | `vcs -P tab lib` (linked into simv) |
+| ivl | `boot`, no `tab` | `vvp -mcadpli ... -cadpli=lib:boot` |
+| vlt, xsm, xzm | not supported | Error marker |
 
 ### SimLibUVM
 

@@ -44,6 +44,40 @@ package:
       referenced downstream via cds.lib; the elaborator resolves cross-library
       instances by default binding.
 
+  - export: SimLibUVM
+    uses: hdlsim.SimLibUVM
+    shell: pytask
+    run: dv_flow.libhdlsim.xcm_sim_lib_uvm.SimLibUVM
+    desc: Pre-compiles the UVM bundled with Xcelium into a library
+    doc: |
+      Compiles the Xcelium-bundled UVM (uvm_pkg plus the Cadence additions in
+      cdns_uvm_pkg) once into the logical library `uvm`, the multi-step
+      equivalent of `xrun -uvm`. A consuming SimImage gets the library via
+      cds.lib, the UVM include directories, and the UVM PLI library as a
+      `verilogPLI` FileSet (boot `uvm_pli_boot`), which SimImage loads with
+      `-loadpli1` at elaboration and SimRun again at run time. The UVM PLI/DPI
+      libraries are also loaded with `-sv_lib` at run time.
+
+      Example:
+      ```yaml
+      - name: uvm
+        uses: hdlsim.xcm.SimLibUVM
+      - name: build
+        uses: hdlsim.xcm.SimImage
+        needs: [uvm, tb]
+        with:
+          top: [tb_top]
+      ```
+    with:
+      uvmhome:
+        doc: |
+          UVM to use, as for `xrun -uvmhome`: the name of a UVM bundled under
+          the Xcelium install's methodology/UVM directory (CDNS-1.2,
+          CDNS-1.1d, CDNS-IEEE, ...) or an absolute path. A UVM without the
+          prebuilt Cadence DPI library is built with UVM_NO_DPI.
+        type: str
+        value: "CDNS-1.2"
+
   - export: SimPrimary
     uses: hdlsim.SimImage
     shell: pytask

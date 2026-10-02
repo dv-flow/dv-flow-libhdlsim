@@ -32,7 +32,7 @@ from typing import Any, ClassVar, List, Optional, Tuple
 from dv_flow.mgr.task_data import SeverityE
 from dv_flow.libhdlsim import cov
 from dv_flow.libhdlsim.log_parser import LogParser
-from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
+from dv_flow.libhdlsim.vl_sim_data import VlSimImageData, pli_add, pli_from_fileset
 from svdep import FileCollection, TaskCheckUpToDate
 
 from .util import merge_tokenize
@@ -69,6 +69,20 @@ async def check_sim_image_uptodate(ctxt, ref_path: str) -> bool:
         if getattr(fs, "type", None) != "std.FileSet":
             continue
         ft = getattr(fs, "filetype", "")
+
+        # A PLI library (and its table) is linked into the image on VCS and
+        # read by xmelab on Xcelium, so one newer than the image forces a
+        # rebuild. svdep tracks only HDL sources.
+        if ft == "verilogPLI":
+            for lib in pli_from_fileset(fs):
+                for path in (lib.path, lib.tab):
+                    try:
+                        if path and os.path.getmtime(path) > ref_mtime:
+                            _log.debug("check_sim_image_uptodate: %s is newer than the image" % path)
+                            return False
+                    except OSError:
+                        return False
+            continue
         basedir = getattr(fs, "basedir", "")
         fs_incdirs = getattr(fs, "incdirs", [])
         fs_files   = getattr(fs, "files", [])
@@ -116,6 +130,25 @@ class VlSimImageBuilder(object):
     # set this so that the flow graph is identical across simulators: the user
     # always attaches VPI libraries to SimImage, never directly to SimRun.
     forward_vpi : ClassVar[bool] = False
+
+    # Same as forward_vpi, for PLI 1.0 libraries (verilogPLI). Set by
+    # simulators that load PLI at run time (Icarus, Questa, Xcelium).
+    forward_pli : ClassVar[bool] = False
+
+    def check_pli(self, data : VlSimImageData) -> int:
+        """Backend hook, called once after inputs are gathered: validate
+        data.pli for this simulator. Returns a nonzero status (with an Error
+        marker) to skip the build.
+
+        The base rejects any PLI library. Backends that load PLI 1.0 override.
+        """
+        if len(data.pli):
+            self.markers.append(TaskMarker(
+                severity=SeverityE.Error,
+                msg="%s does not support PLI 1.0 libraries (%s)" % (
+                    self._sim_label(), ", ".join(l.path for l in data.pli))))
+            return 1
+        return 0
 
     def getRefTime(self, rundir):
         raise NotImplementedError()
@@ -192,6 +225,9 @@ class VlSimImageBuilder(object):
 
         self._log.debug("files: %s" % str(data.files))
 
+        if self.check_pli(data) != 0:
+            return TaskDataResult(status=1, markers=self.markers)
+
         if self._resolve_cov(input, data) != 0:
             return TaskDataResult(status=1, markers=self.markers)
 
@@ -237,6 +273,15 @@ class VlSimImageBuilder(object):
                     basedir=os.path.dirname(vpi_path),
                     files=[os.path.basename(vpi_path)],
                     attributes=attrs))
+
+        if self.forward_pli:
+            for lib in data.pli:
+                self.output.append(FileSet(
+                    src=input.name,
+                    filetype="verilogPLI",
+                    basedir=os.path.dirname(lib.path),
+                    files=[os.path.basename(lib.path)],
+                    attributes=lib.attributes()))
 
         return TaskDataResult(
             memento=self.memento if status == 0 else None,
@@ -317,6 +362,8 @@ class VlSimImageBuilder(object):
                         path = os.path.join(fs.basedir, file)
                         self._log.debug("path: basedir=%s fullpath=%s entrypoint=%s" % (fs.basedir, path, entrypoint))
                         data.vpi.append((path, entrypoint))
+                elif fs.filetype == "verilogPLI":
+                    pli_add(data.pli, pli_from_fileset(fs))
                 else:
                     data.sysv |= (fs.filetype == "systemVerilogSource")
                     for file in fs.files:

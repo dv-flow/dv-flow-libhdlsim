@@ -22,11 +22,45 @@
 import os
 import shutil
 from typing import List
+from dv_flow.mgr.task_data import TaskMarker, SeverityE
 from dv_flow.libhdlsim.vl_sim_runner import VLSimRunner
+from dv_flow.libhdlsim.vl_sim_data import PliLib
 from dv_flow.libhdlsim.sim_uvm_case import uvm_case_task
+
+def check_xcm_pli(libs : List[PliLib], markers : List[TaskMarker]) -> int:
+    """Xcelium finds a PLI 1.0 library's systfs through its boot routine
+    (-loadpli1 lib:boot) or a table (-plimapfile). A bare `-loadpli1 lib`
+    does not fall back to veriusertfs, so a library with neither can't load."""
+    status = 0
+    for lib in libs:
+        if not lib.boot and not lib.tab:
+            markers.append(TaskMarker(
+                severity=SeverityE.Error,
+                msg="Xcelium needs a `boot` routine or a `tab` file to load "
+                    "PLI 1.0 library %s" % lib.path))
+            status = 1
+    return status
+
+def xcm_pli_args(libs : List[PliLib], sim : bool) -> List[str]:
+    """-loadpli1 (and, at run time, -plimapfile) for each library. At
+    elaboration only libraries with a boot routine are loaded: xmelab rejects
+    -plimapfile, so a table-only library is bound at run time (xmelab warns
+    *W,MISSYST for its systfs, which is harmless)."""
+    args = []
+    for lib in libs:
+        if sim:
+            args.extend(['-loadpli1', "%s:%s" % (lib.path, lib.boot or "")])
+            if lib.tab:
+                args.extend(['-plimapfile', lib.tab])
+        elif lib.boot:
+            args.extend(['-loadpli1', "%s:%s" % (lib.path, lib.boot)])
+    return args
 
 class SimRunner(VLSimRunner):
     sim_name = "xcm"
+
+    def check_pli(self, data):
+        return check_xcm_pli(data.plilibs, self.markers)
 
 
     async def runsim(self, data):
@@ -53,6 +87,10 @@ class SimRunner(VLSimRunner):
         for vpi_path, entrypoint in data.vpilibs:
             ep = entrypoint if entrypoint else "vlog_startup_routines_bootstrap"
             cmd.extend(['-loadvpi', "%s:%s" % (vpi_path, ep)])
+
+        # PLI 1.0 libraries. Those with a boot routine are also recorded in
+        # the snapshot by xmelab; loading them again here is harmless.
+        cmd.extend(xcm_pli_args(data.plilibs, sim=True))
 
         for dpi in data.dpilibs:
             dpi_libdir = os.path.dirname(dpi)

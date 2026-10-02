@@ -24,6 +24,7 @@ import json
 import os
 from typing import List
 from dv_flow.mgr import TaskDataResult, FileSet
+from dv_flow.mgr.task_data import TaskMarker, SeverityE
 from dv_flow.libhdlsim.log_parser import LogParser
 from dv_flow.libhdlsim.vl_sim_runner import VLSimRunner
 from dv_flow.libhdlsim.sim_uvm_case import uvm_case_task
@@ -32,6 +33,17 @@ from dv_flow.libhdlsim.vl_sim_data import VlSimRunData
 class SimRunner(VLSimRunner):
     sim_name = "vcs"
 
+    def check_pli(self, data : VlSimRunData) -> int:
+        # VCS links PLI 1.0 into simv, so a library can't be added at run
+        # time. SimImage doesn't forward PLI on VCS: any that arrives here was
+        # attached to SimRun directly.
+        if len(data.plilibs):
+            self.markers.append(TaskMarker(
+                severity=SeverityE.Error,
+                msg="PLI must be attached to SimImage on VCS (%s)" % (
+                    ", ".join(l.path for l in data.plilibs))))
+            return 1
+        return 0
 
     async def runsim(self, data):
         status = 0

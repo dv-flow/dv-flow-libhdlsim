@@ -15,8 +15,6 @@ package:
       url: http://github.com/dv-flow/dv-flow-mgr.git
     - name: pytest-dfm
       url: https://github.com/dv-flow/pytest-dfm.git
-    - name: uvm
-      url: https://www.accellera.org/images/downloads/standards/uvm/Accellera-1800.2-2017-1.0.tar.gz
     - name: ply 
       src: pypi
     - name: pydantic
@@ -31,6 +29,9 @@ package:
       src: pypi
     - name: sphinxcontrib-mermaid
       src: pypi
+    - { name: verilator, src: gh-rls, cache: true, url: https://github.com/edapack/verilator-bin }
+    - { name: iverilog, src: gh-rls, cache: true, url: https://github.com/edapack/iverilog-bin }
+    - { name: xezim, src: gh-rls, cache: true, url: https://github.com/edapack/xezim-bin }
 
   - name: default
     deps:
@@ -56,10 +57,6 @@ package:
       src: pypi
     - name: sphinxcontrib-mermaid
       src: pypi
-    - name: verilator
-      url: https://github.com/pss-hands-on/verilator-bin/releases/download/v5.030.12537669638/verilator-ubuntu-x64-5.030.12537669638.tar.gz
-    - name: iverilog
-      url: https://github.com/pss-hands-on/iverilog-bin/releases/download/v12.0/iverilog-maylinux2014-12.0.tar.gz
 
   env:
   - name: PATH
