@@ -88,6 +88,11 @@ package:
     pytask: dv_flow.libhdlsim.vcs_sim_run.SimUVMCase
     desc: Run one VCS UVM test (run + verdict) and emit a TestResult
 
+  - export: SimCovMerge
+    uses: hdlsim.SimCovMerge
+    pytask: dv_flow.libhdlsim.cov_merge.VcsSimCovMerge
+    desc: Merge VCS coverage databases into one
+
   #------------------------------------------------------------------
   # Per-sim opt/debug flag sets (see hdlsim.SimCompArgsOpt et al.).
   # Selected by the `sim`-driven elaborator; each emits the matching
@@ -201,7 +206,7 @@ package:
             needs: [rtl, tb]
             with:
               top: [tb_top]
-              args: [-cm, line+cond+fsm+tgl+branch]
+              cov: code      # or full; see hdlsim.SimCovArgs
           ```
           
           ## Tasks

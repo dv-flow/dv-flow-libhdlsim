@@ -587,6 +587,45 @@ package:
         type: str
         value: image
 
+  - export: SimCovMerge
+    elaborate: dv_flow.libhdlsim.backend_select:elaborate
+    desc: Merge the coverage databases of a set of runs into one
+    produces:
+    - type: std.FileSet
+      filetype: simCovDb
+    - type: hdlsim.SimCovMergeResult
+    doc: |
+      SimCovMerge merges the coverage databases of the runs it `needs:` into
+      one, with the simulator's own merge utility (vlt: verilator_coverage
+      -write; vcs: urg -dbname; mti: vcover merge). It reads the `simCovDb`
+      artifacts of SimRunResult, TestResult and SuiteResult items, and bare
+      `simCovDb` FileSets. Only databases of the backend's `format=` are
+      merged; others are skipped with a warning. No database at all is an
+      error.
+
+      It outputs the merged database as a `simCovDb` FileSet with the same
+      `format=` (so a merge can feed another merge), and a SimCovMergeResult
+      with the merged `cov_<kind>_*` stats.
+
+      ```yaml
+      - name: cov-merge
+        uses: hdlsim.SimCovMerge
+        needs: [regress]           # a SimSuiteReport, or the cases themselves
+      ```
+
+      One merge command over all the databases (single-threaded).
+    consumes:
+    - type: hdlsim.SimRunResult
+    - type: hdlsim.TestResult
+    - type: hdlsim.SuiteResult
+    - filetype: simCovDb
+    uptodate: false
+    with:
+      sim:
+        doc: Simulator backend selector (see package sim); reads hdlsim.sim (CLI / set / with)
+        type: str
+        value: "${{ hdlsim.sim:-unset }}"
+
   #------------------------------------------------------------------
   # SimUVMCase -- the compact "run one UVM test" task: a SINGLE leaf task that
   # runs the simulator (in test mode: a failing test never aborts a suite) AND
@@ -1000,7 +1039,7 @@ package:
               errors, warnings, fatals, infos
             testbench-reported (optional tb_stats.json in the rundir):
               cycles, transactions, plus any custom scalar counters
-            coverage (image built with a coverage level; vlt, xzm):
+            coverage (image built with a coverage level; vlt, xzm, vcs, mti):
               cov_<kind>_pct, cov_<kind>_covered, cov_<kind>_total for each
               kind measured (line, branch, expr, toggle, fsm_state, fsm_arc,
               covergroup, user)
@@ -1020,8 +1059,10 @@ package:
           Collected artifact FileSets (simLog / simStats / simTrace / simCovDb),
           each with a `role=` attribute. simCovDb (present only when the run
           wrote a coverage database) also carries `format=` -- vlt-dat
-          (Verilator coverage.dat) or xezim-json (xezim_cov.json) -- which a
-          reader dispatches on.
+          (Verilator coverage.dat), xezim-json (xezim_cov.json), vcs-vdb
+          (VCS cov.vdb directory), questa-ucdb (Questa cov.ucdb) or
+          xcelium-ucd (Xcelium cov_work directory) -- which a reader
+          dispatches on.
         type: list
 
   - name: TestResult
@@ -1120,3 +1161,24 @@ package:
           cpu_total_s, maxrss_mb_max, simtime_s.
         type: map
 
+  - name: SimCovMergeResult
+    doc: |
+      What SimCovMerge merged, emitted alongside the merged simCovDb FileSet.
+    with:
+      sim:
+        doc: Simulator whose merge utility ran
+        type: str
+        value: ""
+      format:
+        doc: Format of the inputs and of the merged database (cov.FORMAT_*)
+        type: str
+        value: ""
+      inputs:
+        doc: Paths of the databases that were merged
+        type: list
+      stats:
+        doc: |
+          cov_<kind>_pct, cov_<kind>_covered, cov_<kind>_total of the merged
+          database, for each kind it measures. Empty when the simulator's
+          report utility isn't available.
+        type: map

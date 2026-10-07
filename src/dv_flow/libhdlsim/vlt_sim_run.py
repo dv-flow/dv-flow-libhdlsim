@@ -23,7 +23,6 @@ import asyncio
 import json
 import os
 import re
-import shutil
 import subprocess
 from typing import List, Optional
 from dv_flow.mgr import TaskDataResult, FileSet
@@ -130,15 +129,7 @@ class SimRunner(VLSimRunner):
     def _verilator_coverage(self) -> Optional[str]:
         """verilator_coverage from the same install as the `verilator` in
         use (so the report matches the writer's format), else from PATH."""
-        path = None
-        if self.ctxt is not None and getattr(self.ctxt, "env", None):
-            path = self.ctxt.env.get("PATH")
-        vlt = shutil.which("verilator", path=path)
-        if vlt is not None:
-            cand = os.path.join(os.path.dirname(vlt), "verilator_coverage")
-            if os.path.isfile(cand) and os.access(cand, os.X_OK):
-                return cand
-        return shutil.which("verilator_coverage", path=path)
+        return self._which("verilator_coverage", sibling_of="verilator")
 
     def parse_cov_summary(self, rundir, cov_info):
         dat = os.path.join(rundir, "coverage.dat")

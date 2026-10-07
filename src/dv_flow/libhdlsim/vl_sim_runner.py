@@ -24,11 +24,12 @@ import glob
 import json
 import logging
 import shutil
+import subprocess
 import time
 import dataclasses as dc
 from dv_flow.mgr import FileSet, TaskDataResult, TaskRunCtxt
 from dv_flow.mgr.task_data import TaskMarker, SeverityE
-from typing import ClassVar, Dict, List, Tuple
+from typing import ClassVar, Dict, List, Optional, Tuple
 from dv_flow.libhdlsim.log_parser import LogParser
 from dv_flow.libhdlsim.vl_sim_data import VlSimRunData, pli_add, pli_from_fileset
 from dv_flow.libhdlsim import cov, sim_stats
@@ -273,6 +274,39 @@ class VLSimRunner(object):
         """
         return {}
 
+    def _which(self, exe : str, sibling_of : str = None) -> Optional[str]:
+        """`exe` on the task's PATH. With `sibling_of`, prefer the `exe` next
+        to that tool (eg a report utility from the same install as the
+        simulator that wrote the database)."""
+        path = None
+        if self.ctxt is not None and getattr(self.ctxt, "env", None):
+            path = self.ctxt.env.get("PATH")
+        if sibling_of is not None:
+            tool = shutil.which(sibling_of, path=path)
+            if tool is not None:
+                cand = os.path.join(os.path.dirname(tool), exe)
+                if os.path.isfile(cand) and os.access(cand, os.X_OK):
+                    return cand
+        return shutil.which(exe, path=path)
+
+    def _run_report(self, cmd : List[str], cwd : str = None) -> Optional[str]:
+        """Run a coverage report utility; its stdout, or None when it fails.
+        For parse_cov_summary: like that hook, failures are debug-logged."""
+        env = None
+        if self.ctxt is not None and getattr(self.ctxt, "env", None):
+            env = dict(self.ctxt.env)
+        try:
+            p = subprocess.run(cmd, stdout=subprocess.PIPE,
+                               stderr=subprocess.STDOUT, text=True,
+                               cwd=cwd or self.rundir, env=env, timeout=600)
+        except (OSError, subprocess.SubprocessError) as e:
+            self._log.debug("%s failed: %s", cmd[0], e)
+            return None
+        if p.returncode != 0:
+            self._log.debug("%s failed (%d): %s", cmd[0], p.returncode, p.stdout)
+            return None
+        return p.stdout
+
     def _collect_stats(self, input, data : VlSimRunData, rc : int):
         """Assemble the run's `stats` + `runinfo` maps and persist them.
 
@@ -349,7 +383,8 @@ class VLSimRunner(object):
         `simCovDb` carries `format=<id>` (cov.FORMAT_*): the database's
         format, which a downstream merge/report task dispatches on rather than
         on the file name. It is present only when the run wrote a database,
-        which happens only when the image was built with coverage.
+        which happens only when the image was built with coverage. Its
+        patterns may name a directory (a VCS .vdb, an Xcelium cov_work).
         """
         return {
             "simLog":   (["sim.log"],                   "log"),
@@ -359,19 +394,23 @@ class VLSimRunner(object):
                          ["format=%s" % cov.FORMAT_VLT_DAT]),
         }
 
-    def _glob_rundir(self, globs : List[str]) -> List[str]:
+    def _glob_rundir(self, globs : List[str], dirs : bool = False) -> List[str]:
         files = []
         for g in globs:
             files.extend(glob.glob(os.path.join(self.rundir, g)))
-        return sorted(set(f for f in files if os.path.isfile(f)))
+        return sorted(set(f for f in files
+                          if os.path.isfile(f) or (dirs and os.path.isdir(f))))
 
     def _remove_cov_db(self):
         spec = self._artifact_spec().get("simCovDb")
         if spec is None:
             return
-        for f in self._glob_rundir(spec[0]):
+        for f in self._glob_rundir(spec[0], dirs=True):
             try:
-                os.unlink(f)
+                if os.path.isdir(f) and not os.path.islink(f):
+                    shutil.rmtree(f)
+                else:
+                    os.unlink(f)
             except OSError as e:
                 self._log.debug("could not remove stale %s: %s", f, e)
 
@@ -383,7 +422,7 @@ class VLSimRunner(object):
         for ftype, spec in self._artifact_spec().items():
             globs, role = spec[0], spec[1]
             extra = list(spec[2]) if len(spec) > 2 else []
-            files = self._glob_rundir(globs)
+            files = self._glob_rundir(globs, dirs=(ftype == "simCovDb"))
             if files:
                 out.append(FileSet(
                     filetype=ftype,

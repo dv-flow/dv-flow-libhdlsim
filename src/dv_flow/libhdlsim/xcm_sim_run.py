@@ -21,8 +21,9 @@
 #****************************************************************************
 import os
 import shutil
-from typing import List
+from typing import Dict, List, Tuple
 from dv_flow.mgr.task_data import TaskMarker, SeverityE
+from dv_flow.libhdlsim import cov
 from dv_flow.libhdlsim.vl_sim_runner import VLSimRunner
 from dv_flow.libhdlsim.vl_sim_data import PliLib
 from dv_flow.libhdlsim.sim_uvm_case import uvm_case_task
@@ -55,6 +56,20 @@ def xcm_pli_args(libs : List[PliLib], sim : bool) -> List[str]:
         elif lib.boot:
             args.extend(['-loadpli1', "%s:%s" % (lib.path, lib.boot)])
     return args
+
+# Coverage level -> (kinds, xmelab -coverage). u = functional (covergroups,
+# cover property); b = block (reported as line); e = expression; f = FSM;
+# t = toggle.
+XCM_COV = {
+    "func": (["covergroup", "user"], "u"),
+    "code": (["covergroup", "user", "line", "expr"], "b:e:u"),
+    "full": (["covergroup", "user", "line", "expr",
+              "toggle", "fsm_state", "fsm_arc"], "b:e:f:t:u"),
+}
+
+# The run's coverage work directory: xmsim writes the model (.ucm) and this
+# run's data (.ucd) there, so it stands alone.
+COV_DB = "cov_work"
 
 class SimRunner(VLSimRunner):
     sim_name = "xcm"
@@ -99,6 +114,12 @@ class SimRunner(VLSimRunner):
                 dpi_file = dpi_file[:dpi_file.rfind('.')]
             cmd.extend(['-sv_lib', os.path.join(dpi_libdir, dpi_file)])
 
+        if data.cov is not None and data.cov.get("level") in XCM_COV:
+            cmd.extend(['-covworkdir', os.path.join(self.rundir, COV_DB),
+                        '-covscope', 'scope',
+                        '-covtest', cov.db_test_name(self.rundir),
+                        '-covoverwrite'])
+
         for plusarg in data.plusargs:
             cmd.append("+%s" % plusarg)
         for arg in data.args:
@@ -107,6 +128,14 @@ class SimRunner(VLSimRunner):
         status |= await self.exec_sim(cmd, logfile="sim.log")
 
         return status
+
+    # No parse_cov_summary: Xcelium's totals come from IMC, which isn't
+    # supported yet. The run still yields its database.
+
+    def _artifact_spec(self) -> Dict[str, Tuple]:
+        spec = super()._artifact_spec()
+        spec["simCovDb"] = ([COV_DB], "cov", ["format=%s" % cov.FORMAT_XCELIUM_UCD])
+        return spec
 
 async def SimRun(runner, input):
     return await SimRunner().run(runner, input)

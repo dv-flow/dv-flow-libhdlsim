@@ -22,6 +22,7 @@
 import os
 import asyncio
 import json
+import shutil
 from typing import List
 from dv_flow.libhdlsim.vl_sim_image_builder import (
     VlSimImageBuilder, VlTaskSimImageMemento, check_sim_image_uptodate)
@@ -30,6 +31,7 @@ from dv_flow.mgr import FileSet
 from dv_flow.mgr.task_data import TaskMarker, SeverityE
 from svdep import TaskBuildFileCollection
 from .vcs_log_parser import VcsLogParser
+from .vcs_sim_run import VCS_COV
 
 class SimImageBuilder(VlSimImageBuilder):
 
@@ -49,6 +51,9 @@ class SimImageBuilder(VlSimImageBuilder):
                     msg="VCS ignores `boot` (%s) for PLI 1.0 library %s; the "
                         "`tab` file names its functions" % (lib.boot, lib.path)))
         return status
+
+    def cov_kinds(self, level):
+        return list(VCS_COV[level][0]) if level in VCS_COV else []
 
     def getRefTime(self, rundir):
         if os.path.isfile(os.path.join(rundir, 'simv')):
@@ -114,6 +119,13 @@ class SimImageBuilder(VlSimImageBuilder):
                     cmd.append('-fastpartcomp=j%d' % input.params.fastpartcomp)
             cmd.extend(data.args)
             cmd.extend(data.elabargs)
+
+            # Coverage instrumentation. simv.vdb holds the design shape each
+            # run copies; rebuild it so no metric from an earlier level lingers.
+            if data.cov_level in VCS_COV:
+                shutil.rmtree(os.path.join(input.rundir, 'simv.vdb'),
+                              ignore_errors=True)
+                cmd.extend(['-cm', VCS_COV[data.cov_level][1]])
 
             if len(data.vpi):
                 cmd.extend(["+vpi", "-debug_access"])

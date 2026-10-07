@@ -27,7 +27,7 @@ from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
 from dv_flow.mgr import FileSet
 from svdep import TaskBuildFileCollection
 from .util import xcelium_cds_lib
-from .xcm_sim_run import check_xcm_pli, xcm_pli_args
+from .xcm_sim_run import XCM_COV, check_xcm_pli, xcm_pli_args
 
 class SimImageBuilder(VlSimImageBuilder):
 
@@ -39,6 +39,9 @@ class SimImageBuilder(VlSimImageBuilder):
 
     def check_pli(self, data : VlSimImageData) -> int:
         return check_xcm_pli(data.pli, self.markers)
+
+    def cov_kinds(self, level):
+        return list(XCM_COV[level][0]) if level in XCM_COV else []
 
     def getRefTime(self, rundir):
         if os.path.isfile(os.path.join(rundir, 'simv_opt.d')):
@@ -112,6 +115,9 @@ class SimImageBuilder(VlSimImageBuilder):
                 cmd.extend(['-access', '+rwc'])
 
             cmd.extend(xcm_pli_args(data.pli, sim=False))
+
+            if data.cov_level in XCM_COV:
+                cmd.extend(['-coverage', XCM_COV[data.cov_level][1]])
 
             for top in input.params.top:
                 cmd.append(top)

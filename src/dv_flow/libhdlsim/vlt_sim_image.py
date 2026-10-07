@@ -248,13 +248,15 @@ class SimImageBuilder(VlSimImageBuilder):
             for elem in make_cmd:
                 fp.write("%s\n" % elem)
 
+        # make.log, not build.log: build.log keeps Verilator's own output
+        # (its warnings), which a downstream check reads.
         status |= await self.ctxt.exec(
             make_cmd,
             cwd=input.rundir,
             env=env,
-            logfile="build.log")
+            logfile="make.log")
 
-        self.parseLog(os.path.join(input.rundir, 'build.log'))
+        self.parseLog(os.path.join(input.rundir, 'make.log'))
 
         if status:
             return (status, changed)

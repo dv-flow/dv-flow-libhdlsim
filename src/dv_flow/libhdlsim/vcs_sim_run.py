@@ -22,13 +22,32 @@
 import asyncio
 import json
 import os
-from typing import List
+import shutil
+import tempfile
+from typing import Dict, List, Tuple
 from dv_flow.mgr import TaskDataResult, FileSet
 from dv_flow.mgr.task_data import TaskMarker, SeverityE
+from dv_flow.libhdlsim import cov
 from dv_flow.libhdlsim.log_parser import LogParser
 from dv_flow.libhdlsim.vl_sim_runner import VLSimRunner
 from dv_flow.libhdlsim.sim_uvm_case import uvm_case_task
 from dv_flow.libhdlsim.vl_sim_data import VlSimRunData
+
+# Coverage level -> (kinds, -cm metrics), for both vcs and simv. Covergroups
+# are recorded at every level; `assert` adds `cover property`. VCS's single
+# FSM score counts transitions.
+VCS_COV = {
+    "func": (["covergroup", "user"], "assert"),
+    "code": (["covergroup", "user", "line", "branch", "expr"],
+             "line+cond+branch+assert"),
+    "full": (["covergroup", "user", "line", "branch", "expr",
+              "toggle", "fsm_arc"],
+             "line+cond+branch+tgl+fsm+assert"),
+}
+
+# The run's coverage database: a copy of the image's simv.vdb (the design
+# shape) that simv adds this run's test data to, so it stands alone.
+COV_DB = "cov.vdb"
 
 class SimRunner(VLSimRunner):
     sim_name = "vcs"
@@ -56,6 +75,9 @@ class SimRunner(VLSimRunner):
             cmd.append("-sv_lib")
             cmd.append(os.path.splitext(lib)[0])
 
+        if data.cov is not None and data.cov.get("level") in VCS_COV:
+            cmd.extend(self._cov_args(data))
+
         cmd.extend(data.args)
 
         cmd.extend(["+%s" % p for p in data.plusargs])
@@ -63,6 +85,42 @@ class SimRunner(VLSimRunner):
         status |= await self.exec_sim(cmd, logfile="sim.log")
 
         return status
+
+    def _cov_args(self, data) -> List[str]:
+        db = os.path.join(self.rundir, COV_DB)
+        img_db = os.path.join(data.imgdir, "simv.vdb")
+        # Leave behind test data an earlier run wrote into the image's vdb
+        if os.path.isdir(img_db):
+            shutil.copytree(img_db, db, symlinks=True,
+                            ignore=shutil.ignore_patterns("testdata"))
+        return ["-cm", VCS_COV[data.cov["level"]][1],
+                "-cm_dir", db,
+                "-cm_name", cov.db_test_name(self.rundir)]
+
+    def parse_cov_summary(self, rundir, cov_info):
+        db = os.path.join(rundir, COV_DB)
+        if not os.path.isdir(db):
+            return {}
+        urg = self._which("urg", sibling_of="vcs")
+        if urg is None:
+            self._log.debug("urg not found; no coverage summary")
+            return {}
+        with tempfile.TemporaryDirectory(dir=rundir) as tmp:
+            report = os.path.join(tmp, "report")
+            if self._run_report([urg, "-full64", "-dir", db, "-format", "text",
+                                 "-show", "ratios", "-show", "summary", "0",
+                                 "-report", report], cwd=tmp) is None:
+                return {}
+            dashboard = os.path.join(report, "dashboard.txt")
+            if not os.path.isfile(dashboard):
+                return {}
+            with open(dashboard, "r") as fp:
+                return cov.parse_vcs_cov_summary(fp.read(), cov_info.get("kinds"))
+
+    def _artifact_spec(self) -> Dict[str, Tuple]:
+        spec = super()._artifact_spec()
+        spec["simCovDb"] = ([COV_DB], "cov", ["format=%s" % cov.FORMAT_VCS_VDB])
+        return spec
 
 async def SimRun(runner, input) -> TaskDataResult:
     return await SimRunner().run(runner, input)

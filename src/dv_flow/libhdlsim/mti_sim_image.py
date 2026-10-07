@@ -27,6 +27,7 @@ from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
 from dv_flow.mgr import FileSet
 from svdep import TaskBuildFileCollection
 from .mti_log_parser import MtiLogParser
+from .mti_sim_run import MTI_COV
 
 class SimImageBuilder(VlSimImageBuilder):
 
@@ -38,6 +39,9 @@ class SimImageBuilder(VlSimImageBuilder):
     def check_pli(self, data : VlSimImageData) -> int:
         # Any library can load: via veriusertfs/init_usertfs, or -tab.
         return 0
+
+    def cov_kinds(self, level):
+        return list(MTI_COV[level][0]) if level in MTI_COV else []
 
     def getRefTime(self, rundir):
         if os.path.isfile(os.path.join(rundir, 'simv_opt.d')):
@@ -101,6 +105,11 @@ class SimImageBuilder(VlSimImageBuilder):
 
             cmd.extend(data.args)
             cmd.extend(data.elabargs)
+
+            # Code-coverage instrumentation (functional needs none)
+            cover = MTI_COV.get(data.cov_level, (None, None))[1]
+            if cover is not None:
+                cmd.append('+cover=%s' % cover)
 
             # Design visibility for PLI 1.0 libraries that ask for it.
             # TODO: unverified whether Questa 2026 prefers -access=rw+/.

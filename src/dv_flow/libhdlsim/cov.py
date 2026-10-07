@@ -33,7 +33,7 @@ record back, so a run always follows its image.
 
 Kinds use the ``verilator_coverage --report summary`` vocabulary
 (:data:`KINDS`); a backend maps its own names onto these (xezim's
-``statement`` is ``line``).
+``statement`` is ``line``, VCS's ``COND`` is ``expr``).
 
 This module imports nothing from dv-flow, so it unit-tests standalone.
 """
@@ -58,6 +58,9 @@ COV_FILE = "cov.json"
 # (merge, report) dispatches on these, never on the file name.
 FORMAT_VLT_DAT = "vlt-dat"          # Verilator coverage.dat
 FORMAT_XEZIM_JSON = "xezim-json"    # xezim xezim_cov.json
+FORMAT_VCS_VDB = "vcs-vdb"          # VCS <name>.vdb directory
+FORMAT_QUESTA_UCDB = "questa-ucdb"  # Questa .ucdb file
+FORMAT_XCELIUM_UCD = "xcelium-ucd"  # Xcelium cov_work directory (.ucm + .ucd)
 
 
 def level_rank(name : str) -> int:
@@ -103,6 +106,14 @@ def read_cov_json(imgdir : str) -> Optional[Dict[str, Any]]:
         return None
     data.setdefault("kinds", [])
     return data
+
+
+def db_test_name(rundir : str) -> str:
+    """The test name a run records in its database (VCS ``-cm_name``,
+    Xcelium ``-covtest``): the run directory's name, reduced to characters
+    every tool accepts. A merge tells runs apart by this name."""
+    name = re.sub(r'[^A-Za-z0-9_]', '_', os.path.basename((rundir or "").rstrip("/")))
+    return name or "test"
 
 
 def remove_cov_json(imgdir : str) -> None:
@@ -180,6 +191,85 @@ def parse_xzm_cov_summary(obj : Any,
             covered, total = int(ent["covered"]), int(ent["total"])
         except (KeyError, TypeError, ValueError):
             continue
+        if _keep(kind, total, kinds):
+            stats.update(_kind_stats(kind, covered, total))
+    return stats
+
+
+# urg dashboard column -> KINDS name. VCS's one FSM column counts transitions.
+_VCS_KINDS = {"LINE": "line", "COND": "expr", "BRANCH": "branch",
+              "TOGGLE": "toggle", "FSM": "fsm_arc", "ASSERT": "user",
+              "GROUP": "covergroup"}
+
+_RATIO_RE = re.compile(r'^(\d+)/(\d+)$')
+
+
+def parse_vcs_cov_summary(text : str,
+                          kinds : Optional[Iterable[str]] = None) -> Dict[str, Any]:
+    """Parse the ``Total Coverage Summary`` table of the ``dashboard.txt``
+    that ``urg -format text -show ratios`` writes.
+
+    With ``-show ratios`` each column after SCORE is a percentage (or ``--``)
+    followed by ``covered/total``. Only the ratios are used.
+    """
+    stats : Dict[str, Any] = {}
+    lines = (text or "").splitlines()
+    for i, line in enumerate(lines):
+        if line.strip() != "Total Coverage Summary":
+            continue
+        if i + 2 >= len(lines):
+            break
+        cols = lines[i + 1].split()
+        vals = lines[i + 2].split()
+        if not cols or cols[0] != "SCORE":
+            break
+        # SCORE is one token; every other column is two (pct, ratio)
+        for j, col in enumerate(cols[1:]):
+            k = 2 + 2 * j
+            if k >= len(vals):
+                break
+            m = _RATIO_RE.match(vals[k])
+            kind = _VCS_KINDS.get(col)
+            if m is None or kind is None:
+                continue
+            covered, total = int(m.group(1)), int(m.group(2))
+            if _keep(kind, total, kinds):
+                stats.update(_kind_stats(kind, covered, total))
+        break
+    return stats
+
+
+# vcover row -> KINDS name. Conditions and Expressions both count as expr.
+_MTI_KINDS = {"Statements": "line", "Branches": "branch",
+              "Conditions": "expr", "Expressions": "expr",
+              "Toggles": "toggle", "FSM States": "fsm_state",
+              "FSM Transitions": "fsm_arc", "Covergroup Bins": "covergroup",
+              "Directives": "user"}
+
+_MTI_ROW_RE = re.compile(
+    r'^\s*([A-Za-z][A-Za-z /]*?)\s+(\d+)\s+(\d+)\s+(\d+)\s+\d+\s+[0-9.]+%\s*$')
+
+
+def parse_mti_cov_summary(text : str,
+                          kinds : Optional[Iterable[str]] = None) -> Dict[str, Any]:
+    """Parse ``vcover report -summary`` output (Bins / Hits rows).
+
+    Rows with ``na`` counts (eg ``Covergroups``) and rows without a
+    :data:`KINDS` mapping (eg ``Assertions``) are skipped.
+    """
+    counts : Dict[str, List[int]] = {}
+    for line in (text or "").splitlines():
+        m = _MTI_ROW_RE.match(line)
+        if m is None:
+            continue
+        kind = _MTI_KINDS.get(m.group(1))
+        if kind is None:
+            continue
+        c = counts.setdefault(kind, [0, 0])
+        c[0] += int(m.group(3))
+        c[1] += int(m.group(2))
+    stats : Dict[str, Any] = {}
+    for kind, (covered, total) in counts.items():
         if _keep(kind, total, kinds):
             stats.update(_kind_stats(kind, covered, total))
     return stats

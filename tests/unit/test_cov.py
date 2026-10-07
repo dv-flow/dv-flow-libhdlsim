@@ -8,6 +8,7 @@
 #****************************************************************************
 import json
 import os
+import shutil
 
 import pytest
 
@@ -18,6 +19,10 @@ DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "cov")
 
 def _fixture(name):
     return os.path.join(DATA, name)
+
+
+def _kinds_in(stats):
+    return set(k[len("cov_"):].rsplit("_", 1)[0] for k in stats)
 
 
 #---------------------------------------------------------------------------
@@ -149,6 +154,104 @@ def test_xzm_summary_kinds_filter():
 def test_xzm_summary_garbage():
     assert cov.parse_xzm_cov_summary(None) == {}
     assert cov.parse_xzm_cov_summary({"code_coverage": {"statement": {}}}) == {}
+
+
+#---------------------------------------------------------------------------
+# VCS urg dashboard parser (fixtures: urg Y-2026.03, `-show ratios`)
+#---------------------------------------------------------------------------
+
+def _vcs(name, kinds=None):
+    with open(_fixture("vcs_dashboard_%s.txt" % name)) as fp:
+        return cov.parse_vcs_cov_summary(fp.read(), kinds)
+
+
+def test_vcs_summary_full():
+    s = _vcs("full")
+    assert (s["cov_line_covered"], s["cov_line_total"]) == (16, 18)
+    assert (s["cov_expr_covered"], s["cov_expr_total"]) == (7, 7)        # COND
+    assert (s["cov_branch_covered"], s["cov_branch_total"]) == (7, 9)
+    assert (s["cov_toggle_covered"], s["cov_toggle_total"]) == (13, 14)
+    assert (s["cov_user_covered"], s["cov_user_total"]) == (1, 1)        # ASSERT
+    assert (s["cov_covergroup_covered"], s["cov_covergroup_total"]) == (3, 4)
+    # The percentage is recomputed from the ratio, not taken from the text
+    assert s["cov_toggle_pct"] == round(100.0 * 13 / 14, 2)
+    # FSM is `-- 0/0` on this design
+    assert not any(k.startswith("cov_fsm") for k in s)
+
+
+def test_vcs_summary_fsm():
+    # One FSM column, counting transitions; COND is `-- 0/0`
+    s = _vcs("fsm")
+    assert (s["cov_fsm_arc_covered"], s["cov_fsm_arc_total"]) == (3, 4)
+    assert "cov_fsm_state_pct" not in s
+    assert "cov_expr_pct" not in s
+    assert "cov_covergroup_pct" not in s       # no GROUP column
+
+
+def test_vcs_summary_kinds_filter():
+    assert set(_vcs("full", kinds=["covergroup", "user"])) == {
+        "cov_covergroup_pct", "cov_covergroup_covered", "cov_covergroup_total",
+        "cov_user_pct", "cov_user_covered", "cov_user_total"}
+
+
+def test_vcs_summary_garbage():
+    assert cov.parse_vcs_cov_summary("") == {}
+    assert cov.parse_vcs_cov_summary(None) == {}
+    # Without -show ratios there are no counts to report
+    assert cov.parse_vcs_cov_summary(
+        "Total Coverage Summary\nSCORE  LINE   GROUP\n 80.00  88.89  75.00\n") == {}
+    # A truncated table
+    assert cov.parse_vcs_cov_summary("Total Coverage Summary\nSCORE LINE\n") == {}
+
+
+#---------------------------------------------------------------------------
+# Questa vcover parser (fixtures: vcover 2026.1 `report -summary`)
+#---------------------------------------------------------------------------
+
+def _mti(name, kinds=None):
+    with open(_fixture("mti_summary_%s.txt" % name)) as fp:
+        return cov.parse_mti_cov_summary(fp.read(), kinds)
+
+
+def test_mti_summary_full():
+    s = _mti("full")
+    assert (s["cov_line_covered"], s["cov_line_total"]) == (14, 16)      # Statements
+    assert (s["cov_branch_covered"], s["cov_branch_total"]) == (9, 11)
+    assert (s["cov_expr_covered"], s["cov_expr_total"]) == (4, 4)        # Conditions
+    assert (s["cov_toggle_covered"], s["cov_toggle_total"]) == (13, 14)
+    assert (s["cov_user_covered"], s["cov_user_total"]) == (1, 1)        # Directives
+    # Covergroup Bins, not the `na` Covergroups row
+    assert (s["cov_covergroup_covered"], s["cov_covergroup_total"]) == (3, 4)
+
+
+def test_mti_summary_fsm():
+    s = _mti("fsm")
+    assert (s["cov_fsm_state_covered"], s["cov_fsm_state_total"]) == (3, 3)
+    assert (s["cov_fsm_arc_covered"], s["cov_fsm_arc_total"]) == (3, 4)
+
+
+def test_mti_summary_conditions_and_expressions_sum():
+    text = ("    Conditions                       4         3         1         1    75.00%\n"
+            "    Expressions                      6         6         0         1   100.00%\n"
+            "    Assertions                       2         2         0         1   100.00%\n")
+    s = cov.parse_mti_cov_summary(text)
+    assert (s["cov_expr_covered"], s["cov_expr_total"]) == (9, 10)
+    assert _kinds_in(s) == {"expr"}      # Assertions has no kind
+
+
+def test_mti_summary_kinds_filter():
+    assert _kinds_in(_mti("full", kinds=["line", "toggle"])) == {"line", "toggle"}
+
+
+def test_mti_summary_garbage():
+    assert cov.parse_mti_cov_summary("") == {}
+    assert cov.parse_mti_cov_summary("** Error: (vcover-1234) Cannot open file") == {}
+
+
+def test_db_test_name():
+    assert cov.db_test_name("/r/t.sim-run") == "t_sim_run"
+    assert cov.db_test_name("/r/case_3/") == "case_3"
+    assert cov.db_test_name("") == "test"
 
 
 #---------------------------------------------------------------------------
@@ -368,10 +471,6 @@ def test_unknown_level_errors(tmpdir, sim):
 needs_vlt = pytest.mark.skipif("vlt" not in ALL_SIMS, reason="verilator not installed")
 
 
-def _kinds_in(stats):
-    return set(k[len("cov_"):].rsplit("_", 1)[0] for k in stats)
-
-
 @needs_vlt
 def test_vlt_func(tmpdir):
     r = CovRun(tmpdir, "vlt", cov_param="func")
@@ -567,11 +666,162 @@ def test_xzm_level_change(tmpdir):
 
 
 #---------------------------------------------------------------------------
+# VCS, Questa, Xcelium
+#---------------------------------------------------------------------------
+
+needs_vcs = pytest.mark.skipif("vcs" not in ALL_SIMS, reason="vcs not installed")
+needs_mti = pytest.mark.skipif("mti" not in ALL_SIMS, reason="questa not installed")
+needs_xcm = pytest.mark.skipif("xcm" not in ALL_SIMS, reason="xcelium not installed")
+
+# sim -> (database name, format=)
+_COMMERCIAL_DB = {
+    "vcs": ("cov.vdb", "vcs-vdb"),
+    "mti": ("cov.ucdb", "questa-ucdb"),
+    "xcm": ("cov_work", "xcelium-ucd"),
+}
+
+# Kinds each level reports on cov_top. VCS finds no FSM in it, and Questa's
+# FSM extraction doesn't either (see the fsm fixtures for those rows).
+_COMMERCIAL_KINDS = {
+    "func": {"covergroup", "user"},
+    "code": {"covergroup", "user", "line", "branch", "expr"},
+    "full": {"covergroup", "user", "line", "branch", "expr", "toggle"},
+}
+
+_REPORTER = {"vcs": "urg", "mti": "vcover"}
+
+# Backends whose run reports cov_* stats (they need their report utility)
+STATS_SIMS = [s for s in ("vcs", "mti")
+              if s in ALL_SIMS and shutil.which(_REPORTER[s]) is not None]
+DB_SIMS = [s for s in ("vcs", "mti", "xcm") if s in ALL_SIMS]
+
+
+def _check_db(r, sim):
+    name, fmt = _COMMERCIAL_DB[sim]
+    dbs = r.artifacts("simCovDb")
+    assert len(dbs) == 1, r.result.artifacts
+    assert dbs[0].files == [name]
+    assert dbs[0].attributes == ["role=cov", "format=%s" % fmt]
+    assert os.path.exists(os.path.join(dbs[0].basedir, name))
+    return os.path.join(dbs[0].basedir, name)
+
+
+@pytest.mark.parametrize("sim", DB_SIMS)
+@pytest.mark.parametrize("level", ["func", "code", "full"])
+def test_commercial_db(tmpdir, sim, level):
+    """Every level yields one database, of the backend's format, and records
+    the level in cov.json and runinfo."""
+    r = CovRun(tmpdir, sim, cov_param=level)
+    assert r.status == 0
+    assert r.cov_json()["level"] == level
+    assert r.result.runinfo["cov"] == r.cov_json()
+    _check_db(r, sim)
+    assert r.task_markers("sim_img", SeverityE.Warning) == []
+
+
+@pytest.mark.parametrize("sim", STATS_SIMS)
+@pytest.mark.parametrize("level", ["func", "code", "full"])
+def test_commercial_stats(tmpdir, sim, level):
+    r = CovRun(tmpdir, sim, cov_param=level)
+    assert r.status == 0
+    s = r.cov_stats()
+    assert _kinds_in(s) == _COMMERCIAL_KINDS[level]
+    # The covergroup has one hit and one unhit bin per coverpoint
+    assert (s["cov_covergroup_covered"], s["cov_covergroup_total"]) == (3, 4)
+    assert (s["cov_user_covered"], s["cov_user_total"]) == (1, 1)
+    if level != "func":
+        assert 0 < s["cov_line_pct"] < 100
+    if level == "full":
+        assert (s["cov_toggle_covered"], s["cov_toggle_total"]) == (13, 14)
+
+
+@pytest.mark.parametrize("sim", DB_SIMS)
+def test_commercial_level_from_item(tmpdir, sim):
+    """A SimCovArgs holder sets the level; with the param too, highest wins."""
+    r = CovRun(tmpdir, sim, cov_param="func", cov_items=["code", "none"])
+    assert r.status == 0
+    assert r.cov_json()["level"] == "code"
+
+
+@pytest.mark.parametrize("sim", DB_SIMS)
+def test_commercial_level_change(tmpdir, sim):
+    """Same rundir: code -> func -> none. Each rebuild re-records the level,
+    and the run drops the database the previous run left."""
+    r = CovRun(tmpdir, sim, cov_param="code")
+    assert r.status == 0
+    _check_db(r, sim)
+
+    r = CovRun(tmpdir, sim, cov_param="func")
+    assert r.status == 0
+    assert r.cov_json()["level"] == "func"
+    _check_db(r, sim)
+    if sim in STATS_SIMS:
+        assert _kinds_in(r.cov_stats()) == {"covergroup", "user"}
+
+    r = CovRun(tmpdir, sim, cov_param="none")
+    assert r.status == 0
+    assert r.cov_json() is None
+    assert r.artifacts("simCovDb") == []
+    assert not os.path.exists(os.path.join(r.rundir_run, _COMMERCIAL_DB[sim][0]))
+    assert "cov" not in r.result.runinfo
+    assert r.cov_stats() == {}
+
+
+@needs_vcs
+def test_vcs_db_stands_alone(tmpdir):
+    """The run's cov.vdb carries the design shape copied from the image,
+    and the run writes its test data there, not into the image's simv.vdb."""
+    r = CovRun(tmpdir, "vcs", cov_param="code")
+    assert r.status == 0
+    db = _check_db(r, "vcs")
+    testdata = os.path.join(db, "snps", "coverage", "db", "testdata")
+    name = cov.db_test_name(r.rundir_run)
+    assert os.listdir(testdata) == [name]
+    assert not os.path.exists(os.path.join(
+        r.imgdir, "simv.vdb", "snps", "coverage", "db", "testdata"))
+    cmd = r.result.runinfo["cmd"]
+    assert cmd[cmd.index("-cm") + 1] == "line+cond+branch+assert"
+    assert cmd[cmd.index("-cm_name") + 1] == name
+
+
+@needs_mti
+def test_mti_func_has_no_code_coverage(tmpdir):
+    """At func, vopt gets no +cover (covergroups and directives need none)."""
+    r = CovRun(tmpdir, "mti", cov_param="func")
+    assert r.status == 0
+    with open(os.path.join(r.imgdir, "vopt.log")) as fp:
+        assert "+cover" not in fp.read()
+    r = CovRun(tmpdir.mkdir("b"), "mti", cov_param="full")
+    assert r.status == 0
+    with open(os.path.join(r.imgdir, "vopt.log")) as fp:
+        assert "+cover=sbceft" in fp.read()
+
+
+@needs_xcm
+def test_xcm_db_stands_alone(tmpdir):
+    """xmsim writes the model (.ucm) and this run's data (.ucd) to the run's
+    cov_work. Xcelium reports no cov_* stats yet."""
+    r = CovRun(tmpdir, "xcm", cov_param="full")
+    assert r.status == 0
+    db = _check_db(r, "xcm")
+    scope = os.path.join(db, "scope")
+    assert any(f.endswith(".ucm") for f in os.listdir(scope))
+    assert any(f.endswith(".ucd") for f in os.listdir(
+        os.path.join(scope, cov.db_test_name(r.rundir_run))))
+    assert r.cov_stats() == {}
+    assert r.cov_json()["kinds"] == ["covergroup", "user", "line", "expr",
+                                     "toggle", "fsm_state", "fsm_arc"]
+
+
+#---------------------------------------------------------------------------
 # Suite roll-up
 #---------------------------------------------------------------------------
 
-@needs_vlt
-def test_vlt_suite_rollup(tmpdir):
+_SUITE_FORMAT = {"vlt": "vlt-dat", "vcs": "vcs-vdb", "mti": "questa-ucdb"}
+
+
+@pytest.mark.parametrize("sim", [s for s in ALL_SIMS if s == "vlt"] + STATS_SIMS)
+def test_suite_rollup(tmpdir, sim):
     """Two cases on one `code` image -> SimSuiteReport: each TestResult keeps
     its own cov_* stats and simCovDb; the SuiteResult rolls up the best
     percentage; junit.xml / ctrf.json carry the level and percentages."""
@@ -581,12 +831,12 @@ def test_vlt_suite_rollup(tmpdir):
          "with": {"type": "systemVerilogSource", "base": DATA,
                   "include": "cov_top.sv"}},
         {"name": "covargs", "uses": "hdlsim.SimCovArgs", "with": {"level": "code"}},
-        {"name": "img", "uses": "hdlsim.vlt.SimImage", "needs": ["src", "covargs"],
+        {"name": "img", "uses": "hdlsim.%s.SimImage" % sim, "needs": ["src", "covargs"],
          "with": {"top": ["cov_top"]}},
     ]
     for c in ("c0", "c1"):
-        tasks.append({"name": "run_" + c, "uses": "hdlsim.vlt.SimRun",
-                      "needs": ["img"], "with": {"mode": "test", "sim": "vlt"}})
+        tasks.append({"name": "run_" + c, "uses": "hdlsim.%s.SimRun" % sim,
+                      "needs": ["img"], "with": {"mode": "test", "sim": sim}})
         tasks.append({"name": c, "uses": "hdlsim.SimCheck",
                       "needs": ["run_" + c]})
     tasks.append({"name": "report", "uses": "hdlsim.SimSuiteReport",
@@ -617,10 +867,10 @@ def test_vlt_suite_rollup(tmpdir):
         for a in tr.artifacts:
             a = a if isinstance(a, dict) else a.model_dump()
             if a["filetype"] == "simCovDb":
-                assert "format=vlt-dat" in a["attributes"]
+                assert "format=%s" % _SUITE_FORMAT[sim] in a["attributes"]
                 dbs.append(os.path.join(a["basedir"], a["files"][0]))
     assert len(dbs) == 2 and len(set(dbs)) == 2
-    assert all(os.path.isfile(p) for p in dbs)
+    assert all(os.path.exists(p) for p in dbs)
 
     rdir = next(os.path.join(rundir, n) for n in os.listdir(rundir)
                 if n.endswith("report"))

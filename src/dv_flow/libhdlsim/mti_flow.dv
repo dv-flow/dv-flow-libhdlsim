@@ -83,6 +83,11 @@ package:
     pytask: dv_flow.libhdlsim.mti_sim_run.SimUVMCase
     desc: Run one Questa UVM test (run + verdict) and emit a TestResult
 
+  - export: SimCovMerge
+    uses: hdlsim.SimCovMerge
+    pytask: dv_flow.libhdlsim.cov_merge.MtiSimCovMerge
+    desc: Merge Questa coverage databases into one
+
   #------------------------------------------------------------------
   # Per-sim opt/debug flag sets (see hdlsim.SimCompArgsOpt et al.).
   # Selected by the `sim`-driven elaborator; each emits the matching

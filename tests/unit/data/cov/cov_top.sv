@@ -1,7 +1,7 @@
 // Coverage test design: one small design that exercises every kind the
 // coverage levels collect -- lines/branches (counter + if/else), an
 // expression (&&), toggles, a two-state FSM, a covergroup with one hit and
-// one unhit bin, and a cover property. Shared by the vlt and xzm tests.
+// one unhit bin, and a cover property. Shared by every backend's tests.
 module cov_top;
   logic       clk = 0;
   logic [3:0] count = 0;

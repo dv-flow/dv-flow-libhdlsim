@@ -1,0 +1,7 @@
+# SystemC::Coverage-3
+C 'fmerge_top.svl2n14tlinepagev_line/merge_topoblockS2hmerge_top' 1
+C 'fmerge_top.svl3n19tlinepagev_line/merge_topoblockS3hmerge_top' 1
+C 'fmerge_top.svl4n3tlinepagev_line/merge_topoblockS4-6,12-13hmerge_top' 1
+C 'fmerge_top.svl6n5tlinepagev_line/merge_topoblockS6hmerge_top' 4
+C 'fmerge_top.svl7n7tbranchpagev_branch/merge_topoifS7-8hmerge_top' 4
+C 'fmerge_top.svl7n8tbranchpagev_branch/merge_topoelseS10hmerge_top' 0

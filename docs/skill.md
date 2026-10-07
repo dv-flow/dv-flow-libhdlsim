@@ -329,9 +329,9 @@ Key points:
 ## Collecting Coverage
 
 Levels are cumulative: `func` = covergroups and `cover property`; `code` adds
-line/statement, branch (and expression on Verilator); `full` adds toggle (and
-FSM on Verilator). Supported on `vlt` and `xzm`; other simulators warn and
-build without coverage.
+line/statement, branch and (except xezim) expression; `full` adds toggle and
+(except xezim) FSM. Supported on `vlt`, `xzm`, `vcs`, `mti` and `xcm`; `ivl`
+and `xsm` warn and build without coverage.
 
 Wire a bare `SimCovArgs` into the image and pick the level on the command line:
 
@@ -354,14 +354,27 @@ Or fix the level in a holder (`with: { level: code }`), or on SimImage
 
 Results:
 - `SimRunResult.artifacts` has a `simCovDb` FileSet with `role=cov` and
-  `format=vlt-dat` (Verilator `coverage.dat`) or `format=xezim-json`
-  (`xezim_cov.json`). Choose a decoder by `format=`.
+  `format=vlt-dat` (Verilator `coverage.dat`), `xezim-json`
+  (`xezim_cov.json`), `vcs-vdb` (`cov.vdb` directory), `questa-ucdb`
+  (`cov.ucdb`) or `xcelium-ucd` (`cov_work` directory). Choose a decoder by
+  `format=`.
 - `stats` has `cov_<kind>_pct/_covered/_total` for each kind measured;
   `runinfo.cov` is `{level, kinds}`.
 - `SimSuiteReport` gives `cov_<kind>_pct_max` (best case, not merged).
+- `SimCovMerge` (vlt, vcs, mti) merges the databases it finds in its
+  SimRunResult / TestResult / SuiteResult / `simCovDb` inputs into one, of
+  the same `format=`, plus a `SimCovMergeResult` with merged `cov_*` stats:
+
+  ```yaml
+  - name: cov-merge
+    uses: hdlsim.SimCovMerge
+    needs: [regress]       # a SimSuiteReport, or the runs themselves
+  ```
 - xezim reports no functional percentage (database only). On Verilator,
   `cg.get_coverage()` returns 0.
-- UVM is instrumented along with the design on both simulators, so `code`
+- VCS and Questa stats come from `urg` / `vcover`, which must be on PATH.
+  Xcelium gives the database only, no `cov_*` stats yet.
+- UVM is instrumented along with the design on every simulator, so `code`
   percentages on a UVM bench mostly measure UVM. On xezim, run `args:
   [--code-coverage-scope, <dut-instance>]` narrows it.
 

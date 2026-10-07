@@ -89,6 +89,12 @@ SIM_BACKENDS = {
         "xsm": "hdlsim.xsm.SimUVMCase",
         "xzm": "hdlsim.xzm.SimUVMCase",
     },
+    # Merge a set of runs' coverage databases (cov_merge.py)
+    "SimCovMerge": {
+        "vlt": "hdlsim.vlt.SimCovMerge",
+        "vcs": "hdlsim.vcs.SimCovMerge",
+        "mti": "hdlsim.mti.SimCovMerge",
+    },
 }
 
 

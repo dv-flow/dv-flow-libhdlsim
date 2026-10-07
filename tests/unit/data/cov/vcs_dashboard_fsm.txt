@@ -1,0 +1,28 @@
+Dashboard
+
+Date: <scrubbed>
+
+User: <scrubbed>
+
+Version: Y-2026.03
+Command line: urg -full64 -dir simv.vdb -format text -show ratios -show summary 0 -report rpt 
+
+Number of tests: 1
+
+-------------------------------------------------------------------------------
+Total Coverage Summary 
+SCORE   LINE          COND        TOGGLE        FSM         BRANCH     
+ 87.50  100.00 14/14  --     0/0   91.67 11/12   75.00 3/4   83.33 5/6 
+
+
+-------------------------------------------------------------------------------
+Hierarchical coverage data for top-level instances 
+SCORE   LINE          COND           TOGGLE        FSM         BRANCH      NAME    
+ 87.50  100.00 14/14  --     --       91.67 11/12   75.00 3/4   83.33 5/6  fsm_top 
+
+
+-------------------------------------------------------------------------------
+Total Module Definition Coverage Summary 
+SCORE   LINE          COND        TOGGLE        FSM         BRANCH     
+ 87.50  100.00 14/14  --     0/0   91.67 11/12   75.00 3/4   83.33 5/6 
+

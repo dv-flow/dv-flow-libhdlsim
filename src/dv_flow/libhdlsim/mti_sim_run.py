@@ -22,12 +22,25 @@
 import asyncio
 import json
 import os
-from typing import List
+from typing import Dict, List, Tuple
 from dv_flow.mgr import TaskDataResult, FileSet
 from dv_flow.mgr.task_data import TaskMarker, SeverityE
+from dv_flow.libhdlsim import cov
 from dv_flow.libhdlsim.vl_sim_runner import VLSimRunner
 from dv_flow.libhdlsim.sim_uvm_case import uvm_case_task
 from dv_flow.libhdlsim.vl_sim_data import VlSimRunData
+
+# Coverage level -> (kinds, vopt +cover= items). Covergroups and cover
+# directives are recorded without +cover; it adds code coverage.
+MTI_COV = {
+    "func": (["covergroup", "user"], None),
+    "code": (["covergroup", "user", "line", "branch", "expr"], "sbce"),
+    "full": (["covergroup", "user", "line", "branch", "expr",
+              "toggle", "fsm_state", "fsm_arc"], "sbceft"),
+}
+
+# The run's coverage database, saved by vsim at exit
+COV_DB = "cov.ucdb"
 
 class SimRunner(VLSimRunner):
     sim_name = "mti"
@@ -46,15 +59,25 @@ class SimRunner(VLSimRunner):
     async def runsim(self, data : VlSimRunData):
         status = 0
 
+        do = "run -a; quit -f"
+        cov_on = data.cov is not None and data.cov.get("level") in MTI_COV
+        if cov_on:
+            # -onexit: saved however the run ends ($finish, an error, ...)
+            do = "coverage save -onexit %s; %s" % (
+                os.path.join(self.rundir, COV_DB), do)
+
         cmd = [
             'vsim',
             '-batch',
             '-do',
-            "run -a; quit -f",
+            do,
             "simv_opt",
             "-work",
             os.path.join(data.imgdir, 'work')
         ]
+
+        if cov_on:
+            cmd.append('-coverage')
 
         if data.valgrind:
             cmd.extend(["-valgrind", "--tool=memcheck"])
@@ -88,6 +111,24 @@ class SimRunner(VLSimRunner):
         status |= await self.exec_sim(cmd, logfile="sim.log")
         
         return status
+
+    def parse_cov_summary(self, rundir, cov_info):
+        db = os.path.join(rundir, COV_DB)
+        if not os.path.isfile(db):
+            return {}
+        vcover = self._which("vcover", sibling_of="vsim")
+        if vcover is None:
+            self._log.debug("vcover not found; no coverage summary")
+            return {}
+        out = self._run_report([vcover, "report", "-summary", db])
+        if out is None:
+            return {}
+        return cov.parse_mti_cov_summary(out, cov_info.get("kinds"))
+
+    def _artifact_spec(self) -> Dict[str, Tuple]:
+        spec = super()._artifact_spec()
+        spec["simCovDb"] = ([COV_DB], "cov", ["format=%s" % cov.FORMAT_QUESTA_UCDB])
+        return spec
 
 async def SimRun(runner, input) -> TaskDataResult:
     return await SimRunner().run(runner, input)

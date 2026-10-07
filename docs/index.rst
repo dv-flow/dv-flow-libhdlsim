@@ -416,21 +416,36 @@ What each simulator collects at each level:
 .. list-table::
    :header-rows: 1
 
-   * - Level
-     - vlt (Verilator)
-     - xzm (xezim)
-   * - ``func``
+   * - Simulator
+     - ``func``
+     - ``code`` adds
+     - ``full`` adds
+   * - vlt (Verilator)
      - ``--coverage-user``: covergroups, ``cover property``
+     - ``--coverage-line --coverage-expr``: line, branch, expression
+     - ``--coverage-toggle --coverage-fsm``: toggle, FSM state and arc
+   * - xzm (xezim)
      - covergroups, ``cover property``
-   * - ``code``
-     - adds ``--coverage-line --coverage-expr``: line, branch, expression
-     - adds ``--code-coverage=stmt,branch``: statement, branch
-   * - ``full``
-     - adds ``--coverage-toggle --coverage-fsm``: toggle, FSM state and arc
-     - adds ``toggle`` to ``--code-coverage``
+     - ``--code-coverage=stmt,branch``: statement, branch
+     - ``toggle`` in ``--code-coverage``
+   * - vcs (VCS)
+     - ``-cm assert``: covergroups (always recorded), ``cover property``
+     - ``-cm line+cond+branch+assert``: line, condition, branch
+     - ``+tgl+fsm``: toggle, FSM
+   * - mti (Questa)
+     - covergroups, cover directives (no ``+cover``)
+     - vopt ``+cover=sbce``: statement, branch, condition, expression
+     - ``+cover=sbceft``: toggle, FSM state and transition
+   * - xcm (Xcelium)
+     - xmelab ``-coverage u``: covergroups, ``cover property``
+     - ``-coverage b:e:u``: block, expression
+     - ``-coverage b:e:f:t:u``: toggle, FSM
 
-The other simulators don't support coverage yet. Asking them for a level gives
-one warning, and the image is built without coverage.
+The flags go to the elaborator (vcs, vopt, xmelab). VCS also gets the same
+``-cm`` at run time, and Questa runs with ``vsim -coverage``.
+
+ivl and xsm don't support coverage yet. Asking them for a level gives one
+warning, and the image is built without it.
 
 Asking for coverage
 -------------------
@@ -470,6 +485,15 @@ Where the results go
 
   - ``format=vlt-dat``: Verilator ``coverage.dat``
   - ``format=xezim-json``: xezim ``xezim_cov.json``
+  - ``format=vcs-vdb``: VCS ``cov.vdb`` (a directory)
+  - ``format=questa-ucdb``: Questa ``cov.ucdb``
+  - ``format=xcelium-ucd``: Xcelium ``cov_work`` (a directory holding the
+    model ``.ucm`` and the run's ``.ucd``)
+
+  Each run's database stands alone: it holds the design data a report or a
+  merge needs as well as that run's hits. VCS and Xcelium record the run under
+  the name of its run directory (``-cm_name`` / ``-covtest``), so runs
+  stay distinct when merged.
 
   A tool that reads the database should choose its decoder by ``format=``, not
   by file name. The database is inside the result items; it is not a separate
@@ -477,19 +501,79 @@ Where the results go
 * **Summary stats.** ``SimRunResult.stats`` gets ``cov_<kind>_pct``,
   ``cov_<kind>_covered`` and ``cov_<kind>_total`` for each kind the level
   measured. The kinds are ``line``, ``branch``, ``expr``, ``toggle``,
-  ``fsm_state``, ``fsm_arc``, ``covergroup`` and ``user``; xezim's statement
-  coverage is reported as ``line``. A kind with nothing to cover (0 of 0)
-  is left out.
+  ``fsm_state``, ``fsm_arc``, ``covergroup`` and ``user``. Simulators name
+  these differently. xezim's and Questa's statement coverage is reported as
+  ``line``. VCS's condition coverage and Questa's condition and expression
+  coverage are reported as ``expr``. VCS reports a single FSM figure, which
+  counts transitions, so it is reported as ``fsm_arc``. ``user`` is
+  ``cover property`` (Questa: cover directives). A kind with nothing to cover
+  (0 of 0) is left out.
+
+  The totals come from each simulator's report utility, run on the database
+  after the simulation: ``verilator_coverage``, ``urg`` (VCS) or ``vcover``
+  (Questa). It must be on ``PATH``. If it isn't, or if it fails, the run
+  still gives its database but no ``cov_*`` stats. Xcelium gives no
+  ``cov_*`` stats yet (see Limitations).
 * **Provenance.** ``SimRunResult.runinfo.cov`` is ``{level, kinds}``. It is
   absent at ``none``.
 * **Suites.** ``SimSuiteReport`` rolls ``cov_<kind>_pct`` up as
   ``cov_<kind>_pct_max``: the best single case. That is **not** merged
-  coverage, and hit counts are not summed. Per-case percentages and the level
-  appear in ``junit.xml`` properties and ``ctrf.json`` ``extra``, and the
-  printed summary gets a ``coverage`` line.
+  coverage, and hit counts are not summed (for that, see `Merging`_).
+  Per-case percentages and the level appear in ``junit.xml`` properties and
+  ``ctrf.json`` ``extra``, and the printed summary gets a ``coverage`` line.
 
-Merging databases across runs and producing coverage reports are not
-provided yet.
+Merging
+-------
+
+``SimCovMerge`` merges the databases of the runs it needs into one, using the
+simulator's own merge utility:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Simulator
+     - Merge command
+     - Merged database
+   * - vlt
+     - ``verilator_coverage -write``
+     - ``coverage.dat``
+   * - vcs
+     - ``urg -dir ... -dbname``
+     - ``cov.vdb``
+   * - mti
+     - ``vcover merge``
+     - ``cov.ucdb``
+
+It finds the databases in the ``simCovDb`` artifacts of its ``SimRunResult``,
+``TestResult`` and ``SuiteResult`` inputs, and in bare ``simCovDb`` FileSets.
+So it can follow the runs, the checks, or a ``SimSuiteReport``:
+
+.. code-block:: yaml
+
+    - name: regress
+      uses: hdlsim.SimSuiteReport
+      needs: [case1, case2, case3]
+    - name: cov-merge
+      uses: hdlsim.SimCovMerge      # or hdlsim.vcs.SimCovMerge
+      needs: [regress]
+
+Only databases of the backend's ``format=`` are merged. Any other is skipped
+with a warning, and finding none at all is an error. A database reached
+through two inputs (a run and the check that forwards its artifacts) is
+merged once.
+
+The outputs are:
+
+* the merged database, as a ``simCovDb`` FileSet with the same ``format=``.
+  It is an input like any other, so one merge can feed another;
+* a ``SimCovMergeResult`` with ``sim``, ``format``, ``inputs`` (the merged
+  paths) and ``stats``: the merged ``cov_<kind>_*`` totals, from the same
+  report utility a run uses. ``stats`` is empty when that utility isn't on
+  ``PATH``.
+
+The merge runs one command over every database, in a single task. Xcelium and
+xezim have no ``SimCovMerge`` yet. The merge doesn't produce detailed
+coverage reports.
 
 Limitations
 -----------
@@ -500,7 +584,7 @@ Limitations
   reports 0 on Verilator.
 * **UVM is counted too.** No exclusions are applied, so at ``code`` and
   ``full`` the UVM library's code is instrumented along with the design, on
-  both simulators, and the line and branch percentages mostly measure UVM.
+  every simulator, and the line and branch percentages mostly measure UVM.
   Verilator has no module or instance selector; on xezim, a raw
   ``--code-coverage-scope <instance>`` in the run's ``args`` narrows it.
 * **xezim reports no functional percentage.** Its database lists the bins
@@ -513,6 +597,19 @@ Limitations
   already ask for code coverage (``--code-coverage``, ``-coverage`` or
   ``+cover``), SimRun doesn't add its own flag. Stats still report only the
   kinds the level covers.
+* **Xcelium reports no percentages yet.** Its totals come from IMC, which
+  SimRun doesn't run yet. A run gives the ``cov_work`` database and
+  ``runinfo.cov``, but no ``cov_*`` stats. Its kinds name block coverage as
+  ``line``, and branch coverage is not enabled.
+* **VCS copies the image's database into each run.** The run's ``cov.vdb``
+  starts as a copy of the image's ``simv.vdb``, without any test data, and
+  simv adds the run's hits to it. On a large design this copy takes disk
+  space in every run directory.
+* **Your own coverage flags.** SimImage and SimRun add their flags whatever
+  ``args``, ``elabargs`` or run ``args`` already contain. To collect a
+  different set of metrics, leave the level at ``none`` and pass the
+  simulator's own flags (``-cm``, ``+cover``, ``-coverage``) yourself. You
+  then get no ``simCovDb`` or ``cov_*`` stats.
 * **Cost.** Toggle instrumentation (``full``) grows with the number of
   signals, so it can slow the build and the run of a large design noticeably.
   Use ``code`` for routine regressions.
@@ -575,7 +672,7 @@ vlt (Verilator)
 
 mti (Siemens Questa/ModelSim)
 -----------------------------
-- Coverage: Not supported yet (a requested level gives a warning)
+- Coverage: ``func``, ``code``, ``full`` (vopt ``+cover``; ``cov.ucdb``, summarized with ``vcover``). See `Coverage`_.
 - DPI: Supported (compile C sources via vlog; runtime -sv_lib)
 - VPI: Supported (runtime -pli)
 - PLI 1.0: Supported (runtime -pli, -tab)
@@ -586,7 +683,7 @@ mti (Siemens Questa/ModelSim)
 
 vcs (Synopsys VCS)
 ------------------
-- Coverage: Not supported yet (a requested level gives a warning)
+- Coverage: ``func``, ``code``, ``full`` (``-cm`` at build and run; ``cov.vdb``, summarized with ``urg``). See `Coverage`_.
 - DPI: Not supported by SimImage (building); runtime load of prebuilt libs via -sv_lib supported in SimRun
 - VPI: Supported (+vpi/-debug_access and -load <lib>)
 - PLI 1.0: Supported (-P <tab> <lib>, linked into simv; ``tab`` required). Unverified.
@@ -608,7 +705,7 @@ xsm (AMD Xilinx XSIM)
 
 xcm (Cadence Xcelium)
 ---------------------
-- Coverage: Not supported yet (a requested level gives a warning)
+- Coverage: ``func``, ``code``, ``full`` (xmelab ``-coverage``; ``cov_work``). Database only, no ``cov_*`` stats yet. See `Coverage`_.
 - Status: Experimental/incomplete in this repository; functionality may be outdated
 - PLI 1.0: Supported (xmelab/xmsim -loadpli1, xmsim -plimapfile; ``boot`` or ``tab`` required)
 - DPI/VPI/Trace/Valgrind/Incremental: TBD
