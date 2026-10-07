@@ -106,21 +106,27 @@ for _fam in ("SimCompArgsOpt", "SimCompArgsDbg",
 del _fam
 
 
-def _family_of(task):
-    """The abstract family (``SimImage`` / ``SimRun`` / ...) this task derives
-    from, found by walking its `uses` chain most-derived first; ``None`` if the
-    task is not a simulator task. Because the ``elaborate:`` clause is declared on
-    each abstract family type, the family is simply the nearest chain type whose
-    leaf name is a known family."""
+def _family_link(task):
+    """``(family, link)``: the abstract family (``SimImage`` / ``SimRun`` / ...)
+    this task derives from, and the `uses`-chain **object** that is that family
+    -- the link `rebindUses` replaces. ``(None, None)`` if the task is not a
+    simulator task.
+
+    A link qualifies only if its leaf name is a known family *and* it carries
+    the ``elaborate:`` clause, i.e. it is the type this elaborator is bound to.
+    Leaf name alone is not enough: a project task named ``SimImage`` that
+    ``uses: hdlsim.SimImage`` would match itself. Matching is on the leaf name
+    (not the full name) because under package-uses-package aliasing the family
+    can sit in the chain under an alias-qualified name."""
     cur = task
     seen = set()
     while cur is not None and id(cur) not in seen:
         seen.add(id(cur))
         leaf = (getattr(cur, 'name', '') or '').rsplit('.', 1)[-1]
-        if leaf in SIM_BACKENDS:
-            return leaf
+        if leaf in SIM_BACKENDS and getattr(cur, 'elaborate', None):
+            return leaf, cur
         cur = getattr(cur, 'uses', None)
-    return None
+    return None, None
 
 
 def _chain_is_concrete(task):
@@ -139,7 +145,7 @@ def _chain_is_concrete(task):
     is re-exposed under alias-qualified names (e.g. `<pkg>.hdlsim.<sim>.<task>`
     or a subtree-scoped name), so a full-name match would miss it -- and, since
     the concrete backend `uses:` the abstract type (which carries this
-    `elaborate:` clause), missing it re-fires the elaborator forever. `_family_of`
+    `elaborate:` clause), missing it re-fires the elaborator forever. `_family_link`
     already matches on the leaf for the same reason."""
     cur = task
     seen = set()
@@ -161,7 +167,7 @@ def elaborate(ctxt, task, name):
     abstract family task in ``flow.dv`` as
     ``elaborate: dv_flow.libhdlsim.backend_select:elaborate`` and bound along the
     `uses` chain, so any task using an abstract family inherits it."""
-    family = _family_of(task)
+    family, family_link = _family_link(task)
     if family is None:
         # Not a simulator task (shouldn't happen given the binding) -> default.
         return ctxt.buildDefault(task, name)
@@ -202,12 +208,20 @@ def elaborate(ctxt, task, name):
         ctxt.error(msg)
         raise Exception(msg)
 
-    # Rebind `uses` to the concrete backend and build the standard interior.
-    # paramT is reset so it rebuilds against the new (concrete) uses chain;
-    # the re-entrancy guard keeps this from re-firing the elaborator.
+    # Rebind the family link to the concrete backend and build the standard
+    # interior. `rebindUses` keeps any project tasks between `task` and the
+    # family (`image uses base uses hdlsim.SimImage`) -- replacing `task.uses`
+    # instead would splice `base` out, and its `with:` and `needs:` with it.
+    # The re-entrancy guard keeps the rebuild from re-firing this elaborator.
     family_task = ctxt.getTask("hdlsim.%s" % family)
-    variant = dc.replace(task, uses=concrete, paramT=None,
-                         **_backend_overrides(family_task, concrete))
+    if hasattr(ctxt, "rebindUses"):
+        variant = ctxt.rebindUses(task, family_link, concrete)
+    else:
+        # dv-flow-mgr before rebindUses: the old splice (loses intermediate
+        # tasks' `with:`/`needs:`), kept so this package still loads there.
+        variant = dc.replace(task, uses=concrete, paramT=None)
+    variant = dc.replace(variant,
+                         **_backend_overrides(task, family_task, concrete))
     return ctxt.buildDefault(variant, name)
 
 
@@ -218,7 +232,7 @@ def elaborate(ctxt, task, name):
 _INHERITABLE = ("uptodate", "rundir", "passthrough", "consumes", "produces")
 
 
-def _backend_overrides(family, concrete):
+def _backend_overrides(task, family, concrete):
     """Attributes the selected backend overrode, which must survive specialization.
 
     Every concrete backend derives from its abstract family task
@@ -240,8 +254,18 @@ def _backend_overrides(family, concrete):
         which have no precompiled-library concept. Losing it means the sources
         never reach the image.
 
-    Attributes the backend did NOT override are left alone, so a value the
-    consuming task set for itself is preserved. The baseline is the ABSTRACT
+    Attributes the backend did NOT override are left alone. Nor are attributes
+    the PROJECT overrode -- on the task itself or on any task between it and
+    the family -- since those are nearer than the backend in the rebound chain:
+    the loader materialized the nearest such value onto `task`, so `task`
+    differing from the family means someone below the family declared it. This
+    is the same precedence the explicit form gets (`uptodate: false` on a task
+    that `uses: hdlsim.vlt.SimImage` wins over the backend's `uptodate:`).
+    Limitation: a project value that happens to EQUAL the family's
+    (`passthrough: unused` on a SimLib consumer) is indistinguishable from an
+    inherited one, so the backend's value still applies there.
+
+    The baseline is the ABSTRACT
     FAMILY task -- resolved by name rather than taken as `task.uses`, because a
     project may layer its own task in between (`A uses hdlsim.SimImage`,
     `B uses A`) and the question is always "what did the backend change relative
@@ -251,7 +275,10 @@ def _backend_overrides(family, concrete):
     if family is None:
         return overrides
     for attr in _INHERITABLE:
+        f_val = getattr(family, attr, None)
+        if getattr(task, attr, None) != f_val:
+            continue        # the project overrode it; nearer than the backend
         c_val = getattr(concrete, attr, None)
-        if c_val != getattr(family, attr, None):
+        if c_val != f_val:
             overrides[attr] = c_val
     return overrides
