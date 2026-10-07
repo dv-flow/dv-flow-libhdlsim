@@ -26,7 +26,7 @@ import shutil
 from typing import List
 from dv_flow.libhdlsim.vl_sim_image_builder import (
     VlSimImageBuilder, VlTaskSimImageMemento, check_sim_image_uptodate)
-from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
+from dv_flow.libhdlsim.vl_sim_data import VlSimImageData, c_flags
 from dv_flow.mgr import FileSet
 from dv_flow.mgr.task_data import TaskMarker, SeverityE
 from svdep import TaskBuildFileCollection
@@ -161,6 +161,8 @@ class SimImageBuilder(VlSimImageBuilder):
 
             cmd.extend(self.input.params.args)
 
+            if len(c_flags(data)):
+                cmd.extend(['-CFLAGS', ' '.join(c_flags(data))])
             cmd.extend(data.csource)
 
             # Seems that VCS behaves better with the list in the setup file

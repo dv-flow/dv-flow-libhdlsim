@@ -255,6 +255,11 @@ Parameters
   The image is built at the highest of this and every consumed ``hdlsim.SimCovArgs``.
   See `Coverage`_.
 
+The ``defines`` and ``incdirs`` of a consumed ``cSource``/``cppSource`` FileSet
+are passed to the C compile of the image's DPI sources (as ``-D``/``-I``), not
+to the SystemVerilog compile. All C sources in an image are compiled together,
+so these apply to every C source in the image.
+
 Task: SimRun
 ============
 The SimRun task executes an elaborated simulation image.

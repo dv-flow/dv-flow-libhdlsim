@@ -82,6 +82,10 @@ Consumes: systemVerilogSource, verilogSource, verilogIncDir,
 systemVerilogInclude, simLib, cSource, cppSource, systemVerilogDPI,
 verilogVPI, verilogPLI, SimCompileArgs, SimElabArgs, SimCovArgs, SuppressWarnings
 
+A cSource/cppSource FileSet's `defines` and `incdirs` go to the C compile of
+the image's DPI sources (`-D`/`-I`), not the SV compile. They apply to every
+C source in the image.
+
 ### SimRun
 
 Executes a compiled simulation.

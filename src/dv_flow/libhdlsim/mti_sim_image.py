@@ -23,7 +23,7 @@ import os
 import asyncio
 from typing import List
 from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder, VlTaskSimImageMemento, check_sim_image_uptodate
-from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
+from dv_flow.libhdlsim.vl_sim_data import VlSimImageData, c_flags
 from dv_flow.mgr import FileSet
 from svdep import TaskBuildFileCollection
 from .mti_log_parser import MtiLogParser
@@ -78,6 +78,8 @@ class SimImageBuilder(VlSimImageBuilder):
 
             cmd.extend(data.files)
 
+            if len(c_flags(data)):
+                cmd.extend(['-ccflags', ' '.join(c_flags(data))])
             cmd.extend(data.csource)
 
             def notify_comp():

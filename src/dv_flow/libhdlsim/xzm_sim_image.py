@@ -22,7 +22,7 @@ import os
 from dv_flow.mgr import FileSet, TaskMarker
 from dv_flow.mgr.task_data import SeverityE
 from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder, VlTaskSimImageMemento, check_sim_image_uptodate
-from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
+from dv_flow.libhdlsim.vl_sim_data import VlSimImageData, c_flags
 from dv_flow.libhdlsim.xzm_log_parser import XzmLogParser
 from dv_flow.libhdlsim import xzm_tool
 from svdep import TaskBuildFileCollection
@@ -158,9 +158,10 @@ class SimImageBuilder(VlSimImageBuilder):
             cmd.extend(['-I', os.path.join(prefix, 'include')])
         for define in data.defines:
             cmd.append('-D%s' % define)
-        for incdir in data.incdirs + data.cincdirs:
+        for incdir in data.incdirs:
             if len(incdir.strip()) > 0:
                 cmd.extend(['-I', incdir])
+        cmd.extend(c_flags(data))
         cmd.extend(data.csource)
         cmd.extend(['-o', DPI_LIB])
 

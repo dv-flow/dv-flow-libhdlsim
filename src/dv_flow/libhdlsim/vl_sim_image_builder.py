@@ -302,14 +302,22 @@ class VlSimImageBuilder(object):
             ))
             if fs.type == "std.FileSet":
                 self._log.debug("fs.filetype=%s fs.basedir=%s" % (fs.filetype, fs.basedir))
-                data.defines.extend(fs.defines)
-
                 if fs.filetype == "cSource" or fs.filetype == "cppSource":
+                    # A C FileSet's defines and incdirs are for the C compiler,
+                    # not the SV compile. Every C source in the image is built
+                    # together, so they apply to all of them.
+                    data.cdefines.extend(fs.defines)
+                    data.cincdirs.extend(
+                        [os.path.join(fs.basedir, i) for i in fs.incdirs])
                     for file in fs.files:
                         path = os.path.join(fs.basedir, file)
                         self._log.debug("path: basedir=%s fullpath=%s" % (fs.basedir, path))
                         data.csource.append(path)
-                elif fs.filetype == "verilogIncDir":
+                    continue
+
+                data.defines.extend(fs.defines)
+
+                if fs.filetype == "verilogIncDir":
                     if len(fs.basedir.strip()) > 0:
                         data.incdirs.append(fs.basedir)
                 elif fs.filetype in ("verilogInclude", "systemVerilogInclude"):

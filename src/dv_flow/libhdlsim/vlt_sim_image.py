@@ -26,7 +26,7 @@ import logging
 from typing import ClassVar
 from dv_flow.mgr import TaskDataResult, TaskRunCtxt
 from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder, VlTaskSimImageMemento, check_sim_image_uptodate
-from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
+from dv_flow.libhdlsim.vl_sim_data import VlSimImageData, c_flags
 from dv_flow.mgr.task_data import TaskMarker, TaskMarkerLoc
 from svdep import TaskBuildFileCollection
 from .vlt_log_parser import VltLogParser
@@ -151,6 +151,8 @@ class SimImageBuilder(VlSimImageBuilder):
         cmd.extend(data.elabargs)
 
         cmd.extend(data.files)
+        for flag in c_flags(data):
+            cmd.extend(['-CFLAGS', flag])
         cmd.extend(data.csource)
         if custom_main:
             cmd.append(data.verilator_main)

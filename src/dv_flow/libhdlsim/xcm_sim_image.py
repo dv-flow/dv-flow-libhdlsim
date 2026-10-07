@@ -23,7 +23,7 @@ import os
 import shutil
 from typing import List, Tuple
 from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder, VlTaskSimImageMemento, check_sim_image_uptodate
-from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
+from dv_flow.libhdlsim.vl_sim_data import VlSimImageData, c_flags
 from dv_flow.mgr import FileSet
 from svdep import TaskBuildFileCollection
 from .util import xcelium_cds_lib
@@ -150,6 +150,7 @@ class SimImageBuilder(VlSimImageBuilder):
                         cmd.extend(['-I', candidate])
                         break
 
+            cmd.extend(c_flags(data))
             cmd.extend(data.csource)
             status |= await self.ctxt.exec(cmd, logfile="gcc_dpi.log")
 

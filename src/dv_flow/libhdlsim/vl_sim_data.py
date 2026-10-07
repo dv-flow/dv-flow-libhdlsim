@@ -84,6 +84,9 @@ class VlSimImageData(object):
     # requested explicitly rather than implied by vpi_enable.
     public_flat_rw : bool = dc.field(default=False)
     csource : List[str] = dc.field(default_factory=list)
+    # Defines and include dirs from cSource/cppSource FileSets, for the C
+    # compile only (never the SV compile).
+    cdefines : List[str] = dc.field(default_factory=list)
     cincdirs : List[str] = dc.field(default_factory=list)
     # Path to a user/tool-supplied C++ "main" (eg cocotb's verilator.cpp). When
     # set, the Verilator SimImage builds with this main instead of --main.
@@ -115,3 +118,9 @@ class VlSimRunData(object):
     # the image was built without coverage.
     cov : Optional[dict] = dc.field(default=None)
 
+
+def c_flags(data : VlSimImageData) -> List[str]:
+    """C-compiler flags (-D/-I) from the image's cSource/cppSource FileSets."""
+    flags = ['-D%s' % d for d in data.cdefines]
+    flags.extend('-I%s' % i for i in data.cincdirs if len(i.strip()) > 0)
+    return flags
