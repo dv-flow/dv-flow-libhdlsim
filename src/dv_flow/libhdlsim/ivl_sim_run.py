@@ -79,21 +79,13 @@ class SimRunner(VLSimRunner):
         cmd = ['vvp']
 
         # Load VPI libraries (eg cocotb's GPI library) ahead of the image.
-        # Icarus loads a VPI module via '-M <dir> -m <module>', where <module>
-        # is the library name without its directory or extension (Icarus
-        # appends '.vpl'). The optional entrypoint is not used by Icarus.
-        seen_dirs = set()
+        # A bare '-m <module>' makes Icarus search its -M path for
+        # '<module>.vpi', so it cannot load a library with any other
+        # extension -- cocotb 2.x ships libcocotbvpi_icarus.so. A path is
+        # loaded as written, so pass each library's full path, as cocotb's
+        # own runner does. The optional entrypoint is not used by Icarus.
         for vpilib, _entrypoint in data.vpilibs:
-            libdir = os.path.dirname(vpilib)
-            module = os.path.basename(vpilib)
-            for ext in (".vpl", ".vpi", ".so"):
-                if module.endswith(ext):
-                    module = module[:-len(ext)]
-                    break
-            if libdir and libdir not in seen_dirs:
-                cmd.extend(['-M', libdir])
-                seen_dirs.add(libdir)
-            cmd.extend(['-m', module])
+            cmd.extend(['-m', vpilib])
 
         # PLI 1.0 libraries are hosted by the cadpli module, which takes each
         # library as a `-cadpli=<lib>:<boot>` extended argument.
