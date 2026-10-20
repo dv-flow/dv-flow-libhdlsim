@@ -28,7 +28,11 @@ class ProtectLibBuilder(VlSimImageBuilder):
 
         top = input.params.top[0] if input.params.top else "top"
         libname = getattr(input.params, 'libname', '') or top
+        # An explicit `jobs` param wins; otherwise this task's core budget
+        # (never Verilator's `-j 0`, which means every CPU on the machine).
         jobs = getattr(input.params, 'jobs', 0) or 0
+        if not jobs:
+            jobs = getattr(self.ctxt, 'cores', 1) or 1
 
         obj_dir = os.path.join(input.rundir, f"obj_dir_{libname}")
 
@@ -41,10 +45,7 @@ class ProtectLibBuilder(VlSimImageBuilder):
         if data.timing:
             cmd.append('--timing')
 
-        if jobs:
-            cmd.extend(['-j', str(jobs)])
-        else:
-            cmd.extend(['-j', '0'])
+        cmd.extend(['-j', str(jobs)])
 
         for incdir in data.incdirs:
             cmd.append(f'+incdir+{incdir}')
@@ -77,7 +78,7 @@ class ProtectLibBuilder(VlSimImageBuilder):
         if status == 0:
             mk = f"V{top}.mk"
             make_cmd = ['make', '-C', obj_dir, '-f', mk,
-                        '-j', str(jobs if jobs else 4)]
+                        '-j', str(jobs)]
             status |= await self.ctxt.exec(make_cmd, logfile="make.log")
 
         # Step 3: Emit output filesets

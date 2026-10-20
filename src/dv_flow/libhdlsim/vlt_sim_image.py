@@ -88,7 +88,9 @@ class SimImageBuilder(VlSimImageBuilder):
         if data.timing:
             cmd.append('--timing')
 
-        cmd.extend(['-j', '0'])
+        # Verilator's own -j: `0` means every CPU on the machine, so bound it
+        # by this task's core budget, like the make phase below.
+        cmd.extend(['-j', str(getattr(self.ctxt, 'cores', 1) or 1)])
 
         for incdir in data.incdirs:
             cmd.append('+incdir+%s' % incdir)
