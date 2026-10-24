@@ -130,14 +130,19 @@ package:
       Uses the built-in UVM library or a user-specified UVM installation.
 
       When the UVM installation ships a Verilator DPI backend (verilator-bin
-      installs one into share/uvm/src/dpi), the DPI layer is used: UVM gets
-      real regular-expression matching and register backdoor access, and the
-      image is built with --vpi. Otherwise UVM_NO_DPI is defined as a
-      fallback, which downgrades uvm_re_match to glob-only matching.
+      installs one into share/uvm/src/dpi), the DPI layer is used, without
+      Verilator's VPI runtime: UVM gets real regular-expression matching and
+      reads +UVM_* plusargs, but the uvm_hdl_* register backdoor is compiled
+      out (UVM_HDL_NO_DPI). Otherwise UVM_NO_DPI is defined as a fallback,
+      which downgrades uvm_re_match to glob-only matching.
 
-      Backdoor access additionally requires the target signals to be visible
-      to VPI -- mark them /*verilator public*/ or set public_flat_rw on
-      SimImage.
+      Set backdoor: true for register backdoor access. That builds the full
+      DPI layer and the image with --vpi, and the target signals must be
+      visible to VPI -- mark them /*verilator public*/ or set public_flat_rw
+      on SimImage. With --vpi, Verilator runs the vlog_startup_routines of
+      every library it links, which can break libraries that also bootstrap
+      VPI-only simulators (pyhdl-if releases before its Verilator guard, for
+      one); hence it is off by default.
 
       Example:
       ```yaml
@@ -157,6 +162,12 @@ package:
           not silently lose regex matching; "false" forces UVM_NO_DPI.
         type: str
         value: "auto"
+      backdoor:
+        doc: |
+          Include the uvm_hdl_* register backdoor, which needs Verilator's
+          VPI runtime: the image is built with --vpi. Off by default.
+        type: bool
+        value: false
 
   - export: SimRun
     uses: hdlsim.SimRun

@@ -222,6 +222,7 @@ class SimImageBuilder(VlSimImageBuilder):
                             break
 
             user_ldlibs = []
+            user_ldflags = []
             if parallel_builds:
                 # Explicitly list V<top>__Dpi.o as a direct link object so it
                 # is unconditionally included (not subject to archive
@@ -229,7 +230,16 @@ class SimImageBuilder(VlSimImageBuilder):
                 # export stubs it defines are known to the linker when the
                 # shared library's undefined refs are checked, eliminating the
                 # need for -Wl,-u or --allow-shlib-undefined.
-                user_ldlibs.append('V%s__Dpi.o' % top_module)
+                #
+                # It goes in VM_USER_LDFLAGS, which the link rule places
+                # before the objects and __ALL.a: the stubs call the export
+                # implementations in V<top>__Dpi_Export__*.o, which the
+                # archive then supplies, and the archive's own copy of
+                # __Dpi.o is never pulled in (its symbols are already
+                # defined). Listed after the archive (in VM_USER_LDLIBS), the
+                # export implementations go unresolved unless something else
+                # happens to reference them.
+                user_ldflags.append('V%s__Dpi.o' % top_module)
             # When VM_PARALLEL_BUILDS=0 the DPI stubs are compiled into
             # __ALL.o (always linked), so no explicit listing is needed.
             for dpi in data.dpi:
@@ -246,6 +256,8 @@ class SimImageBuilder(VlSimImageBuilder):
             # loaded at runtime can resolve symbols back into the binary.
             user_ldlibs.append('-Wl,--export-dynamic')
             make_cmd.append('VM_USER_LDLIBS=%s' % ' '.join(user_ldlibs))
+            if user_ldflags:
+                make_cmd.append('VM_USER_LDFLAGS=%s' % ' '.join(user_ldflags))
 
         with open(os.path.join(input.rundir, "build.f"), "a") as fp:
             fp.write("\n# make phase:\n")
