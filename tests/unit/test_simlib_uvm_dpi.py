@@ -40,9 +40,12 @@ def _mk_uvm(tmpdir, with_backend):
     return uvm_home
 
 
-def _run(uvm_home, dpi="auto"):
+def _run(uvm_home, dpi="auto", backdoor=False):
     ctxt = FakeCtxt({"UVM_HOME": uvm_home})
-    input = SimpleNamespace(params=SimpleNamespace(dpi=dpi))
+    rundir = os.path.join(os.path.dirname(uvm_home), "rundir")
+    os.makedirs(rundir, exist_ok=True)
+    input = SimpleNamespace(rundir=rundir,
+                            params=SimpleNamespace(dpi=dpi, backdoor=backdoor))
     result = asyncio.run(SimLibUVM(ctxt, input))
     return ctxt, result
 
@@ -64,10 +67,41 @@ def test_dpi_used_when_backend_present(tmpdir):
 
     assert result.status == 0
 
-    # UVM_NO_DPI must NOT be forwarded -- that is the whole point.
+    # UVM_NO_DPI must NOT be forwarded -- that is the whole point. The
+    # register backdoor is left out instead, so no VPI is needed.
     sv = _sv_fileset(result)
     assert sv is not None
     assert "UVM_NO_DPI" not in sv.defines
+    assert "UVM_HDL_NO_DPI" in sv.defines
+
+    # A generated wrapper (regex + command line, no uvm_hdl) is handed to
+    # the image build, and it supplies vpi_get_vlog_info itself...
+    cpp = _by_filetype(result, "cppSource")
+    assert len(cpp) == 1
+    assert cpp[0].files == ["uvm_dpi_novpi.cc"]
+    with open(os.path.join(cpp[0].basedir, "uvm_dpi_novpi.cc")) as fp:
+        text = fp.read()
+    assert "vpi_get_vlog_info" in text
+    assert '#include "uvm_svcmd_dpi.c"' in text
+    assert "uvm_hdl" not in text
+
+    # ...so the VPI runtime (--vpi) is not requested.
+    args = [o for o in result.output
+            if getattr(o, "type", None) == "hdlsim.SimCompileArgs"]
+    assert all(not getattr(a, "vpi", False) for a in args)
+
+    assert ctxt.markers == []
+
+
+def test_backdoor_uses_full_dpi_and_vpi(tmpdir):
+    uvm_home = _mk_uvm(tmpdir, with_backend=True)
+    ctxt, result = _run(uvm_home, backdoor=True)
+
+    assert result.status == 0
+
+    sv = _sv_fileset(result)
+    assert "UVM_NO_DPI" not in sv.defines
+    assert "UVM_HDL_NO_DPI" not in sv.defines
 
     # uvm_dpi.cc is handed to the image build...
     cpp = _by_filetype(result, "cppSource")
