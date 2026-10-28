@@ -85,6 +85,8 @@ class SimRunner(VLSimRunner):
     #   - Verilator: $finish at 608us; walltime 5.280 s; speed 115.202 us/s
     #   - Verilator: cpu 5.276 s on 1 threads; allocated 396 MB
     #
+    # Older releases (5.04x and before) print 'alloced' rather than 'allocated'.
+    #
     # Absent when the run used `+verilator+quiet`, or when the image was built
     # with a custom C++ main (eg cocotb's) that does not call
     # statsPrintSummary() -- in which case these keys are simply not reported.
@@ -94,7 +96,7 @@ class SimRunner(VLSimRunner):
         r'\s*walltime\s+([0-9.]+)\s*s;\s*speed\s+(.+?)/s\s*$')
     _RE_CPU = re.compile(
         r'^-\s*Verilator:\s*cpu\s+([0-9.]+)\s*s\s+on\s+(\d+)\s+threads;'
-        r'\s*allocated\s+([0-9.]+)\s*MB\s*$')
+        r'\s*alloc(?:at)?ed\s+([0-9.]+)\s*MB\s*$')
 
     def parse_sim_stats(self, logfile):
         stats = {}

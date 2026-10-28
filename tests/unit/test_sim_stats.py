@@ -228,6 +228,15 @@ def test_vlt_parse_sim_stats(tmpdir):
     assert s["sim_mem_mb"] == 396.0
 
 
+def test_vlt_parse_sim_stats_alloced(tmpdir):
+    """Older Verilator releases spell the memory field 'alloced'."""
+    s = VltSimRunner().parse_sim_stats(_write_log(
+        tmpdir, "- Verilator: cpu 0.001 s on 1 threads; alloced 255 MB\n"))
+    assert s["sim_cpu_s"] == 0.001
+    assert s["threads"] == 1
+    assert s["sim_mem_mb"] == 255.0
+
+
 def test_vlt_parse_sim_stats_stop(tmpdir):
     s = VltSimRunner().parse_sim_stats(_write_log(
         tmpdir, "- Verilator: $stop at 12ns; walltime 0.100 s; speed 1.000 ns/s\n"))
