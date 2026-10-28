@@ -424,6 +424,23 @@ Results:
   `prof_summary.json` by itself; combine it with `time` for one (xProf
   can't combine with `mem`).
 
+## Test Verdicts (SimCheck / SimUVMCheck)
+
+- Both checks scan the WHOLE sim log (the `simLog` artifact, or `sim.log` in
+  the run directory); a missing log fails the check task.
+- A case fails on any simulator error/fatal in the log -- SVA failure, HDL
+  `$error`/`$fatal`, simulator error -- even with a clean UVM summary or an
+  exit code of 0. Warnings never fail a case.
+- SimUVMCheck: clean UVM summary + no simulator errors + exit 0 = pass; clean
+  log with a nonzero exit = `error`.
+- `TestResult`: `errors`/`warnings`/`fatals` are UVM tallies;
+  `sim_errors`/`sim_fatals`/`assertion_failures` are the simulator's own
+  (`assertion_failures` is a subset); `diagnostics` lists the first 10 with
+  severity, category (assertion | check | tool), code, file, line, hier,
+  time, message.
+- To explain a failing case with `UVM_ERROR=0`, read `diagnostics[0]` or the
+  `first:` text in the SimSuiteReport line / junit.xml / ctrf.json.
+
 ## Selecting a Simulator (abstract tasks)
 
 Write the generic tasks `uses: hdlsim.SimImage` / `hdlsim.SimRun` (no simulator

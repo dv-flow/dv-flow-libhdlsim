@@ -899,6 +899,73 @@ Limitations
   builds with coverage off, unless that cost is the question.
 
 
+Test verdicts
+=============
+
+``SimCheck`` and ``SimUVMCheck`` turn a run into a ``TestResult``. Both read
+the **whole** simulation log once, because the simulator's exit code and the
+UVM report summary each miss failures:
+
+* A UVM summary counts only what went through the UVM report server. An SVA
+  failure, an HDL ``$error`` or a simulator error is printed by the simulator
+  itself, so a run can fail assertions and still end with
+  ``UVM_ERROR :    0``.
+* Some simulators exit 0 after a failed assertion: VCS does, and so does
+  Verilator with ``+verilator+error+limit``.
+
+So a case passes only when nothing in the log says otherwise:
+
+==============================================================  ==========
+Evidence                                                        Status
+==============================================================  ==========
+UVM: clean summary, no simulator errors/fatals, exit 0           pass
+UVM: UVM error/fatal, ``** TEST FAILED **``, or any simulator    fail
+error/fatal (assertion failure, ``$error``, ``$fatal``, ...)
+UVM: everything clean but a nonzero exit                         error
+UVM, no summary: segfault/core dump or a simulator tool error    error
+UVM, no summary: a checker's ``$fatal`` ended the run            fail
+UVM, no summary: the run never reached ``$finish``               timeout
+Generic: exit 0 and no simulator errors/fatals                   pass
+Generic: nonzero exit or any simulator error/fatal               fail
+Either: no simulation log                                        task fails
+==============================================================  ==========
+
+Warnings never fail a case, and nothing matches a bare "error" or "failed"
+in ordinary output. The recognized messages:
+
+=========  ===========================================================
+Simulator  Recognized
+=========  ===========================================================
+vcs        SVA failure (``"f.sv", 31: top.u.A: started at ... failed
+           at ...``), ``Error:``/``Fatal:`` severity reports (an SVA and
+           its ``$error`` action count once), ``Error-[CODE]``
+xcm        ``*E,<CODE>`` / ``*F,<CODE>`` from xmsim, xmvlog, xmelab,
+           xrun; ``ASRTST`` is an assertion failure, ``ERRSEV``/
+           ``FATSEV`` are ``$error``/``$fatal``; ``*W,`` is a warning
+vlt        ``%Error``/``%Fatal`` (``Assertion failed in ...``)
+ivl        ``ERROR:``/``FATAL:``
+mti        ``** Error``/``** Fatal`` (``Assertion error``)
+=========  ===========================================================
+
+The ``TestResult`` keeps the UVM tallies in ``errors``/``warnings``/
+``fatals`` and counts the simulator's diagnostics separately:
+``sim_errors``, ``sim_fatals`` and ``assertion_failures`` (how many of those
+are assertion failures -- a subset, not an extra count). ``diagnostics``
+holds the first ten, each with severity, category (``assertion``, ``check``
+for an HDL severity task, ``tool`` for a simulator error), code, file, line,
+hierarchy, time and message. The counts are what the simulator printed: a
+simulator's own report limit can hide further failures.
+
+``SimSuiteReport`` totals the counts like any other stat, and its console
+summary, ``report.json``, ``junit.xml`` and ``ctrf.json`` give a failing
+case's counts and its first diagnostic -- the explanation when
+``UVM_ERROR`` is 0. A failing case is still data: its check task succeeds,
+the suite keeps running, and ``SimSuiteReport`` is the gate.
+
+A test that expects simulator errors has no way to declare them yet; it
+fails like any other.
+
+
 Simulator Support
 ================= 
 
