@@ -1,0 +1,29 @@
+xmsim(64): 26.03-s005: (c) Copyright 1995-2026 Cadence Design Systems, Inc.
+
+**********************************************************************************
+         Static Analysis of Snapshot Memory 
+**********************************************************************************
+
+ Details of Design Units Data [Top 3 design units  (#Entries <= -prof_du_count, default 25)] (All sizes are in bytes)
+ Note: 1. #Hierarchy_nodes and #Specializations include instances and specialization counts of the design unit itself and those of generates or SV binds found under it.
+       2. Self+_size includes Hierarchy_nodes_size of its child instances. It may include Specializations, Native_code sizes and Drivers_size of its child instances too only if all instances of that specialization are under the DU.
+       3. Self+_size does not include Syntax_size for respective modules of the child instances.
+ ============================================================================ 
+            Design_name                                            Self+_size            Self_size  Hierarchy_nodes_size (#Hierarchy_nodes)  Specializations_size (#Specializations)  Native_code_size  Syntax_size Drivers_size    File_path  
+ worklib.top:sv                                                        49,618               41,123                               2,528 (17)                                3,359 (2)            11,832       23,404            0    File: /work/rich.sv:12
+ worklib.$unit_0x37ef8f66:compilation_unit                             31,012               23,421                                  352 (2)                                2,340 (2)             7,303       13,426            0    File: /work/rich.sv:2
+ worklib.cnt:sv                                                        10,760               10,760                               2,560 (16)                                1,663 (1)             2,352        4,185            0    File: /work/rich.sv:3
+ --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  Snapshot Size:                                                                       254,939,136
+
+  Above Entries (3) Total:                                                                  75,304                               5,440 (35)                                7,362 (5)            21,487       41,015            0
+
+  All Design Units (3) Total:                                                               75,304                               5,440 (35)                                7,362 (5)            21,487       41,015            0
+
+  All Empty Design Units Total:                                                                  0                                    0 (0)                                    0 (0)                 0            0            0
+ --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+**********************************************************************************
+
+
+

@@ -1,0 +1,65 @@
+===============================================================================
+=== '/Performance/TB-DUT Distribution (run_simv_opt_prof_top (vsim_simv_opt))' Report
+===============================================================================
+Name      | Percentage | Hits
+-----------------------------
+TestBench |   87.93%   |  51
+Design    |   12.07%   |   7
+
+
+===================================================================================
+=== End '/Performance/TB-DUT Distribution (run_simv_opt_prof_top (vsim_simv_opt))' Report
+===================================================================================
+
+===================================================================
+=== '/Performance/Summary (run_simv_opt_prof_top (vsim_simv_opt))' Report
+===================================================================
+Name     | Percentage | Hits
+----------------------------
+SV       |   34.48%   |  20
+Solver   |   25.86%   |  15
+Coverage |   20.69%   |  12
+Kernel   |   10.34%   |   6
+C code   |    8.62%   |   5
+
+
+=======================================================================
+=== End '/Performance/Summary (run_simv_opt_prof_top (vsim_simv_opt))' Report
+=======================================================================
+
+=======================================================================
+=== '/Performance/Design Unit (run_simv_opt_prof_top (vsim_simv_opt))' Report
+=======================================================================
+Design Unit        | Local Hits | Local Time (s) | Local Percentage | Sample Instances | TB-DUT | Resolution | Region           | File and Line
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+top                |     52     |       1.04     |      89.66%      |         1        | TB     | 1ps        | SystemVerilog    | /work/rich2.sv:12
+<AdvanceTime>      |      3     |       0.06     |       5.17%      |         0        | DUT    |            | Kernel           | 
+<NoContext>        |      2     |       0.04     |       3.45%      |         0        | DUT    |            |                  | 
+<CoverageActivity> |      1     |       0.02     |       1.72%      |         0        | DUT    |            | CoverageActivity | 
+
+
+===========================================================================
+=== End '/Performance/Design Unit (run_simv_opt_prof_top (vsim_simv_opt))' Report
+===========================================================================
+
+======================================================================
+=== '/Performance/Structural (run_simv_opt_prof_top (vsim_simv_opt))' Report
+======================================================================
+Name                      | Local Hits | Local Time (s) | Scope Hits | Scope Time (s) | Scope Percentage | Local Percentage | Region           | Design Unit        | File and Line
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+top                       |      1     |       0.02     |     52     |       1.04     |      89.66%      |       1.72%      | SystemVerilog    | top                | /work/rich2.sv:12
+  process (rich2.sv:22)   |     34     |       0.68     |     34     |       0.68     |      58.62%      |      58.62%      | Process          | top                | /work/rich2.sv:22
+  cg                      |      0     |       0.00     |     15     |       0.30     |      25.86%      |       0.00%      | SystemVerilog    | top                | /work/rich2.sv:16
+    process (rich2.sv:16) |     15     |       0.30     |     15     |       0.30     |      25.86%      |      25.86%      | Process          | top                | /work/rich2.sv:16
+  NBA (rich2.sv:12)       |      1     |       0.02     |      1     |       0.02     |       1.72%      |       1.72%      | NBA              | top                | /work/rich2.sv:12
+  g[0]                    |      0     |       0.00     |      1     |       0.02     |       1.72%      |       0.00%      | SystemVerilog    | top                | /work/rich2.sv:18
+    process (rich2.sv:19) |      1     |       0.02     |      1     |       0.02     |       1.72%      |       1.72%      | Process          | top                | /work/rich2.sv:19
+<AdvanceTime>             |      3     |       0.06     |      3     |       0.06     |       5.17%      |       5.17%      | Kernel           | <AdvanceTime>      | 
+<NoContext>               |      2     |       0.04     |      2     |       0.04     |       3.45%      |       3.45%      |                  | <NoContext>        | 
+<CoverageActivity>        |      1     |       0.02     |      1     |       0.02     |       1.72%      |       1.72%      | CoverageActivity | <CoverageActivity> | 
+
+
+==========================================================================
+=== End '/Performance/Structural (run_simv_opt_prof_top (vsim_simv_opt))' Report
+==========================================================================
+

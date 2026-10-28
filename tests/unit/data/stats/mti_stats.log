@@ -1,0 +1,40 @@
+# vsim -batch -do "run -a; quit -f" simv_opt -stats=perf,time -l stats.log 
+# Start time: 16:27:17 on Oct 12,2026
+# //  Questa Sim-64
+# //  Version 2026.1 linux_x86_64 Jan 25 2026
+# //
+# // Unpublished work. Copyright 2026 Siemens
+# //
+# // This material contains trade secrets or otherwise confidential information
+# // owned by Siemens Industry Software Inc. or its affiliates (collectively,
+# // "SISW"), or its licensors. Access to and use of this information is strictly
+# // limited as set forth in the Customer's applicable agreements with SISW.
+# //
+# // This material may not be copied, distributed, or otherwise disclosed outside
+# // of the Customer's facilities without the express written permission of SISW,
+# // and may not be used in any way not expressly authorized by SISW.
+# //
+# Loading sv_std.std
+# Loading work.top_sv_unit(fast)
+# Loading work.top(fast)
+# 
+# run -a
+# done s=74975455
+# ** Note: $finish    : top.sv(20)
+#    Time: 4 ms  Iteration: 0  Instance: /top
+# Memory Statistics                         
+#     mem: size after elab (VSZ)                 646.76 Mb
+#     mem: size during sim (VSZ)                 646.76 Mb
+# Elaboration Time                          
+#    elab: wall time                               3.77 s
+#    elab: cpu time                                0.56 s
+# Simulation Time                           
+#     sim: wall time                              21.31 s
+#     sim: cpu time                                7.59 s
+# Total Time                                
+#   total: wall time                              25.08 s
+#   total: cpu time                                8.15 s
+# HDL Simulation time                              4 ms
+# 
+# End time: 16:27:42 on Oct 12,2026, Elapsed time: 0:00:25
+# Errors: 0, Warnings: 0

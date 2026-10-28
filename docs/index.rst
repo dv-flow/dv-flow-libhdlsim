@@ -254,6 +254,8 @@ Parameters
 * **cov** - [Optional] Coverage level: ``none`` (default), ``func``, ``code`` or ``full``.
   The image is built at the highest of this and every consumed ``hdlsim.SimCovArgs``.
   See `Coverage`_.
+* **prof** - [Optional] Profiling mode: ``none`` (default), ``time`` or ``mem``.
+  Combined with every consumed ``hdlsim.SimProfArgs``. See `Profiling`_.
 
 The ``defines`` and ``incdirs`` of a consumed ``cSource``/``cppSource`` FileSet
 are passed to the C compile of the image's DPI sources (as ``-D``/``-I``), not
@@ -338,6 +340,20 @@ Parameters
 * **level** - [Optional] ``none``, ``func``, ``code`` or ``full``. Defaults to
   the package variable ``hdlsim.cov`` (itself ``none``), so a bare
   ``uses: hdlsim.SimCovArgs`` follows ``-D hdlsim.cov=<level>``.
+
+
+
+Type: SimProfArgs
+=================
+The SimProfArgs type requests profiling from SimImage (and, through the image,
+SimRun). See `Profiling`_.
+
+Parameters
+----------
+
+* **mode** - [Optional] ``none``, ``time`` or ``mem``. Defaults to the package
+  variable ``hdlsim.prof`` (itself ``none``), so a bare
+  ``uses: hdlsim.SimProfArgs`` follows ``-D hdlsim.prof=<mode>``.
 
 
 
@@ -620,6 +636,267 @@ Limitations
   Use ``code`` for routine regressions.
 * **cocotb with Verilator works.** cocotb's Verilator main writes
   ``coverage.dat`` at exit.
+
+
+Profiling
+=========
+
+SimImage can build an image that SimRun then profiles: where the CPU time
+goes, or where the memory goes. Profiling is off by default. Ask for it with
+a *mode*:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Mode
+     - Profiles
+   * - ``none``
+     - Nothing (the default)
+   * - ``time``
+     - CPU time, by category (design, testbench, solver, ...) and by module
+   * - ``mem``
+     - Memory: the peak, and by module where the simulator reports it
+
+Unlike coverage levels, modes don't combine. The simulators say to profile
+time and memory in separate runs, because each skews the other. Two different
+modes asked of one image are an error.
+
+What each simulator does:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Simulator
+     - Build
+     - ``time``
+     - ``mem``
+   * - vcs (VCS)
+     - ``vcs -simprofile``
+     - ``simv -simprofile time``
+     - ``simv -simprofile mem``
+   * - xcm (Xcelium)
+     - nothing
+     - ``xmsim -profile``
+     - ``xmsim -memdetail``
+   * - mti (Questa)
+     - ``vopt -fprofile``
+     - ``vsim -fprofile+perf=high``
+     - ``vsim -fprofile+mem``
+   * - vlt (Verilator)
+     - ``verilator --prof-cfuncs``
+     - gprof
+     - not supported
+
+Questa writes no report during the run: SimRun runs ``visualizer -fbatch``
+afterwards to write one. Verilator's image writes ``gmon.out``, which SimRun
+reports with ``gprof`` and then ``verilator_profcfunc`` (from the same
+install as ``verilator``). When those tools are missing or fail, the run
+still passes and keeps its profile data, with a warning and no summary.
+
+The other simulators (ivl, xsm, xzm), and Verilator at ``mem``, don't
+support profiling. Asking them for a mode gives one warning, and the image
+is built without it.
+
+Ask for a mode the same three ways as a coverage level: ``-D hdlsim.prof=time``
+with a bare ``uses: hdlsim.SimProfArgs`` wired into SimImage, a holder with
+``with: { mode: time }``, or SimImage's ``prof`` parameter. Changing the mode
+rebuilds the image; on VCS the rebuild is a clean one, since VCS can't
+profile an incrementally compiled image, and on Verilator too, since
+``make`` doesn't notice the profiling compiler flags change. SimRun has no profiling parameter: a
+run profiles what its image was built for.
+
+Where the results go
+--------------------
+
+* **The profile.** A ``simProfDb`` FileSet (``role=prof``) holds the
+  profiler's own data, for reloading into the vendor's tools:
+
+  - ``format=vcs-simprofile``: VCS ``simprofile_dir`` (re-report with
+    ``profrpt``)
+  - ``format=xcelium-xmprof``: Xcelium ``xmprof.out``
+  - ``format=xcelium-xmprofmem``: Xcelium ``xmprofmem.json``
+  - ``format=xcelium-xprof``: Xcelium ``xprof/``, xProf's database (see
+    `Deep profilers`_)
+  - ``format=questa-fdb``: Questa ``fprofile/`` (open with
+    ``visualizer -fprofile``). The image's ``fprofile/`` holds vopt's part.
+  - ``format=vlt-gmon``: Verilator ``gmon.out``
+
+  A ``simProfReport`` FileSet (``role=prof-report``) holds the report a person
+  reads: VCS ``profileReport.html`` (with ``profileReport/``),
+  ``profileReport.txt`` and ``profileReport.json``; Xcelium ``xmprof.out``,
+  ``xmprofmem.out`` or xProf's ``xprof_*.txt``; Questa and Verilator ``prof_report.txt`` (Verilator's
+  with gprof's own ``gprof.out``).
+* **The summary.** ``prof_summary.json`` in the run directory, as a
+  ``simProfSummary`` FileSet (``role=prof-summary``), is the same shape for
+  every simulator:
+
+  .. code-block:: json
+
+      {"mode": "time", "sim": "vcs",
+       "categories": {"solver": 65.3, "hdl": 8.3, "tb": 6.2, "cov": 4.8,
+                      "pli": 0.3, "kernel": 15.1},
+       "top": [{"scope": "module", "name": "top", "pct": 10.4,
+                "instances": 17}]}
+
+  ``categories`` are percentages of the profile. The categories are ``hdl``
+  (design code), ``tb`` (classes, packages, programs), ``solver``
+  (``randomize()``), ``pli`` (DPI, PLI and VPI C code), ``assert``, ``cov``
+  (covergroup sampling), ``kernel`` (the simulator itself: scheduler,
+  startup, licensing) and ``other`` (anything the mapping doesn't know).
+  ``top`` lists up to 20 modules, largest first: by ``pct`` at ``time``, by
+  ``bytes`` at ``mem``. A ``mem`` summary also has ``mem_peak_mb``.
+
+  How the simulators' own names map onto the categories:
+
+  - VCS: ``CONSTRAINT`` is ``solver``. ``VERILOG`` is split by its
+    sub-components: ``Module`` is ``hdl``, ``Package`` (class code, including
+    classes in ``$unit``) is ``tb``, and the functional coverage entries are
+    ``cov``. ``PLI/DPI/DirectC`` is ``pli``, and ``KERNEL`` and ``UCLI`` are
+    ``kernel``. VCS calls ``$unit`` ``_global_``; the summary calls it ``$unit``.
+  - Xcelium: from the Technology-wise table, ``Randomization`` is ``solver``,
+    ``TB/SV`` is ``tb``, ``RTL/Design`` is ``hdl`` and ``Miscellaneous`` is
+    ``kernel``. Then the Stream Type table's ``Outside engine`` (user C code)
+    moves from ``kernel`` to ``pli``, and ``Assertions`` from ``hdl`` to
+    ``assert``. Xcelium doesn't break out covergroup time.
+  - Questa, ``time``: from the Performance Summary, ``Solver`` is ``solver``,
+    ``C code`` is ``pli``, ``Assertions`` is ``assert``, ``Coverage`` is
+    ``cov``, ``Kernel`` is ``kernel``, and ``SV``, ``Verilog`` and ``VHDL``
+    are ``hdl``. Questa doesn't separate class code from RTL, so its ``hdl``
+    includes the testbench and it has no ``tb``.
+  - Questa, ``mem``: shares of the process size, from the Memory Overview.
+    ``Kernel`` and ``Reserved`` are ``kernel``; ``Non-Kernel`` (memory Questa
+    doesn't attribute) is ``other``. Under ``HDL``, ``Assertions``,
+    ``Solver`` and ``Covergroups`` are ``assert``, ``solver`` and ``cov``;
+    classes, queues and strings are ``tb``; the rest is ``hdl``.
+  - Verilator: Verilog blocks and the rest of the Verilated design code are
+    ``hdl``, and the Verilated library is ``kernel``. Plain C++ is split by
+    name: the randomizer is ``solver``, coverage is ``cov``, the rest of
+    Verilator's runtime is ``kernel``, and anything else (DPI code, the C++
+    library) is ``other``. Verilator attributes blocks to source files, so
+    its ``top`` entries have ``"scope": "file"``.
+
+* **Stats.** ``SimRunResult.stats`` gets ``prof_<category>_pct`` for each
+  category in the summary. At ``time`` it also gets ``prof_<category>_s``:
+  that share of the run's CPU seconds (``cpu_total_s``). A suite sums these,
+  so ``SimSuiteReport`` reports, for example, the seconds spent in the solver
+  across the whole regression. At ``mem`` it gets ``prof_mem_peak_mb``.
+* **Provenance.** ``SimRunResult.runinfo.prof`` is ``{mode}``, plus
+  ``deep`` (for example ``{"xprof": true}``) when a deep profiler is on. It is
+  absent at ``none`` with no deep profiler.
+
+Deep profilers
+--------------
+
+The modes work the same way on every simulator. Each simulator also has its
+own, deeper profiler, and those don't fit a common mode: what they measure,
+what they write and what reads it back all differ. So each one is requested
+through its simulator's own typed args, a holder like this:
+
+.. code-block:: yaml
+
+    - name: xprof
+      uses: hdlsim.XcmProfArgs
+      with: { xprof: true }
+
+Every SimImage consumes every simulator's deep-profiler type, and each acts
+only on its own and ignores the rest without a warning. So one flow can carry
+the request for each simulator it supports, and the simulator it builds with
+decides which one applies. A simulator's SimImage also takes the same switch
+as a parameter (``hdlsim.xcm.SimImage``'s ``xprof``), for flows that name it.
+
+A deep profiler's output is a ``simProfDb`` with its own ``format=``, and its
+reports a ``simProfReport``, for the vendor's tools. It doesn't feed
+``prof_summary.json``: with no mode, a deep profiler writes no summary and no
+``prof_*`` stats. With a mode, the mode's summary is written as usual.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Simulator
+     - Args
+     - Switch
+     - Profiler
+   * - xcm (Xcelium)
+     - ``hdlsim.XcmProfArgs``
+     - ``xprof``
+     - xProf, the advanced CPU profiler
+
+**xProf.** The image is elaborated with ``xmelab -xprof``, and each run writes
+its database under ``xprof/`` in the run directory (``xmsim -prof_work``;
+``xprof/prof_cpu`` links to it). SimRun then runs ``xprof -batch`` to write
+its summaries by category, by module and by instance, to
+``xprof_category.txt``, ``xprof_type.txt`` and ``xprof_inst.txt``. A summary
+with no samples to list (the module and instance ones, when no time was spent
+in design code) isn't written. Open the database in the GUI with
+``xprof -load xprof/prof_cpu/prof_db``. ``xprof_merge`` combines runs' ``raw_data``
+directories, but libhdlsim doesn't run it yet.
+
+xProf combines with ``time``. An xProf snapshot ignores ``xmsim -profile``,
+so SimRun doesn't pass it and reads the summary from xProf's own copy of
+``xmprof.out`` instead, which has the same tables. It doesn't combine with
+``mem``: an xProf snapshot writes no memory profile, so asking for both is an
+error.
+
+Reporting a regression
+----------------------
+
+Profiles don't merge the way coverage does. The question across a regression
+is which tests and which modules use the most, so ``SimProfReport`` ranks
+them. It reads the ``simProfSummary`` artifacts of its ``SimRunResult``,
+``TestResult`` and ``SuiteResult`` inputs. It doesn't depend on the
+simulator, and one report can cover runs on several.
+
+.. code-block:: yaml
+
+    - name: regress
+      uses: hdlsim.SimSuiteReport
+      needs: [case1, case2, case3]
+    - name: profile
+      uses: hdlsim.SimProfReport
+      needs: [regress]
+
+For each mode it finds, the report has a section:
+
+* **time**: the tests ranked by CPU time, each with its largest category;
+  the category totals in CPU seconds (each run's category share of its CPU
+  time, summed); and the top modules, weighted the same way, with the number
+  of runs each appears in. A run's CPU time is its ``cpu_total_s`` stat, else
+  ``sim_cpu_s``. A run with neither, or one too short to measure, is listed
+  but left out of the totals, with a warning.
+* **mem**: the tests ranked by peak memory; the mean category shares; and
+  the top modules by their largest footprint in any run.
+
+The outputs are:
+
+* ``prof_report.txt`` and ``prof_report.json``, as a ``simProfReport``
+  FileSet (``role=prof-report``). The text lists the first 20 tests per mode;
+  the JSON lists them all;
+* a ``SimProfReportResult`` with ``runs``, ``unprofiled`` (runs without a
+  summary), and ``time`` and ``mem``: the JSON's sections, empty for a mode
+  no run used.
+
+Runs without a profile are counted and skipped; finding no profile at all is
+an error. A run reached through two inputs is counted once. Each run's
+summary keeps only its top 20 modules, so a module's total is a lower bound.
+
+Limitations
+-----------
+
+* **Peak memory means different things.** VCS's and Questa's peaks are the
+  whole process image (Questa's VSZ), shared libraries included, so they are
+  far larger than Xcelium's, which is physical memory. Compare
+  ``prof_mem_peak_mb`` between runs on one simulator, not across simulators.
+  Xcelium's ``mem`` summary has no categories.
+* **Sampling.** All the profilers sample. A run of well under a second gives
+  too few samples to mean much; Questa takes about 30 samples per CPU second
+  even at ``perf=high``.
+* **Verilator sees only its own binary.** gprof doesn't sample shared
+  libraries or child processes, and Verilator's constraint solver runs as a
+  child process. The percentages are of what gprof saw, so on a
+  ``randomize()``-heavy test they understate the solver.
+* **Other costs show up.** Profiling a ``dbg`` build (``-debug_access``) or a
+  coverage build charges that instrumentation to the design. Profile ``opt``
+  builds with coverage off, unless that cost is the question.
 
 
 Simulator Support

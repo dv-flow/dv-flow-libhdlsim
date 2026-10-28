@@ -1,0 +1,138 @@
+xmsim(64): 26.03-s005: (c) Copyright 1995-2026 Cadence Design Systems, Inc.
+
+Linux host0 4.18.0-553.126.1.el8_10.x86_64 #1 SMP Fri May 29 15:43:47 UTC 2026 x86_64 256 CPUs, 515476 Meg RAM, 500 hits/sec, (user0)
+
+	model name:Generic x86_64 Processor
+ 
+	------------------------------------------------------------
+	                      Cache Sizes
+	------------------------------------------------------------
+	Cache Type           Size
+	------------------------------------------------------------
+	L1d cache            32K
+	L1i cache            32K
+	L2 cache             512K
+	L3 cache             16384K
+	------------------------------------------------------------
+
+xmelab options:
+	-CDSLIB
+	../ximg/xcelium.d/snap.lnx8664.26.03.d/cds.lib
+	-HDLVAR
+	../ximg/xcelium.d/snap.lnx8664.26.03.d/hdl.var
+	-WORK
+	worklib
+	-MESSAGES
+	worklib.top:sv
+	worklib.\$unit_0x37ef8f66 :compilation_unit
+
+Profiled Intervals: 
+ #Id                                PBSR Info               #start                  #stop             #start_CPU          #stop_CPU               #CPS
+[ 1]                                                          0 NS   to         500000 NS                 0.1089             1.1490      480742.420134
+
+Memory Usage - 59.6M program + 366.6M data + 1.0M profile = 427.2M total
+CPU Usage - 0.2s system + 1.0s user = 1.2s total (47.5% cpu)
+
+License Acquisition Time - 0.000003s
+Snapshot Loading: CPU Usage - 0.1s system + 0.0s user = 0.1s total (0.5s, 26.5% cpu)
+
+Derived hit_rate: 499 hps
+
+------------------------------------------------------------
+Stream Counts (519 hits total)
+------------------------------------------------------------
+%hits #hits  #inst  name
+ 43.2   224 [     ] SV randomization strategy and solver (rnc)
+ 22.0   114 [    1] Task work (file: ../rich.sv, line: 10 in worklib.$unit_0x37ef8f66 [compilation unit])
+ 12.5    65 [     ] outside engine
+  5.0    26 [     ] SV randomization language processing (svrnc)
+  3.9    20 [    1] Assertion a_q (file: ../rich.sv, line: 21 in worklib.top [module])
+  2.7    14 [    1] Initial stmt (file: ../rich.sv, line: 22 in worklib.top [module])
+  1.7     9 [    1] Function randomize (file: ../rich.sv, line: 7 in worklib.$unit_0x37ef8f66 [compilation unit])
+  1.0     5 [     ] Method SSS_KM_CL2TA (method)
+  1.0     5 [     ] Method SSS_MT_PW2 (method)
+  1.0     5 [    1] Anonymous continuous assignment (file: ../rich.sv, line/pos: 19/18 in worklib.top [module])
+  0.8     4 [     ] ACTIVE POSEDGE WAKEUP, head, tail, rtn (method)
+  0.8     4 [     ] ssslib snare support
+  0.6     3 [     ] Method SSS_MT_DU_LONGNFW (method)
+  0.6     3 [     ] Method SSS_MT_DU_BYTENFW (method)
+  0.6     3 [   16] Non-blocking Assignment (file: ../rich.sv, line: 5 in worklib.cnt [module])
+  0.4     2 [     ] Method SSS_MT_SVHASSIGN_ER_NS (method)
+  0.4     2 [     ] Method SSS_KM_FINDRFT (method)
+  0.4     2 [    1] Anonymous continuous assignment (file: ../rich.sv, line/pos: 19/25 in worklib.top [module])
+  0.4     2 [   16] Always stmt (file: ../rich.sv, line: 5 in worklib.cnt [module])
+  0.4     2 [     ] simulation setup time 
+  0.2     1 [     ] Method SSS_MT_RTNPES (method)
+  0.2     1 [     ] Method SSS_MT_ENTPES (method)
+  0.2     1 [     ] Stream rts_xfer (process)
+  0.2     1 [    1] Initial stmt (file: ../rich.sv, line: 23 in worklib.top [module])
+  0.2     1 [    1] Assertion a_q (file: ../rich.sv, line: 21 in worklib.top [module])
+
+------------------------------------------------------------
+Most Active Modules (behavioral)
+------------------------------------------------------------
+%hits #hits  #inst  name
+ 23.7   123 [    1] worklib.$unit_0x37ef8f66:compilation_unit (file: /work/rich.sv line: 2)
+  8.3    43 [    1] worklib.top:sv (file: /work/rich.sv line: 12)
+  1.0     5 [   16] worklib.cnt:sv (file: /work/rich.sv line: 3)
+
+
+------------------------------------------------------------
+Assertion Summary Counts (21 hits, 4.0% of total)
+Evaluation Load Summary Counts (20 hits, 3.9% of total) blocks hit (1)
+Sampling Load Summary Counts (1 hits, 0.2% of total) blocks hit (1)
+Abort Load Summary Counts (0 hits, 0.0% of total) blocks hit (0)
+Miscellaneous Load Summary Counts (0 hits, 0.0% of total) blocks hit (0)
+------------------------------------------------------------
+%hits #hits #eval_hits #samp_hits  #inst  name
+  4.0    21         20          1 [    2] a_q (assert stmt, file: ../rich.sv, line: 21) 
+
+
+------------------------------------------------------------------------------------------------------------------
+Time In Randomize Calls (250 hits, 48.2% of total)
+Total Number of Randomize Calls: 50000  Average Time Per Call (msec): 0.0299
+Total Solver Time (msec): 1264.2  Total Frontend Time (msec): 231.0
+------------------------------------------------------------------------------------------------------------------
+%Sim |            Solver Time (msec.)        |           Frontend Time (msec.)       |
+CPU  |      min      avg      max      total |      min      avg      max      total |   #calls  line
+------------------------------------------------------------------------------------------------------------------
+60.8 |     0.01      0.0     63.4     1264.2 |     0.00      0.0     62.3      231.0 |    50000  ../rich.sv, 27
+-----------------------------------------------------------------------------------------------------------------------
+Time In Randomize Classes (250 hits, 48.2% of total)
+Total Number of Randomize Calls: 50000  Average Time Per Call (msec): 0.0299
+Total Solver Time (msec): 1264.2  Total Frontend Time (msec): 231.0
+-----------------------------------------------------------------------------------------------------------------------
+%Sim |            Solver Time (msec.)        |           Frontend Time (msec.)       |
+CPU  |      min      avg      max      total |      min      avg      max      total |   #calls  class   line
+-----------------------------------------------------------------------------------------------------------------------
+60.8 |     0.01      0.0     63.4     1264.2 |     0.00      0.0     62.3      231.0 |    50000  item  ../rich.sv,7
+
+------------------------------------------------------------
+Stream Type Summary Counts (519 hits total)
+------------------------------------------------------------
+%hits #hits  #inst  name
+ 48.2   250 [     ] Randomization 
+ 22.0   114 [    1] Verilog tasks 
+ 12.5    65 [     ] Outside engine 
+  4.0    21 [     ] Simulation Engine Time 
+  4.0    21 [    2] Assertions 
+  2.9    15 [    2] Initial statements 
+  1.7     9 [    1] Verilog functions 
+  1.3     7 [     ] Anonymous continuous assignments 
+  0.8     4 [     ] Support for callbacks (or UI) 
+  0.8     4 [     ] RTL Evaluation Methods 
+  0.6     3 [   16] Non-blocking assignments 
+  0.4     2 [   16] Always statements 
+  0.4     2 [     ] Simulation Setup Time 
+  0.4     2 [     ] SV Methods 
+
+------------------------------------------------------------
+Technology-wise Summary Counts (519 hits total)
+------------------------------------------------------------
+%hits   #hits  name
+ 48.2     250 Randomization 
+ 28.1     146 TB/SV 
+ 17.0      88 Miscellaneous 
+  6.0      31 RTL/Design 
+  0.8       4 Analysis 
+

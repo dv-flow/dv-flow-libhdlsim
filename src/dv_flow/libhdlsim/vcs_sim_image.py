@@ -55,6 +55,9 @@ class SimImageBuilder(VlSimImageBuilder):
     def cov_kinds(self, level):
         return list(VCS_COV[level][0]) if level in VCS_COV else []
 
+    def prof_supported(self, mode):
+        return mode in ("time", "mem")
+
     def getRefTime(self, rundir):
         if os.path.isfile(os.path.join(rundir, 'simv')):
             return os.path.getmtime(os.path.join(rundir, 'simv'))
@@ -111,7 +114,17 @@ class SimImageBuilder(VlSimImageBuilder):
             self.parseLog(os.path.join(input.rundir, 'vlogan.log'))
 
         if status == 0:
+            # -simprofile needs a clean (not incremental) compile, so drop
+            # the compile state when the image's profiling changes.
+            if data.prof_mode != data.prof_prev_mode:
+                for d in ('csrc', 'simv.daidir'):
+                    shutil.rmtree(os.path.join(input.rundir, d),
+                                  ignore_errors=True)
+
             cmd = ['vcs', '-full64']
+
+            if data.prof_mode != "none":
+                cmd.append('-simprofile')
             
             if input.params.partcomp:
                 cmd.append('-partcomp')

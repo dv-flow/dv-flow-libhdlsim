@@ -32,6 +32,13 @@ package:
     shell: pytask                                                                                                                                      
     run: dv_flow.libhdlsim.xcm_sim_image.SimImage                                                                                                      
     uptodate: dv_flow.libhdlsim.xcm_sim_image.check_uptodate
+    with:
+      xprof:
+        doc: |
+          Enable xProf, Xcelium's advanced CPU profiler. Same as a consumed
+          hdlsim.XcmProfArgs with `xprof: true`; see that type.
+        type: bool
+        value: false
         
   - export: SimLib
     uses: hdlsim.SimLib

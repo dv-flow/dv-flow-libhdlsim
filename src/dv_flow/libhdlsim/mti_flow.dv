@@ -195,6 +195,15 @@ package:
           ### SimRun
           - `full64`: Enable 64-bit mode (default: true)
           
+          ## Profiling
+          
+          `prof: time` (or `mem`) on SimImage, or a wired hdlsim.SimProfArgs,
+          adds `vopt -fprofile` and runs `vsim -fprofile+perf=high` (or
+          `+mem`). After the run, `visualizer -fbatch` writes
+          `prof_report.txt` (a `simProfReport`); the run also gives
+          `prof_<category>_pct` stats. Open `fprofile/` (the `simProfDb`)
+          with `visualizer -fprofile` to explore it.
+          
           ## Tasks
           
           - `SimImage`: Compile HDL to simulation executable

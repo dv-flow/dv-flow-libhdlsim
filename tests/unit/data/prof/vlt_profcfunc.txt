@@ -1,0 +1,60 @@
+Overall summary by type:
+  % time  type
+   26.07  C++
+   45.65  Common code under Vprof_top
+    8.69  VLib
+   19.57  Verilog Blocks under Vprof_top
+    0.02  Unaccounted for/rounding error
+
+Overall summary by design:
+  % time  design
+   26.07  C++
+    8.69  VLib
+   65.22  Vprof_top
+    0.02  Unaccounted for/rounding error
+
+Overall summary by module:
+  % time  module
+   26.07  C++
+    8.69  VLib
+   45.65  Vprof_top common code
+   19.57  rtl
+    0.02  Unaccounted for/rounding error
+
+Verilog code profile:
+   These are split into three categories:
+      C++:     Time in non-Verilated C++ code
+      Prof:    Time in profile overhead
+      VBlock:  Time attributable to a block in a Verilog file and line
+      VCommon: Time in a Verilated module, due to all parts of the design
+      VLib:    Time in Verilated common libraries, called by the Verilated code
+
+  %   cumulative   self              
+ time   seconds   seconds      calls   design     type      filename and line number
+ 19.57      0.13     0.13   76800000   Vprof_top  VBlock    rtl:5
+ 13.04      0.19     0.06     600001   Vprof_top  VCommon   Vprof_top___024root___eval_sample(Vprof_top___024root*)
+ 10.87      0.24     0.05     300000   Vprof_top  VCommon   Vprof_top_prof_top__03a__03acg::__VnoInFunc_sample(Vprof_top__Syms*)
+  6.52      0.27     0.03     300000   Vprof_top  VCommon   Vprof_top___024unit__03a__03aprof_item::__VnoInFunc_work(Vprof_top__Syms*)
+  4.35      0.29     0.02    6300008   -          VLib      VerilatedEvalLoop::checkConvergence(unsigned int, char const*, void (VerilatedModel::*)())
+  4.35      0.31     0.02    2100001   Vprof_top  VCommon   Vprof_top___024root___eval_triggers_vec__act(Vprof_top___024root*)
+  4.35      0.33     0.02     600000   Vprof_top  VCommon   Vprof_top___024root___eval_body__nba(Vprof_top___024root*)
+  4.35      0.35     0.02          1   -          C++       void VerilatedEvalLoop::evalImpl<false>()
+  3.26      0.37     0.02    6000000   -          C++       std::__shared_count<(__gnu_cxx::_Lock_policy)2>::~__shared_count()
+  3.26      0.39     0.02    1200002   Vprof_top  VCommon   Vprof_top::evalReact()
+  2.17      0.40     0.01    5100262   -          VLib      Verilated::threadContextp()
+  2.17      0.41     0.01    2100001   Vprof_top  VCommon   Vprof_top___024root___eval_act(Vprof_top___024root*)
+  2.17      0.42     0.01    2100001   -          C++       VlDynamicTriggerScheduler::doPostUpdates()
+  2.17      0.43     0.01     600000   -          C++       VlDelayScheduler::resume()
+  2.17      0.44     0.01     600000   -          C++       VlCoroutineHandle::resume()
+  2.17      0.45     0.01     409091   -          C++       std::deque<unsigned int, std::allocator<unsigned int> >::size() const
+  2.17      0.46     0.01     300000   -          C++       VlCoverCross::iterateProduct(VlCoverpoint* const*, unsigned int, unsigned int)
+  2.17      0.47     0.01          1   -          C++       std::_Vector_base<_IO_FILE*, std::allocator<_IO_FILE*> >::~_Vector_base()
+  2.17      0.48     0.01          1   -          VLib      VerilatedImp::exportFindNum(char const*)
+  2.17      0.49     0.01          1   -          C++       VlDelayScheduler::nextTimeSlot() const
+  1.09      0.50     0.01    1800000   -          C++       VlCoroutineHandle::~VlCoroutineHandle()
+  1.09      0.51     0.01     600001   Vprof_top  VCommon   Vprof_top::evalIco(bool)
+  1.09      0.52     0.01     600000   -          C++       VlCoverpointT<1u>::incrementBin(unsigned int)
+  1.09      0.53     0.01          1   -          C++       std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::_Identity<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >::_Rb_tree(std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::_Identity<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > const&)
+  0.00      0.53     0.00   15000000   -          C++       std::deque<unsigned int, std::allocator<unsigned int> >::push_back(unsigned int const&)
+  0.00      0.53     0.00    5100008   -          C++       std::vector<VlCoroutineHandle, std::allocator<VlCoroutineHandle> >::clear()
+  0.00      0.53     0.00    2400002   Vprof_top  VCommon   Vprof_top::evalNba()

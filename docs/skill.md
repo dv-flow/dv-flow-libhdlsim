@@ -382,6 +382,48 @@ Results:
   percentages on a UVM bench mostly measure UVM. On xezim, run `args:
   [--code-coverage-scope, <dut-instance>]` narrows it.
 
+## Profiling
+
+Ask for a mode (`none`, `time` or `mem`) and the image is built to profile;
+its runs follow it. `-D hdlsim.prof=time` reaches a bare
+`uses: hdlsim.SimProfArgs`, or fix it in a holder (`with: { mode: time }`)
+or on SimImage (`with: { prof: time }`). Supported: vcs, xcm and mti for
+`time` and `mem`; vlt for `time`. Other combinations warn and build without
+profiling. Changing the mode rebuilds the image from scratch.
+
+Results:
+- `SimRunResult.artifacts` gains `simProfDb` (the raw data, with `format=`),
+  `simProfReport` (the tool's own report) and `simProfSummary`
+  (`prof_summary.json`: `{mode, sim, categories, top}`, the same shape on
+  every simulator). Categories: `hdl`, `tb`, `solver`, `pli`, `assert`,
+  `cov`, `kernel`, `other`.
+- `stats` gets `prof_<cat>_pct`, plus `prof_<cat>_s` at `time` and
+  `prof_mem_peak_mb` at `mem`; `runinfo.prof` is `{mode}`.
+- `SimProfReport` ranks the tests and modules of the runs it needs (any
+  simulator), and writes `prof_report.txt` / `prof_report.json` and a
+  `SimProfReportResult`:
+
+  ```yaml
+  - name: profile
+    uses: hdlsim.SimProfReport
+    needs: [regress]       # a SimSuiteReport, or the runs themselves
+  ```
+- Profile `opt` builds with coverage off: debug access and coverage are
+  charged to the design. Peak memory differs by tool (VCS and Questa: process
+  size; Xcelium: physical), so compare it within one simulator.
+- Deep profilers are per simulator, through that simulator's typed args.
+  Every SimImage consumes them all and acts only on its own, so wire in each
+  simulator's request and let the build's simulator pick. Xcelium's xProf:
+  ```yaml
+  - name: xprof
+    uses: hdlsim.XcmProfArgs   # or hdlsim.xcm.SimImage `xprof: true`
+    with: { xprof: true }
+  ```
+  The run's `simProfDb` is then `xprof/` (`format=xcelium-xprof`) and its
+  `simProfReport` the `xprof_*.txt` summaries. A deep profiler writes no
+  `prof_summary.json` by itself; combine it with `time` for one (xProf
+  can't combine with `mem`).
+
 ## Selecting a Simulator (abstract tasks)
 
 Write the generic tasks `uses: hdlsim.SimImage` / `hdlsim.SimRun` (no simulator

@@ -1,0 +1,161 @@
+{
+ "Memory": {
+  "Summary": {
+   "EntryTitle": " Peak Memory Summary View",
+   "EntryContent": [
+    {
+     "Component": "KERNEL",
+     "Memory": 10065666,
+     "Percentage": 2.1866439958368185,
+     "SubContent": [
+      {
+       "Component": "Scheduler",
+       "Memory": 5696,
+       "Percentage": 0.0012373869945899773,
+       "SubContent": []
+      },
+      {
+       "Component": "Design_Elab",
+       "Memory": 4599,
+       "Percentage": 0.0009990770344310577,
+       "SubContent": []
+      },
+      {
+       "Component": "Hsim_Elab",
+       "Memory": 187,
+       "Percentage": 4.062348454851224e-05,
+       "SubContent": []
+      }
+     ]
+    },
+    {
+     "Component": "VERILOG",
+     "Memory": 302985,
+     "Percentage": 0.06581982067342772,
+     "SubContent": [
+      {
+       "Component": "Function Coverage Kernel",
+       "Memory": 1655662,
+       "Percentage": 0.3596725116286571,
+       "SubContent": []
+      },
+      {
+       "Component": "Package",
+       "Memory": 295134,
+       "Percentage": 0.06411428603604606,
+       "SubContent": []
+      },
+      {
+       "Component": "Module",
+       "Memory": 7851,
+       "Percentage": 0.0017055346373816558,
+       "SubContent": []
+      }
+     ]
+    },
+    {
+     "Component": "HSIM",
+     "Memory": 1322824,
+     "Percentage": 0.28736748836578163,
+     "SubContent": []
+    },
+    {
+     "Component": "PLI/DPI",
+     "Memory": 104,
+     "Percentage": 2.259274006976082e-05,
+     "SubContent": []
+    },
+    {
+     "Component": "Anonymous",
+     "Memory": 128522235,
+     "Percentage": 27.91989854365112,
+     "SubContent": []
+    },
+    {
+     "Component": "SNPS Memory Pool",
+     "Memory": 30096988,
+     "Percentage": 6.538206026602986,
+     "SubContent": [
+      {
+       "Component": "Dynamic Memory Pool",
+       "Memory": 1048576,
+       "Percentage": 0.22779043280182232,
+       "SubContent": []
+      }
+     ]
+    },
+    {
+     "Component": "Library/Executable",
+     "Memory": 288358400,
+     "Percentage": 62.642369020501135,
+     "SubContent": [
+      {
+       "Component": "VCS",
+       "Memory": 181403648,
+       "Percentage": 39.40774487471526,
+       "SubContent": []
+      },
+      {
+       "Component": "Third-party",
+       "Memory": 106954752,
+       "Percentage": 23.234624145785876,
+       "SubContent": []
+      }
+     ]
+    }
+   ],
+   "TOTAL": {
+    "Memory": 460324864,
+    "Percentage": 100.0
+   }
+  },
+  "Instance": {
+   "EntryTitle": " Peak Memory Instance View",
+   "EntryContent": [
+    {
+     "Instance": "_global_",
+     "Memory incl": 286814,
+     "Memory excl": 286814,
+     "%TotalMemory incl": 2.148863574127417,
+     "%TotalMemory excl": 2.148863574127417,
+     "Module/Program/Architecture": "_global_",
+     "Source": "Source File Unknown",
+     "SubConstr": []
+    }
+   ]
+  },
+  "Module": {
+   "EntryTitle": " Peak Memory Module View",
+   "EntryContent": [
+    {
+     "Module": "_global_",
+     "Memory": 286814,
+     "InclusiveMemory": 286814,
+     "%TotalMemory": 2.148863574127417,
+     "%InclusiveTotalMemory": 2.148863574127417,
+     "#Instances": 1,
+     "Source": "Source File Unknown",
+     "Constr": []
+    }
+   ]
+  },
+  "Construct": {
+   "EntryTitle": " Peak Memory Construct View",
+   "EntryContent": []
+  },
+  "Coverage": {
+   "EntryTitle": "Peak Memory Coverage View",
+   "EntryContent": []
+  },
+  "Slot": {
+   "EntryTitle": "Peak Memory PLI/DPI/DirectC View",
+   "EntryContent": [],
+   "Total": {
+    "Name": "Total:",
+    "Percentage": 0.0,
+    "Memory": 0
+   }
+  }
+ },
+ "DynamicMemory": {}
+}

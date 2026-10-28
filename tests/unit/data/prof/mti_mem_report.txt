@@ -1,0 +1,79 @@
+==================================================================================
+=== '/Memory/Memory Overview (run_simv_opt_prof_top (vsim_simv_opt))' Report
+==================================================================================
+Name                         | Memory (MB) | Percentage
+-------------------------------------------------------
+Current Process Memory (VSZ) |    585.11   |   100.00%
+  Non-Kernel                 |    450.03   |    76.91%
+  Reserved                   |     73.69   |    12.59%
+  Kernel                     |     59.98   |    10.25%
+  HDL                        |      1.43   |     0.24%
+    Assertions               |      0.76   |     0.13%
+    Solver                   |      0.33   |     0.06%
+    Covergroups              |      0.14   |     0.02%
+    NBA                      |      0.12   |     0.02%
+    Classes                  |      0.04   |    <0.01%
+    Type_desc                |     <0.01   |    <0.01%
+    SV Variables             |     <0.01   |    <0.01%
+    VHDL subprograms         |     <0.01   |    <0.01%
+    Verilog                  |     <0.01   |    <0.01%
+    VHDL Signals             |     <0.01   |    <0.01%
+    Blocks                   |     <0.01   |    <0.01%
+    Queues                   |     <0.01   |    <0.01%
+    VCD                      |     <0.01   |    <0.01%
+    SV Parameters            |     <0.01   |    <0.01%
+    Tasks                    |     <0.01   |    <0.01%
+    VHDL Trigger             |     <0.01   |    <0.01%
+    Continuous Assignments   |     <0.01   |    <0.01%
+    Strings                  |     <0.01   |    <0.01%
+Peak Process Memory (RSS)    |    216.94   |          
+Peak Process Memory (VSZ)    |    710.38   |          
+Current Process Memory (RSS) |     91.69   |          
+
+
+======================================================================================
+=== End '/Memory/Memory Overview (run_simv_opt_prof_top (vsim_simv_opt))' Report
+======================================================================================
+
+=====================================================================================
+=== '/Memory/Design Unit Memory (run_simv_opt_prof_top (vsim_simv_opt))' Report
+=====================================================================================
+Name                             | Memory (MB) | Percentage | Language      | Instance Count | Time Unit | Time Resolution
+--------------------------------------------------------------------------------------------------------------------------
+HDL Memory                       |     1.43    |   100.00%  |               |                |           | 
+  DU Memory                      |     0.80    |    56.47%  |               |        3       |           | 
+    work                         |     0.78    |    54.58%  | Library       |                |           | 
+      Module                     |     0.78    |    54.40%  |               |                |           | 
+        prof_top                 |     0.78    |    54.40%  | Verilog       |        1       | 1ns       | 1ns
+          Assertions             |     0.76    |    53.44%  |               |                |           | 
+          SV Variables           |    <0.01    |     0.35%  |               |                |           | 
+          Verilog                |    <0.01    |     0.19%  |               |                |           | 
+          VHDL subprograms       |    <0.01    |     0.16%  |               |                |           | 
+          Covergroups            |    <0.01    |     0.12%  |               |                |           | 
+          Classes                |    <0.01    |     0.09%  |               |                |           | 
+          Blocks                 |    <0.01    |     0.04%  |               |                |           | 
+          Tasks                  |    <0.01    |    <0.01%  |               |                |           | 
+          VHDL Trigger           |    <0.01    |    <0.01%  |               |                |           | 
+          Continuous Assignments |    <0.01    |    <0.01%  |               |                |           | 
+      Package                    |    <0.01    |     0.18%  |               |                |           | 
+        prof_top_sv_unit         |    <0.01    |     0.18%  | SystemVerilog |        1       | 1ns       | 1ns
+          SV Variables           |    <0.01    |     0.06%  |               |                |           | 
+          VHDL subprograms       |    <0.01    |     0.06%  |               |                |           | 
+          Classes                |    <0.01    |     0.04%  |               |                |           | 
+          Blocks                 |    <0.01    |     0.01%  |               |                |           | 
+    sv_std                       |     0.03    |     1.89%  | Library       |                |           | 
+      Package                    |     0.03    |     1.89%  |               |                |           | 
+        std                      |     0.03    |     1.89%  | SystemVerilog |        1       | 1ns       | 1ns
+          Classes                |     0.02    |     1.60%  |               |                |           | 
+          SV Variables           |    <0.01    |     0.15%  |               |                |           | 
+          VHDL subprograms       |    <0.01    |     0.09%  |               |                |           | 
+          SV Parameters          |    <0.01    |     0.02%  |               |                |           | 
+          Blocks                 |    <0.01    |     0.01%  |               |                |           | 
+          Verilog                |    <0.01    |    <0.01%  |               |                |           | 
+  HDL Memory Not Mapped to DU    |     0.62    |    43.53%  |               |                |           | 
+
+
+=========================================================================================
+=== End '/Memory/Design Unit Memory (run_simv_opt_prof_top (vsim_simv_opt))' Report
+=========================================================================================
+

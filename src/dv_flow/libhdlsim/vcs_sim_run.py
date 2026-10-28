@@ -27,7 +27,7 @@ import tempfile
 from typing import Dict, List, Tuple
 from dv_flow.mgr import TaskDataResult, FileSet
 from dv_flow.mgr.task_data import TaskMarker, SeverityE
-from dv_flow.libhdlsim import cov
+from dv_flow.libhdlsim import cov, prof, sim_stats
 from dv_flow.libhdlsim.log_parser import LogParser
 from dv_flow.libhdlsim.vl_sim_runner import VLSimRunner
 from dv_flow.libhdlsim.sim_uvm_case import uvm_case_task
@@ -78,6 +78,15 @@ class SimRunner(VLSimRunner):
         if data.cov is not None and data.cov.get("level") in VCS_COV:
             cmd.extend(self._cov_args(data))
 
+        # The profile (simprofile_dir, profileReport.*) lands in the rundir
+        if data.prof is not None and data.prof.get("mode", "none") != "none":
+            cmd.extend(["-simprofile", data.prof["mode"],
+                        "-simprofile_dir_path", self.rundir])
+
+        # End-of-run CPU/memory report, parsed by parse_sim_stats
+        if "-reportstats" not in data.args:
+            cmd.append("-reportstats")
+
         cmd.extend(data.args)
 
         cmd.extend(["+%s" % p for p in data.plusargs])
@@ -96,6 +105,9 @@ class SimRunner(VLSimRunner):
         return ["-cm", VCS_COV[data.cov["level"]][1],
                 "-cm_dir", db,
                 "-cm_name", cov.db_test_name(self.rundir)]
+
+    def parse_sim_stats(self, logfile):
+        return sim_stats.parse_vcs_log_stats(sim_stats.read_log_ends(logfile))
 
     def parse_cov_summary(self, rundir, cov_info):
         db = os.path.join(rundir, COV_DB)
@@ -117,9 +129,22 @@ class SimRunner(VLSimRunner):
             with open(dashboard, "r") as fp:
                 return cov.parse_vcs_cov_summary(fp.read(), cov_info.get("kinds"))
 
+    def parse_prof_summary(self, rundir, prof_info):
+        path = os.path.join(rundir, "profileReport.json")
+        if not os.path.isfile(path):
+            return None
+        with open(path, "r") as fp:
+            return prof.parse_vcs_profile(json.load(fp), prof_info.get("mode"))
+
     def _artifact_spec(self) -> Dict[str, Tuple]:
         spec = super()._artifact_spec()
         spec["simCovDb"] = ([COV_DB], "cov", ["format=%s" % cov.FORMAT_VCS_VDB])
+        # profileReport/ holds the HTML report's pages
+        spec["simProfDb"] = (["simprofile_dir"], "prof",
+                             ["format=%s" % prof.FORMAT_VCS_SIMPROFILE])
+        spec["simProfReport"] = (["profileReport.html", "profileReport",
+                                  "profileReport.txt", "profileReport.json",
+                                  "dprof.txt", "dprof.dir"], "prof-report")
         return spec
 
 async def SimRun(runner, input) -> TaskDataResult:

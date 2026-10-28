@@ -129,3 +129,35 @@ def test_simrun_emits_stats_and_runinfo(tmpdir):
         doc = json.load(fp)
     assert doc["stats"]["walltime_s"] == stats["walltime_s"]
     assert doc["runinfo"]["sim"] == "vlt"
+
+
+from .sims import get_available_sims
+
+
+@pytest.mark.parametrize("sim", get_available_sims(only=("vcs", "xcm", "mti")))
+def test_simrun_parses_sim_report(tmpdir, sim):
+    """vcs / xcm / mti ask for their end-of-run report on every run; its CPU
+    and memory figures reach `stats` and the version reaches `runinfo`."""
+    rundir = os.path.join(tmpdir, "rundir")
+    runner = TaskSetRunner(rundir)
+    builder = TaskGraphBuilder(
+        PackageLoader().load_rgy(["std", "hdlsim.%s" % sim]), rundir)
+    runner.builder = builder
+    top = builder.mkTaskNode(
+        "std.FileSet", name="top",
+        type="systemVerilogSource", base=DATA_DIR, include="simrun_cond.sv")
+    sim_img = builder.mkTaskNode(
+        "hdlsim.%s.SimImage" % sim, name="sim_img", needs=[top],
+        top=["simrun_cond"])
+    sim_run = builder.mkTaskNode(
+        "hdlsim.%s.SimRun" % sim, name="sim_run", needs=[sim_img])
+    runner.add_listener(TaskListenerLog().event)
+    out_l = asyncio.run(runner.run([sim_run]))
+    assert runner.status == 0
+
+    result = _find_result(out_l)
+    assert result is not None
+    assert result.stats["sim_cpu_s"] >= 0
+    assert result.stats["sim_mem_mb"] > 0
+    assert result.runinfo["sim_version"]
+    assert result.runinfo["finish_reason"] == "$finish"

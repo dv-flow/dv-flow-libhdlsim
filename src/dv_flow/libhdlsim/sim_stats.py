@@ -38,10 +38,13 @@ Three collection tiers, in decreasing portability:
    free, when a GNU ``time`` exists (probed once; silently skipped otherwise).
 2. *Simulator-reported* -- simulated time, the simulator's own wall/CPU/memory
    accounting, thread count, finish reason. Parsed per backend by the
-   ``VLSimRunner.parse_sim_stats`` hook; only Verilator implements it today.
+   ``VLSimRunner.parse_sim_stats`` hook (vlt, vcs, xcm, mti).
    Coverage totals (``cov_<kind>_pct/_covered/_total``) are tier 2 as well:
    the ``VLSimRunner.parse_cov_summary`` hook, run only when the image was
-   built with coverage (see :mod:`cov`).
+   built with coverage (see :mod:`cov`). Profile shares
+   (``prof_<cat>_pct/_s``, ``prof_mem_peak_mb``) likewise come from the
+   ``VLSimRunner.parse_prof_summary`` hook, only when the image was built
+   with a profiling mode (see :mod:`prof`).
 3. *Testbench-reported* (:func:`read_tb_stats`) -- an optional ``tb_stats.json``
    the testbench itself may drop in the rundir (cycle counts, transaction
    counts, custom counters). Merged when present, ignored when not.
@@ -61,6 +64,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from . import cov as _cov
+from . import prof as _prof
 
 _log = logging.getLogger("sim_stats")
 
@@ -123,6 +127,15 @@ for _k in _cov.KINDS:
     STAT_KEYS["cov_%s_total" % _k] = ("", "none", "%s coverage points" % _k)
 del _k
 
+# -- profile summary (tier 2: parse_prof_summary) ---------------------------
+# A category's share is per-case; its CPU seconds sum, so a suite reports
+# eg the seconds spent in the solver across the regression.
+for _c in _prof.CATEGORIES:
+    STAT_KEYS["prof_%s_pct" % _c] = ("%", "none", "Share of the profile in %s" % _c)
+    STAT_KEYS["prof_%s_s" % _c] = ("s", "sum", "CPU seconds in %s (time profile)" % _c)
+del _c
+STAT_KEYS["prof_mem_peak_mb"] = ("MB", "max", "Peak memory as the profiler reports it")
+
 # key -> doc. Provenance: what was run, how, and where.
 INFO_KEYS : Dict[str, str] = {
     "case_name":    "Case name recorded for this run",
@@ -144,6 +157,7 @@ INFO_KEYS : Dict[str, str] = {
     "trace":        "Whether waveform tracing was requested",
     "valgrind":     "Whether the run was executed under valgrind",
     "cov":          "Coverage level and kinds collected ({level, kinds}); absent at none",
+    "prof":         "Profiling mode the image was built with ({mode}); absent at none",
     "finish_reason":"How the run ended ($finish / $stop / end / signal)",
     "exit_code":    "Simulator process exit code",
     "host":         "Host the run executed on",
@@ -317,6 +331,142 @@ def parse_host_stats(path : str) -> Dict[str, Any]:
         v = _f(src)
         if v is not None:
             stats[dst] = int(v)
+    return stats
+
+
+#***************************************************************************
+#* Tier 2: simulator-reported stats from the run log
+#*
+#* The commercial backends ask for an end-of-run report on every run (VCS
+#* `-reportstats`, Xcelium `-perfstat`, Questa `-stats=perf,time`); each costs
+#* nothing measurable. The version is printed at the top of the log and the
+#* report at the bottom, so the parsers see both ends (:func:`read_log_ends`).
+#***************************************************************************
+
+def read_log_ends(path : str, head : int = 4096, tail : int = 8192) -> str:
+    """The first `head` and last `tail` bytes of `path` (the whole file when
+    it is smaller), as text. '' when the file is missing or unreadable."""
+    try:
+        size = os.path.getsize(path)
+        with open(path, "r", errors="replace") as fp:
+            if size <= head + tail:
+                return fp.read()
+            text = fp.read(head)
+            fp.seek(size - tail)
+            return text + "\n" + fp.read()
+    except Exception:
+        return ""
+
+
+_MEM_MB = {"K": 1.0 / 1024, "M": 1.0, "G": 1024.0}
+
+
+def _mb(value : str, unit : str) -> float:
+    return round(float(value) * _MEM_MB[unit[0].upper()], 1)
+
+
+_VCS_VERSION_RE = re.compile(r'Runtime version (\S+?);')
+_VCS_FINISH_RE = re.compile(r'^\$(finish|stop) at simulation time')
+# Units are printed only when the design has a timescale.
+_VCS_TIME_RE = re.compile(r'^Time:\s+(\d+)\s+([munpf]?s)\s*$')
+# Without -reportstats VCS prints only `CPU Time: 7.830 seconds; ...`
+_VCS_CPU_RE = re.compile(r'^CPU Time\s*:\s+([0-9.]+)\s+sec')
+_VCS_RSS_RE = re.compile(r'^Resident set size\s+:\s+([0-9.]+)\s+([KMG])B')
+
+
+def parse_vcs_log_stats(text : str) -> Dict[str, Any]:
+    """Stats from a simv log, with or without ``-reportstats``."""
+    stats : Dict[str, Any] = {}
+    for line in (text or "").splitlines():
+        m = _VCS_VERSION_RE.search(line)
+        if m:
+            stats["sim_version"] = m.group(1)
+            continue
+        m = _VCS_FINISH_RE.match(line)
+        if m:
+            stats["finish_reason"] = "$" + m.group(1)
+            continue
+        m = _VCS_TIME_RE.match(line)
+        if m:
+            stats["simtime"] = m.group(1) + m.group(2)
+            continue
+        m = _VCS_CPU_RE.match(line)
+        if m:
+            stats["sim_cpu_s"] = float(m.group(1))
+            continue
+        m = _VCS_RSS_RE.match(line)
+        if m:
+            stats["sim_mem_mb"] = _mb(m.group(1), m.group(2))
+    return stats
+
+
+_XCM_VERSION_RE = re.compile(r'^xmsim(?:\(64\))?: (\d+\.\d+\S*):')
+_XCM_FINISH_RE = re.compile(
+    r'^Simulation complete via \$(finish|stop)\(\d+\) at time '
+    r'([0-9.]+) ([A-Z]?S) \+ \d+')
+_XCM_CPU_RE = re.compile(
+    r'^\s*xmsim: CPU Usage - [0-9.]+s system \+ [0-9.]+s user = ([0-9.]+)s total')
+_XCM_MEM_RE = re.compile(
+    r'^\s*xmsim: Memory Usage - Final: [0-9.]+[KMG], Peak: ([0-9.]+)([KMG])')
+
+
+def parse_xcm_log_stats(text : str) -> Dict[str, Any]:
+    """Stats from an xmsim log run with ``-perfstat`` (without it xmsim prints
+    no CPU or memory figures)."""
+    stats : Dict[str, Any] = {}
+    for line in (text or "").splitlines():
+        m = _XCM_VERSION_RE.match(line)
+        if m:
+            stats["sim_version"] = m.group(1)
+            continue
+        m = _XCM_FINISH_RE.match(line)
+        if m:
+            stats["finish_reason"] = "$" + m.group(1)
+            stats["simtime"] = m.group(2) + m.group(3).lower()
+            continue
+        m = _XCM_CPU_RE.match(line)
+        if m:
+            stats["sim_cpu_s"] = float(m.group(1))
+            continue
+        m = _XCM_MEM_RE.match(line)
+        if m:
+            stats["sim_mem_mb"] = _mb(m.group(1), m.group(2))
+    return stats
+
+
+# Questa prefixes every transcript line with '# '
+_MTI_VERSION_RE = re.compile(r'^#\s+//\s+Version (\S+)')
+_MTI_FINISH_RE = re.compile(r'^#\s+\*\* Note: \$(finish|stop)\s*:')
+_MTI_SIMTIME_RE = re.compile(r'^#\s+HDL Simulation time\s+([0-9.]+)\s+([munpf]?s)\s*$')
+_MTI_SIM_RE = re.compile(r'^#\s+sim: (wall|cpu) time\s+([0-9.]+) s\s*$')
+# Questa reports virtual size only
+_MTI_MEM_RE = re.compile(r'^#\s+mem: size during sim \(VSZ\)\s+([0-9.]+) ([KMG])b\s*$')
+
+
+def parse_mti_log_stats(text : str) -> Dict[str, Any]:
+    """Stats from a vsim transcript run with ``-stats=perf,time``."""
+    stats : Dict[str, Any] = {}
+    for line in (text or "").splitlines():
+        m = _MTI_VERSION_RE.match(line)
+        if m:
+            stats["sim_version"] = m.group(1)
+            continue
+        m = _MTI_FINISH_RE.match(line)
+        if m:
+            stats["finish_reason"] = "$" + m.group(1)
+            continue
+        m = _MTI_SIMTIME_RE.match(line)
+        if m:
+            stats["simtime"] = m.group(1) + m.group(2)
+            continue
+        m = _MTI_SIM_RE.match(line)
+        if m:
+            key = "sim_walltime_s" if m.group(1) == "wall" else "sim_cpu_s"
+            stats[key] = float(m.group(2))
+            continue
+        m = _MTI_MEM_RE.match(line)
+        if m:
+            stats["sim_mem_mb"] = _mb(m.group(1), m.group(2))
     return stats
 
 

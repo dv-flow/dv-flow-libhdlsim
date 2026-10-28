@@ -102,6 +102,16 @@ class VlSimImageData(object):
     # Coverage level (cov.LEVELS): the highest of SimImage's `cov` param and
     # every consumed SimCovArgs. Recorded in <imgdir>/cov.json for the run.
     cov_level : str = dc.field(default="none")
+    # Profiling mode (prof.MODES), from SimImage's `prof` param and every
+    # consumed SimProfArgs. Recorded in <imgdir>/prof.json for the run.
+    prof_mode : str = dc.field(default="none")
+    # The mode the previous build of this image recorded ('none' when it
+    # recorded none), for backends that must rebuild clean on a change.
+    prof_prev_mode : str = dc.field(default="none")
+    # Deep profilers enabled, by switch name (eg {"xprof": True}): this
+    # backend's own, from its SimImage params and its consumed prof-args
+    # type. Recorded in prof.json alongside the mode.
+    prof_deep : dict = dc.field(default_factory=dict)
 
 @dc.dataclass
 class VlSimRunData(object):
@@ -117,6 +127,9 @@ class VlSimRunData(object):
     # The image's coverage record ({level, kinds}, from cov.json); None when
     # the image was built without coverage.
     cov : Optional[dict] = dc.field(default=None)
+    # The image's profiling record ({mode}, from prof.json); None when the
+    # image was built without profiling.
+    prof : Optional[dict] = dc.field(default=None)
 
 
 def c_flags(data : VlSimImageData) -> List[str]:

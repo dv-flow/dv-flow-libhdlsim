@@ -28,9 +28,9 @@ from pydantic import BaseModel
 import pydantic.dataclasses as pdc
 from toposort import toposort
 from dv_flow.mgr import FileSet, TaskDataResult, TaskMarker, TaskRunCtxt
-from typing import Any, ClassVar, List, Optional, Tuple
+from typing import Any, ClassVar, Dict, List, Optional, Tuple
 from dv_flow.mgr.task_data import SeverityE
-from dv_flow.libhdlsim import cov
+from dv_flow.libhdlsim import cov, prof
 from dv_flow.libhdlsim.log_parser import LogParser
 from dv_flow.libhdlsim.vl_sim_data import VlSimImageData, pli_add, pli_from_fileset
 from svdep import FileCollection, TaskCheckUpToDate
@@ -121,6 +121,10 @@ class VlSimImageBuilder(object):
     # Coverage levels requested by consumed SimCovArgs items (validated and
     # combined with the `cov` param in run()).
     cov_requests : List[str] = dc.field(default_factory=list)
+    # Profiling modes requested by consumed SimProfArgs items
+    prof_requests : List[str] = dc.field(default_factory=list)
+    # Deep-profiler switches set by consumed items of `prof_deep_type`
+    prof_deep_requests : Dict[str, bool] = dc.field(default_factory=dict)
 
     _log : ClassVar = logging.getLogger("VlSimImage")
 
@@ -134,6 +138,13 @@ class VlSimImageBuilder(object):
     # Same as forward_vpi, for PLI 1.0 libraries (verilogPLI). Set by
     # simulators that load PLI at run time (Icarus, Questa, Xcelium).
     forward_pli : ClassVar[bool] = False
+
+    # This backend's deep profilers: the typed args that request them (eg
+    # "hdlsim.XcmProfArgs") and the bool switches it reads from them and from
+    # SimImage's params (eg ("xprof",)). Consumed args of another backend's
+    # type are ignored, so one flow can carry every simulator's request.
+    prof_deep_type : ClassVar[Optional[str]] = None
+    prof_deep : ClassVar[Tuple[str, ...]] = ()
 
     def check_pli(self, data : VlSimImageData) -> int:
         """Backend hook, called once after inputs are gathered: validate
@@ -181,6 +192,48 @@ class VlSimImageBuilder(object):
                     "building without it" % (self._sim_label(), level)))
             level = "none"
         data.cov_level = level
+        return 0
+
+    def prof_supported(self, mode : str) -> bool:
+        """Backend hook: whether this backend can profile in `mode` (a
+        non-`none` prof.MODES entry). The base returns False: SimImage then
+        warns once and builds as if `none`. A backend that returns True maps
+        `data.prof_mode` to its build flags (if any) in build(), and its
+        runner adds the run flags and parses the result."""
+        return False
+
+    def _resolve_prof(self, input, data : VlSimImageData) -> int:
+        """Set data.prof_mode from the `prof` param and every consumed
+        SimProfArgs. Returns a nonzero status on an unknown mode or on two
+        conflicting modes."""
+        requested = [getattr(input.params, "prof", "none") or "none"]
+        requested.extend(self.prof_requests)
+        try:
+            mode = prof.resolve_mode(*requested)
+        except ValueError as e:
+            self.markers.append(TaskMarker(
+                severity=SeverityE.Error, msg=str(e)))
+            return 1
+        if mode != "none" and not self.prof_supported(mode):
+            self.markers.append(TaskMarker(
+                severity=SeverityE.Warning,
+                msg="%s does not support '%s' profiling; building without "
+                    "it" % (self._sim_label(), mode)))
+            mode = "none"
+        data.prof_mode = mode
+
+        deep = {}
+        for name in self.prof_deep:
+            if getattr(input.params, name, False) \
+                    or self.prof_deep_requests.get(name, False):
+                deep[name] = True
+        data.prof_deep = deep
+        return self.check_prof_deep(data)
+
+    def check_prof_deep(self, data : VlSimImageData) -> int:
+        """Backend hook, called once data.prof_mode and data.prof_deep are
+        set: validate the combination. Returns a nonzero status (with an
+        Error marker) to skip the build. The base accepts anything."""
         return 0
 
     def _sim_label(self) -> str:
@@ -231,6 +284,9 @@ class VlSimImageBuilder(object):
         if self._resolve_cov(input, data) != 0:
             return TaskDataResult(status=1, markers=self.markers)
 
+        if self._resolve_prof(input, data) != 0:
+            return TaskDataResult(status=1, markers=self.markers)
+
         # Assemble suppress list from task params and connected SuppressWarnings datasets
         self.suppress = list(merge_tokenize(input.params.suppress_warnings)) if hasattr(input.params, 'suppress_warnings') else []
         for fs in input.inputs:
@@ -241,12 +297,18 @@ class VlSimImageBuilder(object):
         # an earlier build, and write the current one only once this build
         # succeeds.
         cov.remove_cov_json(input.rundir)
+        # Likewise the profiling record, noting what the last build recorded
+        prev = prof.read_prof_json(input.rundir)
+        data.prof_prev_mode = prev["mode"] if prev is not None else "none"
+        prof.remove_prof_json(input.rundir)
 
         status,in_changed = await self.build(input, data)
 
         if status == 0 and data.cov_level != "none":
             cov.write_cov_json(input.rundir, data.cov_level,
                                self.cov_kinds(data.cov_level) or [])
+        if status == 0 and (data.prof_mode != "none" or data.prof_deep):
+            prof.write_prof_json(input.rundir, data.prof_mode, data.prof_deep)
 
 
         self.output.append(FileSet(
@@ -405,6 +467,12 @@ class VlSimImageBuilder(object):
                 data.dpi.extend(fs.dpilibs)
             elif fs.type == "hdlsim.SimCovArgs":
                 self.cov_requests.append(getattr(fs, "level", "none") or "none")
+            elif fs.type == "hdlsim.SimProfArgs":
+                self.prof_requests.append(getattr(fs, "mode", "none") or "none")
+            elif self.prof_deep_type is not None and fs.type == self.prof_deep_type:
+                for name in self.prof_deep:
+                    if getattr(fs, name, False):
+                        self.prof_deep_requests[name] = True
 
     def _addIncDirs(self, data, basedir, incdirs):
         self._log.debug("_addIncDirs base=%s incdirs=%s" % (basedir, incdirs))

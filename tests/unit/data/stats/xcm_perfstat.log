@@ -1,0 +1,9 @@
+xmsim(64): 26.03-s005: (c) Copyright 1995-2026 Cadence Design Systems, Inc.
+SVSEED default: 1
+xcelium> run
+done s=66477047
+Simulation complete via $finish(1) at time 4 MS + 0
+top.sv:20     $finish;
+xcelium> exit
+xmsim: Memory Usage - Final: 94.5M, Peak: 94.5M, Peak virtual: 417.7M
+xmsim: CPU Usage - 0.1s system + 3.6s user = 3.7s total (9.7s, 37.9% cpu) (host0)

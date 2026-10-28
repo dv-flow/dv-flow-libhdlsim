@@ -23,6 +23,7 @@ import asyncio
 import glob
 import os
 import logging
+import shutil
 from typing import ClassVar
 from dv_flow.mgr import TaskDataResult, TaskRunCtxt
 from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder, VlTaskSimImageMemento, check_sim_image_uptodate
@@ -53,6 +54,10 @@ class SimImageBuilder(VlSimImageBuilder):
     def cov_kinds(self, level):
         return list(_COV_LEVELS[level][0])
 
+    def prof_supported(self, mode):
+        # gprof only: Verilator has no memory profiler
+        return mode == "time"
+
     def getRefTime(self, rundir):
         if os.path.isfile(os.path.join(rundir, 'obj_dir/simv')):
             return os.path.getmtime(os.path.join(rundir, 'obj_dir/simv'))
@@ -81,6 +86,12 @@ class SimImageBuilder(VlSimImageBuilder):
         # VM_USER_LDLIBS in the explicit make phase below so that the DPI
         # object file (V<top>__Dpi.o) can be listed as a direct link object
         # before the shared library, without relying on -Wl,-u workarounds.
+        # --prof-cfuncs compiles and links with -pg, and make doesn't track
+        # flags: rebuild from scratch when the image's profiling changes.
+        if data.prof_mode != data.prof_prev_mode:
+            shutil.rmtree(os.path.join(input.rundir, 'obj_dir'),
+                          ignore_errors=True)
+
         cmd = ['verilator', '--cc', '--exe', '-o', 'simv', '-Wno-fatal']
         if not custom_main:
             cmd.append('--main')
@@ -111,6 +122,10 @@ class SimImageBuilder(VlSimImageBuilder):
         # Coverage instrumentation (the run writes coverage.dat at exit).
         # Ahead of the user's args, so raw flags there still come last.
         cmd.extend(_COV_LEVELS[data.cov_level][1])
+
+        # gprof profiling, with functions named for their Verilog source
+        if data.prof_mode == "time":
+            cmd.append('--prof-cfuncs')
 
         # Three separable concerns, historically conflated:
         #

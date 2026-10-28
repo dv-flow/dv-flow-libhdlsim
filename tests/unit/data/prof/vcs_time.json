@@ -1,0 +1,271 @@
+{
+ "Time": {
+  "Summary": {
+   "EntryTitle": "Time Summary View",
+   "EntryContent": [
+    {
+     "Component": "CONSTRAINT",
+     "Percentage": 65.28189910979229,
+     "SubContent": []
+    },
+    {
+     "Component": "VERILOG",
+     "Percentage": 19.287833827893174,
+     "SubContent": [
+      {
+       "Component": "Module",
+       "Percentage": 8.308605341246292,
+       "SubContent": []
+      },
+      {
+       "Component": "Package",
+       "Percentage": 6.231454005934718,
+       "SubContent": []
+      },
+      {
+       "Component": "Functional Coverage",
+       "Percentage": 2.6706231454005933,
+       "SubContent": []
+      },
+      {
+       "Component": "Function Coverage Kernel",
+       "Percentage": 2.077151335311573,
+       "SubContent": []
+      }
+     ]
+    },
+    {
+     "Component": "UCLI",
+     "Percentage": 9.495548961424332,
+     "SubContent": []
+    },
+    {
+     "Component": "KERNEL",
+     "Percentage": 5.637982195845697,
+     "SubContent": [
+      {
+       "Component": "Scheduler",
+       "Percentage": 2.6706231454005933,
+       "SubContent": []
+      },
+      {
+       "Component": "License",
+       "Percentage": 1.4836795252225519,
+       "SubContent": []
+      },
+      {
+       "Component": "Hsim_Elab",
+       "Percentage": 0.29673590504451036,
+       "SubContent": []
+      }
+     ]
+    },
+    {
+     "Component": "PLI/DPI/DirectC",
+     "Percentage": 0.29673590504451036,
+     "SubContent": []
+    }
+   ],
+   "TOTAL": {
+    "Percentage": 100.0
+   }
+  },
+  "Instance": {
+   "EntryTitle": "Time Instance View",
+   "EntryContent": [
+    {
+     "Instance": "_global_",
+     "%TotalTime incl": 6.231454005934718,
+     "%TotalTime excl": 6.231454005934718,
+     "Module/Program/Architecture": "_global_",
+     "Source": "Source File Unknown",
+     "SubConstr": [
+      {
+       "Constr": "item::work(Function)",
+       "%TotalTime incl": 6.231454005934718,
+       "%TotalTime excl": 6.231454005934718,
+       "Module/Program/Architecture": "--",
+       "Source": "/work/rich.sv:10"
+      }
+     ]
+    },
+    {
+     "Instance": "top",
+     "%TotalTime incl": 10.979228486646884,
+     "%TotalTime excl": 10.385756676557865,
+     "Module/Program/Architecture": "top",
+     "Source": "/work/rich.sv:12",
+     "SubConstr": [
+      {
+       "Constr": "NoName {line:22}(Initial)",
+       "%TotalTime incl": 6.824925816023739,
+       "%TotalTime excl": 6.824925816023739,
+       "Module/Program/Architecture": "--",
+       "Source": "/work/rich.sv:22"
+      },
+      {
+       "Constr": "cg(CoverGroup)",
+       "%TotalTime incl": 2.6706231454005933,
+       "%TotalTime excl": 2.6706231454005933,
+       "Module/Program/Architecture": "--",
+       "Source": "/work/rich.sv:16"
+      },
+      {
+       "Constr": "  combined_Construct(CombineConstruct)",
+       "%TotalTime incl": 2.6706231454005933,
+       "%TotalTime excl": 2.6706231454005933,
+       "Module/Program/Architecture": "--",
+       "Source": "/work/rich.sv:16"
+      }
+     ]
+    }
+   ]
+  },
+  "Module": {
+   "EntryTitle": "Time Module/Construct View",
+   "EntryContent": [
+    {
+     "Module": "top",
+     "%TotalTime": 10.385756676557863,
+     "%InclusiveTotalTime": 11.572700296735905,
+     "#Instances": 17,
+     "Source": "/work/rich.sv:12-32",
+     "Constr": [
+      {
+       "Constr": "NoName {line:22}(Initial)",
+       "%TotalTime": 6.824925816023739,
+       "Source": "/work/rich.sv:22-31",
+       "subConstr": []
+      },
+      {
+       "Constr": "cg(CoverGroup)",
+       "%TotalTime": 2.6706231454005933,
+       "Source": "/work/rich.sv:16-16",
+       "subConstr": [
+        {
+         "Constr": "combined_Construct(CombineConstruct)",
+         "%TotalTime": 2.6706231454005933,
+         "Source": "/work/rich.sv:16-16",
+         "subConstr": []
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "Module": "_global_",
+     "%TotalTime": 6.231454005934718,
+     "%InclusiveTotalTime": 6.231454005934718,
+     "#Instances": 1,
+     "Source": "Source File Unknown",
+     "Constr": [
+      {
+       "Constr": "item::work(Function)",
+       "%TotalTime": 6.231454005934718,
+       "Source": "/work/rich.sv:10-10",
+       "subConstr": []
+      }
+     ]
+    },
+    {
+     "Module": "cnt",
+     "%TotalTime": 0.5934718100890207,
+     "%InclusiveTotalTime": 0.5934718100890207,
+     "#Instances": 16,
+     "Source": "/work/rich.sv:3-6",
+     "Constr": []
+    }
+   ]
+  },
+  "Construct": {
+   "EntryTitle": "Time Construct View",
+   "EntryContent": [
+    {
+     "Construct": "Initial",
+     "%TotalTime": 6.824925816023739,
+     "SubContent": [
+      {
+       "Construct": "NoName {line:22}",
+       "%TotalTime": 6.824925816023739,
+       "Module/Program/Architecture": "top",
+       "Source": "/work/rich.sv:22-31",
+       "SubContent": []
+      }
+     ]
+    },
+    {
+     "Construct": "Function",
+     "%TotalTime": 6.231454005934718,
+     "SubContent": [
+      {
+       "Construct": "item::work",
+       "%TotalTime": 6.231454005934718,
+       "Module/Program/Architecture": "_global_",
+       "Source": "/work/rich.sv:10-10",
+       "SubContent": []
+      }
+     ]
+    },
+    {
+     "Construct": "CoverGroup",
+     "%TotalTime": 2.6706231454005933,
+     "SubContent": [
+      {
+       "Construct": "cg",
+       "%TotalTime": 2.6706231454005933,
+       "Module/Program/Architecture": "top",
+       "Source": "/work/rich.sv:16-16",
+       "SubContent": [
+        {
+         "Construct": "combined_Construct",
+         "%TotalTime": 2.6706231454005933,
+         "Module/Program/Architecture": "top",
+         "Source": "/work/rich.sv:16-16",
+         "SubContent": []
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "Construct": "CombineConstruct",
+     "%TotalTime": 2.6706231454005933,
+     "SubContent": [
+      {
+       "Construct": "combined_Construct",
+       "%TotalTime": 2.6706231454005933,
+       "Module/Program/Architecture": "top",
+       "Source": "/work/rich.sv:16-16",
+       "SubContent": []
+      }
+     ]
+    }
+   ]
+  },
+  "Coverage": {
+   "EntryTitle": "Time Coverage View",
+   "EntryContent": [
+    {
+     "Covergroup": "cg",
+     "%TotalTime": 2.6706231454005933,
+     "Source": "/work/rich.sv:16-16",
+     "SubContent": [
+      {
+       "ChildConstr": "combined_Construct(CombineConstruct)",
+       "%TotalTime": 2.6706231454005933,
+       "Source": "/work/rich.sv:16-16"
+      }
+     ]
+    }
+   ]
+  },
+  "Slot": {
+   "EntryTitle": "Time PLI/DPI/DirectC View",
+   "EntryContent": [],
+   "Total": {
+    "Name": "Total:",
+    "Percentage": 0.0
+   }
+  }
+ }
+}

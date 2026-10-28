@@ -43,6 +43,13 @@ package:
       type: str
       value: "none"
       doc: Coverage level (none | func | code | full); see hdlsim.SimCovArgs
+    # Global profiling mode: the default of every hdlsim.SimProfArgs `mode`,
+    # so `-D hdlsim.prof=time` flips a flow that wires in a bare
+    # `uses: hdlsim.SimProfArgs`. See SimProfArgs.
+    prof:
+      type: str
+      value: "none"
+      doc: Profiling mode (none | time | mem); see hdlsim.SimProfArgs
 
   tasks:
   # `produces:` is declared ONCE on each generic export; the per-simulator
@@ -288,6 +295,8 @@ package:
     - type: hdlsim.SimElabArgs
     - type: hdlsim.SimCompileArgs
     - type: hdlsim.SimCovArgs
+    - type: hdlsim.SimProfArgs
+    - type: hdlsim.XcmProfArgs
     - type: hdlsim.SuppressWarnings
     with:
       sim:
@@ -315,6 +324,14 @@ package:
           built at the highest of this and every consumed hdlsim.SimCovArgs
           `level`; SimRun follows the image. A backend without coverage
           support warns once and builds without it.
+        type: str
+        value: "none"
+      prof:
+        doc: |
+          Profiling mode: none | time | mem. Combined with every consumed
+          hdlsim.SimProfArgs `mode`; two different non-`none` modes are an
+          error. SimRun follows the image. A backend that can't profile in
+          the mode warns once and builds without it.
         type: str
         value: "none"
       timing:
@@ -625,6 +642,45 @@ package:
         doc: Simulator backend selector (see package sim); reads hdlsim.sim (CLI / set / with)
         type: str
         value: "${{ hdlsim.sim:-unset }}"
+
+  - export: SimProfReport
+    desc: Rank the tests and modules of a set of profiled runs
+    produces:
+    - type: std.FileSet
+      filetype: simProfReport
+    - type: hdlsim.SimProfReportResult
+    doc: |
+      SimProfReport rolls up the profiles of the runs it `needs:`. It reads
+      the `simProfSummary` artifact (prof_summary.json) of SimRunResult and
+      TestResult items, and of the TestResults inside a SuiteResult. It works
+      for any simulator, and the runs may mix simulators.
+
+      For each profiling mode it finds, it reports:
+      - `time`: the tests ranked by CPU time, the category totals in CPU
+        seconds (each run's category share of its CPU time, summed), and the
+        top modules weighted the same way;
+      - `mem`: the tests ranked by peak memory, the mean category shares, and
+        the top modules by their largest footprint in any run.
+
+      A run's CPU time is its `cpu_total_s` stat, else `sim_cpu_s`. Each run's
+      summary keeps only its top 20 modules, so a module's total is a lower
+      bound. Runs without a profile are counted and skipped. No profile at all
+      is an error.
+
+      It outputs prof_report.txt and prof_report.json as a `simProfReport`
+      FileSet, and a SimProfReportResult with the same content as the JSON.
+
+      ```yaml
+      - name: profile
+        uses: hdlsim.SimProfReport
+        needs: [regress]           # a SimSuiteReport, or the cases themselves
+      ```
+    pytask: dv_flow.libhdlsim.prof_report.SimProfReport
+    consumes:
+    - type: hdlsim.SimRunResult
+    - type: hdlsim.TestResult
+    - type: hdlsim.SuiteResult
+    uptodate: false
 
   #------------------------------------------------------------------
   # SimUVMCase -- the compact "run one UVM test" task: a SINGLE leaf task that
@@ -969,6 +1025,39 @@ package:
         type: str
         value: "${{ hdlsim.cov }}"
 
+  - name: SimProfArgs
+    doc: Profiling request for SimImage (and, via the image, SimRun)
+    with:
+      mode:
+        doc: |
+          Profiling mode:
+            none -- no profiling
+            time -- where the CPU time goes (by category and by module)
+            mem  -- where the memory goes, and its peak
+          Time and memory are profiled in separate images, since each skews
+          the other. Defaults to the package `prof` var, so a bare
+          `uses: hdlsim.SimProfArgs` follows `-D hdlsim.prof=<mode>`. What
+          each simulator collects is in the package documentation.
+        type: str
+        value: "${{ hdlsim.prof }}"
+
+  - name: XcmProfArgs
+    doc: Xcelium deep-profiler request for SimImage (ignored by other simulators)
+    with:
+      xprof:
+        doc: |
+          Enable xProf, Xcelium's advanced CPU profiler: the image is
+          elaborated with `-xprof` and each run writes an xProf database
+          (simProfDb, format=xcelium-xprof) and its category, type and
+          instance summaries (simProfReport), for analysis in the `xprof`
+          GUI or `xprof_merge`. Combines with SimProfArgs mode `time`,
+          whose summary then comes from xProf; not with `mem`, which an
+          xProf snapshot can't record. Every SimImage consumes this type
+          and only Xcelium acts on it, so one flow can carry each
+          simulator's deep-profiler request.
+        type: bool
+        value: false
+
   - name: SimRunArgs
     doc: Additional runtime arguments for SimRun
     with:
@@ -1032,7 +1121,7 @@ package:
             host process (every backend, via GNU time):
               walltime_s, cpu_user_s, cpu_sys_s, cpu_total_s, cpu_pct,
               maxrss_mb, io_read_mb, io_write_mb, ctx_vol, ctx_invol
-            simulator-reported (backend-dependent; Verilator today):
+            simulator-reported (backend-dependent; vlt, vcs, xcm, mti):
               simtime (as printed, eg '608us'), simtime_s, sim_walltime_s,
               sim_cpu_s, sim_mem_mb, threads, sim_speed_s_per_s
             log-derived (filled by the Check tasks):
@@ -1043,6 +1132,11 @@ package:
               cov_<kind>_pct, cov_<kind>_covered, cov_<kind>_total for each
               kind measured (line, branch, expr, toggle, fsm_state, fsm_arc,
               covergroup, user)
+            profiling (image built with a profiling mode; vcs, xcm, mti,
+            vlt):
+              prof_<cat>_pct for each category reported (hdl, tb, solver,
+              pli, assert, cov, kernel, other); at `time` also prof_<cat>_s,
+              that share of cpu_total_s; at `mem`, prof_mem_peak_mb
         type: map
       runinfo:
         doc: |
@@ -1050,19 +1144,28 @@ package:
           case_name, testname, sim, sim_version, mode, seed, seed_source, cmd,
           args, plusargs, dpilibs, vpilibs, imgdir, rundir, logfile, trace,
           valgrind, finish_reason, exit_code, host, user, nproc, start_time,
-          end_time, cov ({level, kinds}; absent at coverage level none). Same
+          end_time, cov ({level, kinds}; absent at coverage level none), prof
+          ({mode}; absent at profiling mode none). Same
           sparse rule as `stats`: `seed` is absent (not 0) when no seed was
           explicitly applied.
         type: map
       artifacts:
         doc: |
-          Collected artifact FileSets (simLog / simStats / simTrace / simCovDb),
-          each with a `role=` attribute. simCovDb (present only when the run
-          wrote a coverage database) also carries `format=` -- vlt-dat
-          (Verilator coverage.dat), xezim-json (xezim_cov.json), vcs-vdb
-          (VCS cov.vdb directory), questa-ucdb (Questa cov.ucdb) or
-          xcelium-ucd (Xcelium cov_work directory) -- which a reader
-          dispatches on.
+          Collected artifact FileSets (simLog / simStats / simTrace / simCovDb
+          / simProfDb / simProfReport / simProfSummary), each with a `role=`
+          attribute. simCovDb (present only when the run wrote a coverage
+          database) also carries `format=` -- vlt-dat (Verilator
+          coverage.dat), xezim-json (xezim_cov.json), vcs-vdb (VCS cov.vdb
+          directory), questa-ucdb (Questa cov.ucdb) or xcelium-ucd (Xcelium
+          cov_work directory) -- which a reader dispatches on. The profiling
+          artifacts are present only when the image was built with a
+          profiling mode or a deep profiler: simProfDb is the profiler's raw
+          data (`format=` vcs-simprofile, xcelium-xmprof /
+          xcelium-xmprofmem, xcelium-xprof (an xProf -prof_work directory),
+          questa-fdb or vlt-gmon), for re-reporting in the vendor's tools;
+          simProfReport is its human-readable report; simProfSummary is
+          prof_summary.json, the simulator-neutral summary (mode,
+          categories, top modules), written only for a profiling mode.
         type: list
 
   - name: TestResult
@@ -1181,4 +1284,31 @@ package:
           cov_<kind>_pct, cov_<kind>_covered, cov_<kind>_total of the merged
           database, for each kind it measures. Empty when the simulator's
           report utility isn't available.
+        type: map
+
+  - name: SimProfReportResult
+    doc: |
+      What SimProfReport found, emitted alongside its simProfReport FileSet.
+      `time` and `mem` are the report's per-mode sections (see
+      prof_report.json), empty when no run was profiled in that mode.
+    with:
+      runs:
+        doc: Number of profiled runs read
+        type: int
+        value: 0
+      unprofiled:
+        doc: Number of runs in the inputs without a profile summary
+        type: int
+        value: 0
+      time:
+        doc: |
+          Time section: runs, weighted (runs with a CPU time), cpu_s,
+          categories ({<cat>: {s, pct}}), tests (ranked by cpu_s; name, sim,
+          cpu_s, categories) and top ({scope, name, s, pct, runs}).
+        type: map
+      mem:
+        doc: |
+          Memory section: runs, mem_peak_mb_max, categories ({<cat>: {pct}},
+          the mean share), tests (ranked by mem_peak_mb) and top ({scope,
+          name, bytes, runs}; bytes is the largest in any run).
         type: map

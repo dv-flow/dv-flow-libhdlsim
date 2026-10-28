@@ -24,15 +24,22 @@ import json
 import os
 import re
 import subprocess
-from typing import List, Optional
+from typing import Dict, List, Optional, Tuple
 from dv_flow.mgr import TaskDataResult, FileSet
-from dv_flow.libhdlsim import cov
+from dv_flow.mgr.task_data import TaskMarker, SeverityE
+from dv_flow.libhdlsim import cov, prof
 from dv_flow.libhdlsim.vl_sim_runner import VLSimRunner
 from dv_flow.libhdlsim.vl_sim_data import VlSimRunData
 
+# A --prof-cfuncs image writes PROF_DB in the rundir at exit. After the run,
+# gprof reports it to PROF_GPROF, and verilator_profcfunc that to PROF_REPORT.
+PROF_DB = "gmon.out"
+PROF_GPROF = "gprof.out"
+PROF_REPORT = "prof_report.txt"
+
 class SimRunner(VLSimRunner):
     sim_name = "vlt"
-
+    _simv : Optional[str] = None
 
     async def runsim(self, data : VlSimRunData):
         status = 0
@@ -41,7 +48,8 @@ class SimRunner(VLSimRunner):
 
 #        cmd.extend(['valgrind', '--tool=memcheck'])
 
-        cmd.append(os.path.join(data.imgdir, 'obj_dir/simv'))
+        self._simv = os.path.join(data.imgdir, 'obj_dir/simv')
+        cmd.append(self._simv)
 
 #        cmd.extend(['-CFLAGS', '-g'])
 
@@ -147,6 +155,39 @@ class SimRunner(VLSimRunner):
                             p.returncode, p.stdout)
             return {}
         return cov.parse_vlt_cov_summary(p.stdout, cov_info.get("kinds"))
+
+    def parse_prof_summary(self, rundir, prof_info):
+        gmon = os.path.join(rundir, PROF_DB)
+        if prof_info.get("mode") != "time" or not os.path.isfile(gmon) \
+                or self._simv is None:
+            return None
+        gprof = self._which("gprof")
+        profcfunc = self._which("verilator_profcfunc", sibling_of="verilator")
+        if gprof is None or profcfunc is None:
+            self.markers.append(TaskMarker(
+                severity=SeverityE.Warning,
+                msg="%s not found; no profile report or summary" % (
+                    "gprof" if gprof is None else "verilator_profcfunc")))
+            return None
+        out = self._run_report([gprof, self._simv, gmon])
+        if out is not None:
+            with open(os.path.join(rundir, PROF_GPROF), "w") as fp:
+                fp.write(out)
+            out = self._run_report([profcfunc, PROF_GPROF])
+        if out is None:
+            self.markers.append(TaskMarker(
+                severity=SeverityE.Warning,
+                msg="Failed to report the profile (%s)" % gmon))
+            return None
+        with open(os.path.join(rundir, PROF_REPORT), "w") as fp:
+            fp.write(out)
+        return prof.parse_vlt_profcfunc(out)
+
+    def _artifact_spec(self) -> Dict[str, Tuple]:
+        spec = super()._artifact_spec()
+        spec["simProfDb"] = ([PROF_DB], "prof", ["format=%s" % prof.FORMAT_VLT_GMON])
+        spec["simProfReport"] = ([PROF_REPORT, PROF_GPROF], "prof-report")
+        return spec
 
 
 async def SimRun(runner, input) -> TaskDataResult:

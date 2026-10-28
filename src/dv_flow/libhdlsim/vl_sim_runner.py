@@ -32,11 +32,15 @@ from dv_flow.mgr.task_data import TaskMarker, SeverityE
 from typing import ClassVar, Dict, List, Optional, Tuple
 from dv_flow.libhdlsim.log_parser import LogParser
 from dv_flow.libhdlsim.vl_sim_data import VlSimRunData, pli_add, pli_from_fileset
-from dv_flow.libhdlsim import cov, sim_stats
+from dv_flow.libhdlsim import cov, prof, sim_stats
 
 from svdep import FileCollection, TaskCheckUpToDate, TaskBuildFileCollection
 from dv_flow.libhdlsim.vl_sim_image_builder import VlTaskSimImageMemento
 from .util import merge_tokenize
+
+# Artifacts whose patterns may name a directory, and which a run removes
+# before it starts: what an earlier run left is not this run's.
+_DB_FILETYPES = ("simCovDb", "simProfDb", "simProfReport", "simProfSummary")
 
 @dc.dataclass
 class VLSimRunner(object):
@@ -47,6 +51,8 @@ class VLSimRunner(object):
     # Sparse measurement/provenance maps for the run (see sim_stats).
     _stats : Dict[str, object] = dc.field(default_factory=dict)
     _runinfo : Dict[str, object] = dc.field(default_factory=dict)
+    # The image's profiling record ({mode}), or None; set early in run()
+    _prof : Optional[dict] = dc.field(default=None)
     _log : ClassVar = logging.getLogger("VLSimRunner")
     # Backend identity, set by each concrete runner. Used when the `sim` param
     # is unresolved ("unset" is what backend_select leaves when the run task was
@@ -124,6 +130,8 @@ class VLSimRunner(object):
         # was built with, or None when it was built without coverage.
         if data.imgdir:
             data.cov = cov.read_cov_json(data.imgdir)
+            data.prof = prof.read_prof_json(data.imgdir)
+        self._prof = data.prof
 
         if not status:
             status |= self.check_pli(data)
@@ -143,8 +151,9 @@ class VLSimRunner(object):
         rc = 0
         if not status:
             # A coverage database left by an earlier run in this rundir must
-            # not be reported as this run's (eg a rerun at `none`).
-            self._remove_cov_db()
+            # not be reported as this run's (eg a rerun at `none`). Same for
+            # a profile.
+            self._remove_artifacts(_DB_FILETYPES)
             self._runinfo["start_time"] = sim_stats.utcnow()
             t0 = time.monotonic()
             rc = await self.runsim(data)
@@ -256,10 +265,10 @@ class VLSimRunner(object):
         the host-process tier, and the corresponding keys stay absent (they are
         never faked with a 0).
 
-        Implemented for Verilator (`vlt_sim_run.SimRunner`). vcs / mti / xcm /
-        xsm / ivl are candidates: each prints some subset (CPU time, data
-        structure size, `$finish` time), but the patterns need validating
-        against real logs from those tools before being relied on.
+        Implemented for vlt, vcs, xcm and mti; the commercial backends ask
+        for their simulator's end-of-run report on every run (see
+        `sim_stats.parse_vcs_log_stats` and friends). xsm / ivl are
+        candidates, but their patterns need validating against real logs.
         """
         return {}
 
@@ -273,6 +282,17 @@ class VLSimRunner(object):
         database is missing or unreadable. The base returns {}.
         """
         return {}
+
+    def parse_prof_summary(self, rundir : str, prof_info : dict) -> Optional[Dict[str, object]]:
+        """Backend hook: this run's profile, condensed to a prof.make_summary
+        dict, or None when there is none.
+
+        Called only when the image was built with a profiling mode;
+        `prof_info` is its record ({mode[, deep]}). The base writes the summary to
+        prof_summary.json and derives the `prof_*` stats from it.
+        Best-effort like parse_cov_summary. The base returns None.
+        """
+        return None
 
     def _which(self, exe : str, sibling_of : str = None) -> Optional[str]:
         """`exe` on the task's PATH. With `sibling_of`, prefer the `exe` next
@@ -289,16 +309,21 @@ class VLSimRunner(object):
                     return cand
         return shutil.which(exe, path=path)
 
-    def _run_report(self, cmd : List[str], cwd : str = None) -> Optional[str]:
-        """Run a coverage report utility; its stdout, or None when it fails.
-        For parse_cov_summary: like that hook, failures are debug-logged."""
+    def _run_report(self, cmd : List[str], cwd : str = None,
+                    timeout : float = 600) -> Optional[str]:
+        """Run a coverage or profile report utility; its stdout, or None
+        when it fails. For parse_cov_summary / parse_prof_summary: like
+        those hooks, failures are debug-logged. stdin is closed: Questa's
+        visualizer, for one, can wait on an open stdin after reporting."""
         env = None
         if self.ctxt is not None and getattr(self.ctxt, "env", None):
             env = dict(self.ctxt.env)
         try:
-            p = subprocess.run(cmd, stdout=subprocess.PIPE,
+            p = subprocess.run(cmd, stdin=subprocess.DEVNULL,
+                               stdout=subprocess.PIPE,
                                stderr=subprocess.STDOUT, text=True,
-                               cwd=cwd or self.rundir, env=env, timeout=600)
+                               cwd=cwd or self.rundir, env=env,
+                               timeout=timeout)
         except (OSError, subprocess.SubprocessError) as e:
             self._log.debug("%s failed: %s", cmd[0], e)
             return None
@@ -341,6 +366,19 @@ class VLSimRunner(object):
                 except Exception as e:
                     self._log.debug("coverage summary failed: %s", e)
 
+            # A deep profiler alone (mode `none`) yields no summary
+            if data.prof is not None and data.prof.get("mode", "none") != "none":
+                try:
+                    summary = self.parse_prof_summary(self.rundir, data.prof)
+                except Exception as e:
+                    self._log.debug("profile summary failed: %s", e)
+                    summary = None
+                if summary is not None:
+                    prof.write_summary(self.rundir, summary)
+                    self._stats.update(prof.summary_stats(
+                        summary, self._stats.get("cpu_total_s")
+                                 or self._stats.get("sim_cpu_s")))
+
             self._stats.update(sim_stats.read_tb_stats(self.rundir))
             sim_stats.finalize(self._stats)
 
@@ -368,6 +406,8 @@ class VLSimRunner(object):
                 self._runinfo["seed_source"] = seed_src
             if data.cov is not None:
                 self._runinfo["cov"] = dict(data.cov)
+            if data.prof is not None:
+                self._runinfo["prof"] = dict(data.prof)
 
             sim_stats.write_stats_json(self.rundir, self._stats, self._runinfo)
         except Exception as e:
@@ -385,6 +425,11 @@ class VLSimRunner(object):
         on the file name. It is present only when the run wrote a database,
         which happens only when the image was built with coverage. Its
         patterns may name a directory (a VCS .vdb, an Xcelium cov_work).
+
+        A backend that profiles adds `simProfDb` (with `format=`, a
+        prof.FORMAT_*) and `simProfReport`, and may consult `self._prof`
+        (the image's record) to name the files for its mode.
+        `simProfSummary` is written by the base.
         """
         return {
             "simLog":   (["sim.log"],                   "log"),
@@ -392,6 +437,7 @@ class VLSimRunner(object):
             "simTrace": (["*.vcd", "*.fst", "waves.*"], "trace"),
             "simCovDb": (["coverage.dat"],              "cov",
                          ["format=%s" % cov.FORMAT_VLT_DAT]),
+            "simProfSummary": ([prof.SUMMARY_FILE],     "prof-summary"),
         }
 
     def _glob_rundir(self, globs : List[str], dirs : bool = False) -> List[str]:
@@ -401,18 +447,21 @@ class VLSimRunner(object):
         return sorted(set(f for f in files
                           if os.path.isfile(f) or (dirs and os.path.isdir(f))))
 
-    def _remove_cov_db(self):
-        spec = self._artifact_spec().get("simCovDb")
-        if spec is None:
-            return
-        for f in self._glob_rundir(spec[0], dirs=True):
-            try:
-                if os.path.isdir(f) and not os.path.islink(f):
-                    shutil.rmtree(f)
-                else:
-                    os.unlink(f)
-            except OSError as e:
-                self._log.debug("could not remove stale %s: %s", f, e)
+    def _remove_artifacts(self, ftypes):
+        """Delete the rundir files (and directories) of the `ftypes`
+        artifacts, so a stale one is never reported as this run's."""
+        spec = self._artifact_spec()
+        for ftype in ftypes:
+            if ftype not in spec:
+                continue
+            for f in self._glob_rundir(spec[ftype][0], dirs=True):
+                try:
+                    if os.path.isdir(f) and not os.path.islink(f):
+                        shutil.rmtree(f)
+                    else:
+                        os.unlink(f)
+                except OSError as e:
+                    self._log.debug("could not remove stale %s: %s", f, e)
 
     def _collect_artifacts(self) -> List[FileSet]:
         """Glob the rundir per `_artifact_spec()`, emitting a FileSet only for
@@ -422,7 +471,7 @@ class VLSimRunner(object):
         for ftype, spec in self._artifact_spec().items():
             globs, role = spec[0], spec[1]
             extra = list(spec[2]) if len(spec) > 2 else []
-            files = self._glob_rundir(globs, dirs=(ftype == "simCovDb"))
+            files = self._glob_rundir(globs, dirs=(ftype in _DB_FILETYPES))
             if files:
                 out.append(FileSet(
                     filetype=ftype,

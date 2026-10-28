@@ -43,6 +43,9 @@ class SimImageBuilder(VlSimImageBuilder):
     def cov_kinds(self, level):
         return list(MTI_COV[level][0]) if level in MTI_COV else []
 
+    def prof_supported(self, mode):
+        return mode in ("time", "mem")
+
     def getRefTime(self, rundir):
         if os.path.isfile(os.path.join(rundir, 'simv_opt.d')):
             return os.path.getmtime(os.path.join(rundir, 'simv_opt.d'))
@@ -112,6 +115,11 @@ class SimImageBuilder(VlSimImageBuilder):
             cover = MTI_COV.get(data.cov_level, (None, None))[1]
             if cover is not None:
                 cmd.append('+cover=%s' % cover)
+
+            # Optimizer statistics, added to the run's profile. vopt writes
+            # them under fprofile/ in the image directory.
+            if data.prof_mode != "none":
+                cmd.append('-fprofile')
 
             # Design visibility for PLI 1.0 libraries that ask for it.
             # TODO: unverified whether Questa 2026 prefers -access=rw+/.

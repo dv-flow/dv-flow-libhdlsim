@@ -1,0 +1,60 @@
+{
+    "1": {
+        "Static": {
+            "snapshot size": "248964.00",
+            "Initialization memory": "0"
+        },
+        "Dynamic": {
+            "index": "1",
+            "simulation time": "0",
+            "cpu time": "0",
+            "current physical memory": "70680",
+            "current virtual memory": "410696.00",
+            "randomization memory": "17184",
+            "shared library memory": "137909.20",
+            "profiler memory": "10"
+        }
+    }
+}
+{
+    "2": {
+        "Dynamic": {
+            "index": "2",
+            "simulation time": "0",
+            "cpu time": "0",
+            "current physical memory": "78076",
+            "current virtual memory": "414300.00",
+            "randomization memory": "17184",
+            "shared library memory": "141568.55",
+            "profiler memory": "10"
+        }
+    }
+}
+{
+    "3": {
+        "Dynamic": {
+            "index": "3",
+            "simulation time": "500000",
+            "cpu time": "1",
+            "current physical memory": "106748",
+            "current virtual memory": "433408.00",
+            "randomization memory": "32232",
+            "shared library memory": "160159.88",
+            "profiler memory": "15"
+        }
+    }
+}
+{
+    "4": {
+        "Dynamic": {
+            "index": "4",
+            "simulation time": "500000",
+            "cpu time": "1",
+            "current physical memory": "107428",
+            "current virtual memory": "433564.00",
+            "randomization memory": "32232",
+            "shared library memory": "160092.50",
+            "profiler memory": "15"
+        }
+    }
+}

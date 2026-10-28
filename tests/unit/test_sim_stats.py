@@ -260,3 +260,65 @@ def test_aggregate_preserves_small_magnitudes():
     agg = ss.aggregate([{"simtime_s": 2e-6}, {"simtime_s": 5e-6}])
     assert agg["simtime_s"] == pytest.approx(7e-6)
     assert agg["simtime_s_max"] == pytest.approx(5e-6)
+
+
+#---------------------------------------------------------------------------
+# Tier 2: vcs / xcm / mti end-of-run reports (captured logs, host scrubbed)
+#---------------------------------------------------------------------------
+
+_STATS_DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           "data", "stats")
+
+
+def _stats_log(name):
+    return ss.read_log_ends(os.path.join(_STATS_DATA, name))
+
+
+def test_vcs_log_stats_reportstats():
+    s = ss.parse_vcs_log_stats(_stats_log("vcs_reportstats.log"))
+    assert s == {"sim_version": "Y-2026.03_Full64", "finish_reason": "$finish",
+                 "sim_cpu_s": 7.6, "sim_mem_mb": 129.9}
+
+
+def test_vcs_log_stats_plain():
+    # Without -reportstats: CPU time only
+    s = ss.parse_vcs_log_stats(_stats_log("vcs_plain.log"))
+    assert s["sim_cpu_s"] == 7.83
+    assert "sim_mem_mb" not in s
+
+
+def test_vcs_log_stats_timescale():
+    # VCS prints the unit only when the design has a timescale; with none
+    # the time is unitless and `simtime` stays absent.
+    s = ss.parse_vcs_log_stats(_stats_log("vcs_timescale.log"))
+    assert s["simtime"] == "10000000ps"
+    assert "simtime" not in ss.parse_vcs_log_stats(_stats_log("vcs_reportstats.log"))
+
+
+def test_xcm_log_stats():
+    s = ss.parse_xcm_log_stats(_stats_log("xcm_perfstat.log"))
+    assert s == {"sim_version": "26.03-s005", "finish_reason": "$finish",
+                 "simtime": "4ms", "sim_cpu_s": 3.7, "sim_mem_mb": 94.5}
+    assert ss.finalize(dict(s))["simtime_s"] == pytest.approx(4e-3)
+
+
+def test_mti_log_stats():
+    s = ss.parse_mti_log_stats(_stats_log("mti_stats.log"))
+    assert s == {"sim_version": "2026.1", "finish_reason": "$finish",
+                 "simtime": "4ms", "sim_walltime_s": 21.31, "sim_cpu_s": 7.59,
+                 "sim_mem_mb": 646.8}
+
+
+@pytest.mark.parametrize("fn", [ss.parse_vcs_log_stats, ss.parse_xcm_log_stats,
+                                ss.parse_mti_log_stats])
+def test_log_stats_garbage(fn):
+    assert fn("") == {}
+    assert fn("UVM_INFO nothing to see here\nCPU Usage\n") == {}
+
+
+def test_read_log_ends(tmpdir):
+    p = _write_log(tmpdir, "HEAD\n" + ("x" * 99 + "\n") * 1000 + "TAIL\n")
+    text = ss.read_log_ends(p, head=64, tail=64)
+    assert text.startswith("HEAD\n") and text.endswith("TAIL\n")
+    assert len(text) < 200
+    assert ss.read_log_ends(os.path.join(str(tmpdir), "absent.log")) == ""

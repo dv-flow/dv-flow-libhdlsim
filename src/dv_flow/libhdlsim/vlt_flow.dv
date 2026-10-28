@@ -343,6 +343,14 @@ package:
           `cov_<kind>_pct` stats. `cg.get_coverage()` returns 0 on Verilator,
           and UVM code is instrumented along with the design.
           
+          ## Profiling
+          
+          `prof: time` on SimImage (or a wired hdlsim.SimProfArgs) builds with
+          `--prof-cfuncs`. After the run, gprof and `verilator_profcfunc`
+          report `gmon.out` to `prof_report.txt` (a `simProfReport`) and give
+          `prof_<category>_pct` stats. `mem` is not supported. gprof sees only
+          the simv binary, so it misses the forked constraint solver.
+          
           ## Tasks
           
           - `SimImage`: Compile HDL to simulation executable

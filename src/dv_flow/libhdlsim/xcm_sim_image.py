@@ -25,6 +25,7 @@ from typing import List, Tuple
 from dv_flow.libhdlsim.vl_sim_image_builder import VlSimImageBuilder, VlTaskSimImageMemento, check_sim_image_uptodate
 from dv_flow.libhdlsim.vl_sim_data import VlSimImageData, c_flags
 from dv_flow.mgr import FileSet
+from dv_flow.mgr.task_data import TaskMarker, SeverityE
 from svdep import TaskBuildFileCollection
 from .util import xcelium_cds_lib
 from .xcm_sim_run import XCM_COV, check_xcm_pli, xcm_pli_args
@@ -42,6 +43,26 @@ class SimImageBuilder(VlSimImageBuilder):
 
     def cov_kinds(self, level):
         return list(XCM_COV[level][0]) if level in XCM_COV else []
+
+    # xProf, Xcelium's advanced CPU profiler: instrumented at elaboration
+    # (xmelab -xprof), its database written by xmsim (see xcm_sim_run)
+    prof_deep_type = "hdlsim.XcmProfArgs"
+    prof_deep = ("xprof",)
+
+    def prof_supported(self, mode):
+        # Runtime-only (xmsim -profile / -memdetail): nothing to build
+        return mode in ("time", "mem")
+
+    def check_prof_deep(self, data):
+        # An xProf snapshot ignores -memdetail: xmsim writes no memory profile
+        if data.prof_deep.get("xprof") and data.prof_mode == "mem":
+            self.markers.append(TaskMarker(
+                severity=SeverityE.Error,
+                msg="xProf and 'mem' profiling can't share an image (an xProf "
+                    "snapshot writes no memory profile); profile memory in a "
+                    "separate image"))
+            return 1
+        return 0
 
     def getRefTime(self, rundir):
         if os.path.isfile(os.path.join(rundir, 'simv_opt.d')):
@@ -118,6 +139,9 @@ class SimImageBuilder(VlSimImageBuilder):
 
             if data.cov_level in XCM_COV:
                 cmd.extend(['-coverage', XCM_COV[data.cov_level][1]])
+
+            if data.prof_deep.get("xprof"):
+                cmd.append('-xprof')
 
             for top in input.params.top:
                 cmd.append(top)

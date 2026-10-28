@@ -1,0 +1,24 @@
+Command: /work/./simv -reportstats -l stats.log
+Chronologic VCS simulator copyright 1991-2026
+Contains Synopsys proprietary information.
+Compiler version Y-2026.03_Full64; Runtime version Y-2026.03_Full64;  Oct 12 16:25 2026
+done s=66416590
+$finish called from file "top.sv", line 20.
+$finish at simulation time              4000000
+           V C S   S i m u l a t i o n   R e p o r t 
+Time: 4000000
+
+Simulation Performance Summary
+==============================
+Simulation started at :  Mon Oct 12 16:25:12 2026
+Elapsed Time          :  23 sec
+CPU Time              :  7.6 sec
+Virtual memory size   :  330.8 MB
+Resident set size     :  129.9 MB
+Shared memory size    :  7.8 MB
+Private memory size   :  122.1 MB
+Major page faults     :  1
+Machine name          :  host0
+==============================
+
+Mon Oct 12 16:25:34 2026

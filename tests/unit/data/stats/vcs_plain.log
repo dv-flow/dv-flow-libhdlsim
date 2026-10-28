@@ -1,0 +1,11 @@
+Command: /work/./simv -l base.log
+Chronologic VCS simulator copyright 1991-2026
+Contains Synopsys proprietary information.
+Compiler version Y-2026.03_Full64; Runtime version Y-2026.03_Full64;  Oct 12 16:24 2026
+done s=66416590
+$finish called from file "top.sv", line 20.
+$finish at simulation time              4000000
+           V C S   S i m u l a t i o n   R e p o r t 
+Time: 4000000
+CPU Time:      7.830 seconds;       Data structure size:   0.0Mb
+Mon Oct 12 16:25:11 2026

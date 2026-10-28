@@ -209,6 +209,22 @@ package:
               cov: code      # or full; see hdlsim.SimCovArgs
           ```
           
+          ## Profiling Example
+          
+          `prof: time` (or `mem`) builds with `-simprofile` and runs
+          `simv -simprofile time`. The run gives a `simProfReport`
+          (profileReport.html) and `prof_<category>_pct` stats; see
+          hdlsim.SimProfArgs.
+          
+          ```yaml
+          - name: build
+            uses: hdlsim.vcs.SimImage
+            needs: [rtl, tb]
+            with:
+              top: [tb_top]
+              prof: time
+          ```
+          
           ## Tasks
           
           - `SimImage`: Compile HDL to simulation executable
