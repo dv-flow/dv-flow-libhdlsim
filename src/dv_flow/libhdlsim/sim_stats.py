@@ -111,6 +111,9 @@ STAT_KEYS : Dict[str, Tuple[str, str, str]] = {
     "warnings":      ("",    "sum", "UVM_WARNING count"),
     "fatals":        ("",    "sum", "UVM_FATAL count"),
     "infos":         ("",    "sum", "UVM_INFO count"),
+    "sim_errors":    ("",    "sum", "Simulator error diagnostics outside UVM (SVA, $error, tool)"),
+    "sim_fatals":    ("",    "sum", "Simulator fatal diagnostics outside UVM ($fatal, tool)"),
+    "assertion_failures": ("", "sum", "Assertion failures (a subset of sim_errors + sim_fatals)"),
 
     # -- testbench-reported (tier 3: opt-in convention) ---------------------
     "cycles":        ("",    "sum", "Clock cycles simulated (testbench-reported)"),

@@ -427,3 +427,137 @@ def test_a_ctrf_write_failure_does_not_change_the_verdict(tmpdir):
         rundir=os.path.join(str(tmpdir), "does", "not", "exist"), name="suite")
     out = asyncio.run(SimSuiteReport(ctxt, inp))
     assert out.status == 0
+
+
+# ---- Simulator diagnostics: assertion failures a clean UVM summary misses --
+
+DIAGDIR = os.path.join(os.path.dirname(__file__), "data", "diag")
+
+_CLEAN_SUMMARY = (
+    "--- UVM Report Summary ---\n\n"
+    "** Report counts by severity\n"
+    "UVM_INFO :    4\nUVM_WARNING :    0\nUVM_ERROR :    0\nUVM_FATAL :    0\n"
+    "$finish at simulation time 200000\n")
+
+
+def _diag_run(b, tmpdir, fixture, status=0, summary=""):
+    """A SimRunResult whose simLog is a diagnostic fixture (plus, for a UVM
+    case, a clean UVM summary)."""
+    with open(os.path.join(DIAGDIR, fixture)) as fp:
+        body = fp.read()
+    with open(os.path.join(str(tmpdir), "sim.log"), "w") as fp:
+        fp.write(body + summary)
+    log = FileSet(filetype="simLog", basedir=str(tmpdir), files=["sim.log"])
+    return b.mkDataItem("hdlsim.SimRunResult", status=status, sim="vcs",
+                        mode="test", artifacts=[log])
+
+
+def test_generic_simcheck_fails_on_assertion_with_exit_zero(tmpdir):
+    b, ctxt = _mk(tmpdir)
+    res = _diag_run(b, tmpdir, "vcs_sva_default.log", status=0)
+    out = asyncio.run(SimCheck(ctxt, _input(res, rundir=str(tmpdir))))
+    assert out.status == 0                  # verdict as data
+    tr = out.output[0]
+    assert tr.passed is False and tr.status == "fail"
+    assert (tr.sim_errors, tr.sim_fatals, tr.assertion_failures) == (2, 0, 2)
+    assert tr.diagnostics[0]["hier"] == "tb_top.dut.u_chk.REQ_KNOWN"
+    assert tr.stats["sim_errors"] == 2 and "errors" not in tr.stats
+    assert _errors(ctxt) == []
+
+
+def test_generic_simcheck_passes_a_clean_log(tmpdir):
+    b, ctxt = _mk(tmpdir)
+    res = _diag_run(b, tmpdir, "warnings_only.log", status=0)
+    tr = asyncio.run(SimCheck(ctxt, _input(res, rundir=str(tmpdir)))).output[0]
+    assert tr.passed is True and tr.status == "pass"
+    assert tr.diagnostics == []
+
+
+def test_generic_simcheck_missing_log_is_infra_error(tmpdir):
+    b, ctxt = _mk(tmpdir)
+    res = b.mkDataItem("hdlsim.SimRunResult", status=0, sim="vlt", mode="test",
+                       artifacts=[])
+    out = asyncio.run(SimCheck(ctxt, _input(res, rundir=str(tmpdir))))
+    assert out.status == 1
+    assert len(_errors(ctxt)) == 1
+
+
+@pytest.mark.parametrize("fixture,status", [
+    ("vcs_sva_action.log", 0), ("xcm_asrtst.log", 1)])
+def test_uvmcheck_clean_summary_with_assertions_fails(tmpdir, fixture, status):
+    b, ctxt = _mk(tmpdir)
+    res = _diag_run(b, tmpdir, fixture, status=status, summary=_CLEAN_SUMMARY)
+    out = asyncio.run(SimUVMCheck(ctxt, _input(res, rundir=str(tmpdir))))
+    assert out.status == 0
+    tr = out.output[0]
+    assert (tr.errors, tr.fatals) == (0, 0)  # UVM tallies stay the UVM's
+    assert tr.passed is False and tr.status == "fail"
+    assert tr.assertion_failures > 0
+    assert tr.run_status == status
+    assert _errors(ctxt) == []
+
+
+def test_uvmcheck_clean_summary_nonzero_exit_is_error(tmpdir):
+    b, ctxt = _mk(tmpdir)
+    res = _diag_run(b, tmpdir, "warnings_only.log", status=1, summary=_CLEAN_SUMMARY)
+    tr = asyncio.run(SimUVMCheck(ctxt, _input(res, rundir=str(tmpdir)))).output[0]
+    assert tr.passed is False and tr.status == "error"
+
+
+def test_suite_with_an_assertion_only_failure(tmpdir):
+    """One pass and one case whose only evidence is an assertion failure: both
+    are kept, the suite gates nonzero, and every report says why."""
+    import json
+    import xml.etree.ElementTree as ET
+    b, ctxt = _mk(tmpdir)
+    rd_ok, rd_bad = tmpdir.mkdir("ok"), tmpdir.mkdir("bad")
+    ok = asyncio.run(SimUVMCheck(ctxt, _input(
+        _diag_run(b, rd_ok, "warnings_only.log", summary=_CLEAN_SUMMARY),
+        name="ok", rundir=str(rd_ok)))).output[0]
+    bad = asyncio.run(SimUVMCheck(ctxt, _input(
+        _diag_run(b, rd_bad, "xcm_asrtst.log", status=1, summary=_CLEAN_SUMMARY),
+        name="bad", rundir=str(rd_bad)))).output[0]
+
+    inp = types.SimpleNamespace(
+        inputs=[ok, bad], params=types.SimpleNamespace(junit=True, ctrf=True),
+        rundir=str(tmpdir), name="suite")
+    out = asyncio.run(SimSuiteReport(ctxt, inp))
+    assert out.status == 1
+    sr = out.output[0]
+    assert (sr.total, sr.passed, sr.failed, sr.errored) == (2, 1, 1, 0)
+    assert sr.stats["assertion_failures"] == 3
+    assert sr.stats["sim_errors"] == 3
+
+    # Console: the failing line names the assertion although UVM_ERROR=0
+    msgs = [m.msg for m in ctxt._markers if m.severity == SeverityE.Error]
+    assert any("assertions=3" in m and "REQ_KNOWN" in m for m in msgs)
+
+    with open(os.path.join(str(tmpdir), "report.json")) as fp:
+        cases = {c["name"]: c for c in json.load(fp)["cases"]}
+    assert cases["bad"]["assertion_failures"] == 3
+    assert cases["bad"]["diagnostics"][0]["code"] == "ASRTST"
+    assert cases["ok"]["sim_errors"] == 0
+
+    root = ET.parse(os.path.join(str(tmpdir), "junit.xml")).getroot()
+    fail = root.find("testcase[@name='bad']/failure")
+    assert "assertions=3" in fail.get("message")
+    assert "REQ_KNOWN" in fail.get("message")
+
+    with open(os.path.join(str(tmpdir), "ctrf.json")) as fp:
+        tests = {t["name"]: t for t in json.load(fp)["results"]["tests"]}
+    assert "REQ_KNOWN" in tests["bad"]["message"]
+
+
+def test_reports_tolerate_results_without_diag_fields(tmpdir):
+    """A TestResult from before sim_errors/diagnostics existed (or a plain
+    object standing in for one) still reports."""
+    b, ctxt = _mk(tmpdir)
+    old = types.SimpleNamespace(type="hdlsim.TestResult", name="old",
+                                testname="t", passed=False, status="fail",
+                                errors=1, fatals=0, walltime_s=1.0)
+    inp = types.SimpleNamespace(
+        inputs=[old], params=types.SimpleNamespace(junit=True, ctrf=True),
+        rundir=str(tmpdir), name="suite")
+    out = asyncio.run(SimSuiteReport(ctxt, inp))
+    assert out.status == 1
+    assert os.path.exists(os.path.join(str(tmpdir), "junit.xml"))

@@ -33,7 +33,7 @@ A backend enables it with one line in its `*_sim_run.py`:
 import os
 from dv_flow.mgr import TaskDataResult
 from dv_flow.libhdlsim import uvm_log_parser
-from dv_flow.libhdlsim.sim_check import _as_fileset, _artifacts, _maps, _severity_stats
+from dv_flow.libhdlsim.sim_check import fail_reason, mk_test_result
 
 
 class UVMCaseMixin:
@@ -60,39 +60,23 @@ class UVMCaseMixin:
                 srr = o
                 break
         run_status = getattr(srr, "status", 1) if srr is not None else 1
-        sim = getattr(srr, "sim", "") if srr is not None else ""
-        walltime = getattr(srr, "walltime_s", 0.0) if srr is not None else 0.0
-        artifacts = _artifacts(srr) if srr is not None else []
 
         # The run wrote its log into this task's rundir (set by the base run),
         # under whatever name the backend passed to exec_sim.
         logfile = self._runinfo.get("logfile", "sim.log")
         log_path = os.path.join(self.rundir, logfile)
-        parsed = uvm_log_parser.parse_uvm_log(log_path)
+        parsed = uvm_log_parser.parse_uvm_log(log_path, run_status=run_status)
 
         name = getattr(input.params, "name", "") or testname or input.name
 
-        # Same stats/runinfo contract as the split SimRun+SimCheck path: the
-        # base run collected them, the check tier adds the severity tallies.
-        stats, runinfo = _maps(srr)
-        stats.update(_severity_stats(parsed))
-
-        tr = ctxt.mkDataItem(
-            "hdlsim.TestResult",
-            testname=testname, sim=sim, status=parsed["status"],
-            passed=parsed["passed"], run_status=run_status,
-            errors=parsed["errors"], warnings=parsed["warnings"],
-            fatals=parsed["fatals"], seed=int(runinfo.get("seed", 0) or 0),
-            walltime_s=walltime, stats=stats, runinfo=runinfo,
-            artifacts=[_as_fileset(a) for a in artifacts])
-        tr.name = name
-        tr.src = name  # distinct per case -> no dedup when a report gathers cases
+        # Same TestResult as the split SimRun+SimCheck path.
+        tr = mk_test_result(ctxt, parsed, srr, name, testname)
+        tr.run_status = run_status
 
         if not parsed["passed"]:
             # Verdict-as-data: report a fail via info, not an Error marker.
-            ctxt.info("Test '%s' (%s) %s: UVM_ERROR=%d UVM_FATAL=%d (exit=%d)" % (
-                name, testname, parsed["status"],
-                parsed["errors"], parsed["fatals"], run_status))
+            ctxt.info("Test '%s' (%s) %s: %s" % (
+                name, testname, parsed["status"], fail_reason(parsed, run_status)))
 
         # Base infra markers (e.g. missing image) are preserved; the base run
         # already stripped the "Command failed" marker in test mode.

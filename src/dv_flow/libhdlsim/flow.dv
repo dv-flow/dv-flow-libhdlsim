@@ -488,19 +488,32 @@ package:
   - export: SimCheck
     produces:
     - type: hdlsim.TestResult
-    desc: Interpret a SimRunResult into a pass/fail TestResult (generic; verdict from exit code)
+    desc: Interpret a SimRunResult into a pass/fail TestResult (generic; verdict from exit code and log)
     doc: |
       SimCheck consumes a SimRunResult (produced by a SimRun in `mode: test`)
       and emits a TestResult carrying the pass/fail verdict plus the artifact
-      FileSets forwarded from the run. The generic base decides the verdict from
-      the simulator exit code; SimUVMCheck overrides it to parse the UVM report
-      summary (a UVM $finish exits 0 even with UVM_ERROR>0, so the exit code is
-      NOT the verdict).
+      FileSets forwarded from the run. The generic base fails a case on a
+      nonzero exit code OR on any simulator error/fatal in the log -- an
+      assertion failure, an HDL `$error`/`$fatal`, a simulator error -- since
+      a simulator can report those and still exit 0. SimUVMCheck overrides it
+      to parse the UVM report summary as well (a UVM $finish exits 0 even with
+      UVM_ERROR>0, so the exit code is NOT the verdict).
 
-      Run it with `rundir: inherit` alongside its SimRun so both share the run
-      directory (the check locates `sim.log` there). On a non-pass the task
-      emits an Error marker for visibility but still returns success, so one
-      failing case does not abort a suite -- the gate is SimSuiteReport.
+      The whole log is scanned, so the check needs it: the SimRunResult's
+      `simLog` artifact, or `sim.log` in the run directory. A missing log
+      fails the task (an infrastructure error, not a verdict). Run it with
+      `rundir: inherit` alongside its SimRun so both share the run directory.
+      A failing case is reported as data -- the task logs why and still
+      returns success, so one failing case does not abort a suite; the gate
+      is SimSuiteReport.
+
+      Recognized simulator diagnostics: VCS (SVA failures, `Error:`/`Fatal:`
+      severity reports, `Error-[CODE]`), Xcelium (`*E,`/`*F,` from xmsim,
+      xmvlog, xmelab, xrun; ASRTST is an assertion failure; `*W,` is only a
+      warning), Verilator (`%Error`/`%Fatal`), Icarus (`ERROR:`/`FATAL:`) and
+      Questa (`** Error`/`** Fatal`). Warnings never fail a case. They are
+      counted in the TestResult's `sim_errors`, `sim_fatals` and
+      `assertion_failures`, with a sample in `diagnostics`.
     pytask: dv_flow.libhdlsim.sim_check.SimCheck
     consumes:
     - type: hdlsim.SimRunResult
@@ -527,11 +540,15 @@ package:
     uses: SimCheck
     desc: UVM-aware check -- parses the UVM report summary for the authoritative verdict
     doc: |
-      SimUVMCheck is the UVM specialization of SimCheck. It parses the tail of
-      the UVM simulation log for the `--- UVM Report Summary ---` block
+      SimUVMCheck is the UVM specialization of SimCheck. It scans the whole
+      UVM simulation log once, for the `--- UVM Report Summary ---` block
       (UVM_ERROR / UVM_FATAL counts + the `** TEST PASSED/FAILED **` line) and
-      falls back to an anchored whole-file scan only when the summary is absent
-      (crash / hang). `passed = UVM_ERROR==0 and UVM_FATAL==0`.
+      for the simulator's own diagnostics (see SimCheck). A case passes only
+      when the summary is clean, there is no simulator error/fatal -- a clean
+      UVM summary does not cover an SVA failure the UVM report server never
+      saw -- and the simulator exited 0. A clean log with a nonzero exit is
+      `status: error`. Without a summary (crash / hang): a crash is `error`, a
+      checker's `$fatal` is `fail`, a run that never finished is `timeout`.
     pytask: dv_flow.libhdlsim.sim_check.SimUVMCheck
 
   - export: SimSuiteReport
@@ -1171,8 +1188,10 @@ package:
   - name: TestResult
     doc: |
       Interpreted per-case verdict emitted by SimCheck/SimUVMCheck. `passed`
-      is the authoritative pass/fail; the *_count fields carry the parsed UVM
-      severity tallies; `artifacts` are forwarded from the SimRunResult.
+      is the authoritative pass/fail; `errors`/`warnings`/`fatals` carry the
+      parsed UVM severity tallies and `sim_errors`/`sim_fatals`/
+      `assertion_failures` the simulator's own diagnostics; `artifacts` are
+      forwarded from the SimRunResult.
     with:
       name:
         doc: Case name (matrix cell / SimCase instance name)
@@ -1210,6 +1229,31 @@ package:
         doc: UVM_FATAL count parsed from the log
         type: int
         value: 0
+      sim_errors:
+        doc: |
+          Error-severity simulator diagnostics in the log, outside UVM: SVA
+          failures, HDL `$error`, simulator errors. Counts what the simulator
+          printed, so a simulator's own report limit can hide more.
+        type: int
+        value: 0
+      sim_fatals:
+        doc: Fatal-severity simulator diagnostics in the log, outside UVM (HDL `$fatal`, simulator fatals)
+        type: int
+        value: 0
+      assertion_failures:
+        doc: |
+          How many of `sim_errors` + `sim_fatals` are assertion failures. A
+          subset, not an additional count.
+        type: int
+        value: 0
+      diagnostics:
+        doc: |
+          The first simulator errors/fatals in the log (at most 10), each a
+          map: severity, category (assertion | check | tool), message,
+          log_line, and when known code, file, line, hier and time. Explains a
+          failure the UVM counts don't show; the full log is the simLog
+          artifact.
+        type: list
       seed:
         doc: Simulation seed (0 when not captured; `runinfo.seed` is the sparse form)
         type: int
@@ -1221,7 +1265,8 @@ package:
       stats:
         doc: |
           Measurements forwarded from SimRunResult.stats, with the log-derived
-          tallies (errors/warnings/fatals/infos) added by the Check task. Sparse:
+          tallies (errors/warnings/fatals/infos, sim_errors/sim_fatals/
+          assertion_failures) added by the Check task. Sparse:
           an absent key was not measured. See SimRunResult.stats for the key set.
         type: map
       runinfo:

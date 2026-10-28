@@ -18,17 +18,21 @@
 #****************************************************************************
 """Check pytasks: turn a SimRunResult into an interpreted TestResult verdict.
 
-`SimCheck`    -- generic base: verdict from the simulator exit code.
+`SimCheck`    -- generic base: verdict from the simulator exit code AND the
+                 log's simulator diagnostics (`uvm_log_parser.parse_sim_log`):
+                 a simulator can fail an assertion and still exit 0.
 `SimUVMCheck` -- UVM specialization: the exit code is NOT the verdict (a UVM
                  `$finish` exits 0 with UVM_ERROR>0), so it parses the UVM log
-                 (`uvm_log_parser.parse_uvm_log`) for the authoritative verdict.
+                 (`uvm_log_parser.parse_uvm_log`) for the authoritative verdict
+                 -- the UVM summary plus the simulator's own diagnostics, since
+                 a clean summary does not cover an SVA failure.
 
 Both run with `rundir: inherit`, so `input.rundir` is the SAME directory the
 SimRun wrote its `sim.log` into. The verdict travels as *data* (a TestResult):
 on a non-pass the task emits an Error marker for visibility but still returns
 status 0, so one failing case does not abort a suite -- the suite's
 SimSuiteReport is the CI gate. Only an infrastructure failure (no SimRunResult
-input, or a missing sim log) fails the task itself.
+input, or a missing sim log) fails the task itself. Both checks need the log.
 """
 
 import datetime
@@ -38,7 +42,7 @@ import time
 import uuid
 from dv_flow.mgr import FileSet, TaskDataResult
 from dv_flow.libhdlsim import cov, sim_stats
-from dv_flow.libhdlsim.uvm_log_parser import parse_uvm_log
+from dv_flow.libhdlsim.uvm_log_parser import parse_uvm_log, parse_sim_log
 
 
 def _maps(result):
@@ -72,11 +76,63 @@ def _as_fileset(a):
     return FileSet(**kwargs)
 
 
-def _severity_stats(parsed):
-    """UVM severity tallies as `stats` keys, so a suite can total them the same
-    way it totals every other metric."""
-    return {k: parsed[k] for k in ("errors", "warnings", "fatals", "infos")
-            if k in parsed}
+# Log-derived tallies copied into a TestResult's `stats`, so a suite totals
+# them like every other metric.
+_TALLY_KEYS = ("errors", "warnings", "fatals", "infos",
+               "sim_errors", "sim_fatals", "assertion_failures")
+
+
+def _severity_stats(parsed, uvm=True):
+    """Log-derived tallies as `stats` keys. A generic check has no UVM
+    tallies, so it reports only the simulator's."""
+    keys = _TALLY_KEYS if uvm else _TALLY_KEYS[4:]
+    return {k: parsed[k] for k in keys if k in parsed}
+
+
+def mk_test_result(ctxt, parsed, result, name, testname, uvm=True):
+    """The TestResult for a parsed log (see `uvm_log_parser`) and the
+    SimRunResult it came from. Shared by SimUVMCheck, SimCheck and
+    SimUVMCase so the three record a verdict the same way."""
+    stats, runinfo = _maps(result)
+    stats.update(_severity_stats(parsed, uvm))
+    kw = dict(errors=parsed["errors"], warnings=parsed["warnings"],
+              fatals=parsed["fatals"]) if uvm else {}
+
+    # NOTE: `name` is reserved by mkDataItem (the item node-name); set fields
+    # after construction.
+    tr = ctxt.mkDataItem(
+        "hdlsim.TestResult",
+        testname=testname, sim=getattr(result, "sim", ""),
+        status=parsed["status"], passed=parsed["passed"],
+        run_status=getattr(result, "status", 0),
+        sim_errors=parsed["sim_errors"], sim_fatals=parsed["sim_fatals"],
+        assertion_failures=parsed["assertion_failures"],
+        diagnostics=list(parsed["diagnostics"]),
+        seed=int(runinfo.get("seed", 0) or 0),
+        walltime_s=getattr(result, "walltime_s", 0.0), stats=stats,
+        runinfo=runinfo, artifacts=[_as_fileset(a) for a in _artifacts(result)],
+        **kw)
+    tr.name = name
+    # Distinct identity so a suite's per-case TestResults are not deduped by
+    # (src, seq) when gathered by the report (get_in_params dedups on that key).
+    tr.src = name
+    return tr
+
+
+def fail_reason(parsed, run_status):
+    """One line saying why a case did not pass -- the UVM tallies, then the
+    simulator's own diagnostics, which a clean UVM summary does not cover."""
+    parts = []
+    if parsed.get("errors") or parsed.get("fatals"):
+        parts.append("UVM_ERROR=%d UVM_FATAL=%d" % (parsed["errors"], parsed["fatals"]))
+    if parsed.get("sim_errors") or parsed.get("sim_fatals"):
+        parts.append("sim errors=%d fatals=%d (assertions=%d)" % (
+            parsed["sim_errors"], parsed["sim_fatals"], parsed["assertion_failures"]))
+    parts.append("exit=%d" % (run_status or 0))
+    text = " ".join(parts)
+    if parsed.get("first_failure"):
+        text += "; first: %s" % parsed["first_failure"]
+    return text
 
 
 def _find_result(inputs):
@@ -127,8 +183,6 @@ async def SimUVMCheck(ctxt, input) -> TaskDataResult:
         return TaskDataResult(status=1)
 
     run_status = getattr(result, "status", 0)
-    sim = getattr(result, "sim", "")
-    walltime = getattr(result, "walltime_s", 0.0)
     name = _case_name(input)
     testname = getattr(input.params, "testname", "")
 
@@ -138,35 +192,16 @@ async def SimUVMCheck(ctxt, input) -> TaskDataResult:
         ctxt.error("SimUVMCheck: sim log not found (rundir=%s)" % input.rundir)
         return TaskDataResult(status=1)
 
-    parsed = parse_uvm_log(log_path)
-    passed = parsed["passed"]
+    parsed = parse_uvm_log(log_path, run_status=run_status)
+    tr = mk_test_result(ctxt, parsed, result, name, testname)
 
-    stats, runinfo = _maps(result)
-    stats.update(_severity_stats(parsed))
-
-    # NOTE: `name` is reserved by mkDataItem (the item node-name); set fields
-    # after construction.
-    tr = ctxt.mkDataItem(
-        "hdlsim.TestResult",
-        testname=testname, sim=sim,
-        status=parsed["status"], passed=passed, run_status=run_status,
-        errors=parsed["errors"], warnings=parsed["warnings"],
-        fatals=parsed["fatals"], seed=int(runinfo.get("seed", 0) or 0),
-        walltime_s=walltime, stats=stats, runinfo=runinfo,
-        artifacts=[_as_fileset(a) for a in _artifacts(result)])
-    tr.name = name
-    # Distinct identity so a suite's per-case TestResults are not deduped by
-    # (src, seq) when gathered by the report (get_in_params dedups on that key).
-    tr.src = name
-
-    if not passed:
+    if not parsed["passed"]:
         # Verdict-as-data: a normal fail is reported via `info`, NOT an error
         # marker. An Error marker would mark this (compound) cell failed and its
         # TestResult would be dropped from a suite's matrix aggregation; the
         # gate is SimSuiteReport. (Infra failures above DO error.)
-        ctxt.info("Test '%s' (%s) %s: UVM_ERROR=%d UVM_FATAL=%d (exit=%d)" % (
-            name, testname, parsed["status"],
-            parsed["errors"], parsed["fatals"], run_status))
+        ctxt.info("Test '%s' (%s) %s: %s" % (
+            name, testname, parsed["status"], fail_reason(parsed, run_status)))
 
     # Verdict-as-data: task status is 0 so a suite keeps running.
     return TaskDataResult(status=0, output=[tr])
@@ -188,27 +223,63 @@ async def SimCheck(ctxt, input) -> TaskDataResult:
 
     run_status = getattr(result, "status", 0)
     name = _case_name(input)
-    passed = (run_status == 0)
-    status = "pass" if passed else "fail"
 
-    stats, runinfo = _maps(result)
+    # The exit code alone is not the verdict: a simulator can report a failed
+    # assertion and exit 0. So the log is required, as it is for SimUVMCheck.
+    log_path = _locate_log(result, input.rundir)
+    if log_path is None:
+        ctxt.error("SimCheck: sim log not found (rundir=%s)" % input.rundir)
+        return TaskDataResult(status=1)
 
-    tr = ctxt.mkDataItem(
-        "hdlsim.TestResult",
-        testname=getattr(input.params, "testname", ""),
-        sim=getattr(result, "sim", ""), status=status, passed=passed,
-        run_status=run_status, walltime_s=getattr(result, "walltime_s", 0.0),
-        seed=int(runinfo.get("seed", 0) or 0), stats=stats, runinfo=runinfo,
-        artifacts=[_as_fileset(a) for a in _artifacts(result)])
-    tr.name = name  # `name` is reserved by mkDataItem; set it after construction
-    tr.src = name   # distinct per case (see _case_name) -> no report dedup
+    parsed = parse_sim_log(log_path, run_status=run_status)
+    tr = mk_test_result(ctxt, parsed, result, name,
+                        getattr(input.params, "testname", ""), uvm=False)
 
-    if not passed:
+    if not parsed["passed"]:
         # Verdict-as-data (see SimUVMCheck): report via info, not an error
         # marker, so the cell's output survives suite aggregation.
-        ctxt.info("Sim '%s' exited with status %d" % (name, run_status))
+        ctxt.info("Sim '%s' %s: %s" % (
+            name, parsed["status"], fail_reason(parsed, run_status)))
 
     return TaskDataResult(status=0, output=[tr])
+
+
+def _first_diag(r):
+    """The first simulator diagnostic a TestResult recorded, as one line."""
+    diags = getattr(r, "diagnostics", None) or []
+    d = diags[0] if diags else None
+    if not isinstance(d, dict):
+        return ""
+    loc = d.get("file", "")
+    if loc and d.get("line") is not None:
+        loc = "%s:%s" % (loc, d["line"])
+    head = "[%s]" % ",".join(x for x in (d.get("severity"), d.get("code")) if x)
+    text = " ".join(x for x in (head, d.get("hier") or loc, d.get("message")) if x)
+    if d.get("time"):
+        text += " @ %s" % d["time"]
+    if loc and d.get("hier"):
+        text += " (%s)" % loc
+    return text
+
+
+def _case_counts(r):
+    """'errors=1 fatals=0', plus the simulator's diagnostics when there are
+    any. Tolerates a TestResult produced before those fields existed."""
+    text = "errors=%d fatals=%d" % (getattr(r, "errors", 0) or 0,
+                                    getattr(r, "fatals", 0) or 0)
+    se = getattr(r, "sim_errors", 0) or 0
+    sf = getattr(r, "sim_fatals", 0) or 0
+    if se or sf:
+        text += " sim_errors=%d sim_fatals=%d assertions=%d" % (
+            se, sf, getattr(r, "assertion_failures", 0) or 0)
+    return text
+
+
+def _case_reason(r):
+    """Why a case did not pass, in one line: counts, then the first
+    simulator diagnostic (what explains a fail with UVM_ERROR=0)."""
+    first = _first_diag(r)
+    return _case_counts(r) + (("; first: %s" % first) if first else "")
 
 
 def _find_results(inputs):
@@ -245,11 +316,10 @@ async def SimSuiteReport(ctxt, input) -> TaskDataResult:
     _report_stats(ctxt, results, agg)
     for r in results:
         if not getattr(r, "passed", False):
-            ctxt.error("  %-24s %-8s errors=%d fatals=%d (%s)" % (
+            ctxt.error("  %-24s %-8s %s (%s)" % (
                 getattr(r, "name", "?"),
                 getattr(r, "status", "?"),
-                getattr(r, "errors", 0),
-                getattr(r, "fatals", 0),
+                _case_reason(r),
                 getattr(r, "testname", "")))
 
     status = 0 if (failed == 0 and errored == 0) else 1
@@ -333,6 +403,9 @@ def _report_stats(ctxt, results, agg):
     _line("severity", [("errors", "errors", _fmt),
                        ("warnings", "warnings", _fmt),
                        ("fatals", "fatals", _fmt)])
+    _line("sim-diag", [("errors", "sim_errors", _fmt),
+                       ("fatals", "sim_fatals", _fmt),
+                       ("assertions", "assertion_failures", _fmt)])
     # Best single case per kind -- not a merged figure (see sim_stats).
     _line("coverage", [(k, "cov_%s_pct_max" % k, lambda v: "%s%%" % _fmt(v))
                        for k in cov.KINDS])
@@ -364,6 +437,12 @@ def _write_report_json(ctxt, input, results, agg, counts):
             "status": getattr(r, "status", ""),
             "passed": bool(getattr(r, "passed", False)),
             "run_status": getattr(r, "run_status", 0),
+            "errors": getattr(r, "errors", 0) or 0,
+            "fatals": getattr(r, "fatals", 0) or 0,
+            "sim_errors": getattr(r, "sim_errors", 0) or 0,
+            "sim_fatals": getattr(r, "sim_fatals", 0) or 0,
+            "assertion_failures": getattr(r, "assertion_failures", 0) or 0,
+            "diagnostics": list(getattr(r, "diagnostics", None) or []),
             "stats": _case_stats(r),
             "runinfo": (dict(getattr(r, "runinfo", None))
                         if isinstance(getattr(r, "runinfo", None), dict) else {}),
@@ -453,9 +532,9 @@ def _write_junit(ctxt, input, results):
                     kind = ("error"
                             if str(getattr(r, "status", "")) in ("error", "timeout")
                             else "failure")
-                    fp.write('\n    <%s message="%s: errors=%d fatals=%d"/>\n  ' % (
+                    fp.write('\n    <%s message="%s: %s"/>\n  ' % (
                         kind, _xml_escape(getattr(r, "status", "?")),
-                        getattr(r, "errors", 0), getattr(r, "fatals", 0)))
+                        _xml_escape(_case_reason(r))))
                 fp.write('</testcase>\n')
             fp.write('</testsuite>\n')
     except Exception as e:
@@ -501,8 +580,8 @@ def _ctrf_test(r):
     handles = ["%s=%s" % (k, runinfo[k]) for k in ("sim", "seed")
                if runinfo.get(k) not in (None, "")]
     if not passed:
-        test["message"] = "%s: errors=%d fatals=%d%s" % (
-            raw, getattr(r, "errors", 0), getattr(r, "fatals", 0),
+        test["message"] = "%s: %s%s" % (
+            raw, _case_reason(r),
             (" (%s)" % ", ".join(handles)) if handles else "")
     elif handles:
         test["message"] = ", ".join(handles)

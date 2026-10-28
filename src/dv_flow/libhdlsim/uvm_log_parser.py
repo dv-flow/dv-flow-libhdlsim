@@ -16,18 +16,20 @@
 #* limitations under the License.
 #*
 #****************************************************************************
-"""Pure-function UVM simulation-log verdict parser.
+"""Pure-function simulation-log verdict parser.
 
-`parse_uvm_log(path)` returns the pass/fail verdict for a UVM run WITHOUT
-importing any dv-flow machinery, so it unit-tests standalone (like
+`parse_uvm_log(path)` returns the pass/fail verdict for a UVM run, and
+`parse_sim_log(path)` the verdict for a generic (non-UVM) run, WITHOUT
+importing any dv-flow machinery, so they unit-test standalone (like
 `log_parser.py`).
 
-Design (see docs/sim_case_suite_design.md):
+Both make ONE streaming pass over the whole log. A tail-only read cannot
+certify that the earlier part of the run was clean: an assertion failure an
+hour into a run is not in the last 64 KiB. Memory stays bounded -- counts, the
+summary region and a capped sample of diagnostics -- whatever the log size.
 
-* Fast path -- read only the TAIL of the log and look for the UVM report
-  summary block::
-
-      --- UVM Report Summary ---
+* UVM report summary -- the severity tallies after the last
+  ``--- UVM Report Summary ---``::
 
       ** Report counts by severity
       UVM_INFO :    9
@@ -35,51 +37,64 @@ Design (see docs/sim_case_suite_design.md):
       UVM_ERROR :    0
       UVM_FATAL :    0
 
-  The verdict is `errors == 0 and fatals == 0` (an explicit
-  ``** TEST FAILED **`` forces a fail). The exit code is NOT the verdict: a UVM
-  ``$finish`` exits 0 even with ``UVM_ERROR > 0``.
+  are the authoritative UVM counts (``errors``/``warnings``/``fatals``); the
+  individual ``UVM_ERROR`` lines are counted only when there is no summary.
+  An explicit ``** TEST FAILED **`` forces a fail.
 
-* Fallback -- only when the summary block is absent from the tail (crash / hang
-  before the report server ran) do we stream the WHOLE file, matching *anchored*
-  patterns (``UVM_ERROR``/``UVM_FATAL`` at line start, ``%Error``/``Error-[``,
-  ``Assertion failed``, ``segmentation fault``, missing ``$finish``). There is
-  deliberately NO bare ``"error"`` substring match -- that would flag benign
-  text like ``err_test`` or ``0 errors``.
+* Simulator diagnostics -- assertion failures, HDL `$error`/`$fatal` and
+  simulator errors (`sim_diag`), counted separately as ``sim_errors``,
+  ``sim_fatals`` and ``assertion_failures`` (a subset of the first two). The
+  UVM report server never sees these, so a clean summary does not mean they
+  did not happen.
+
+Verdict (UVM):
+
+=====================================================  ===============
+Evidence                                               status
+=====================================================  ===============
+summary, UVM clean, no sim errors/fatals, exit 0        pass
+summary, UVM error/fatal or TEST FAILED                 fail
+summary, any sim error/fatal                            fail
+summary, all clean but nonzero exit                     error
+no summary, crash (segfault, core dump, tool error)     error
+no summary, HDL/assertion `$fatal`                      fail
+no summary, no `$finish`                                timeout
+no summary, finished, UVM or sim errors                 fail
+no summary, finished, nothing else                      error
+=====================================================  ===============
+
+Verdict (generic): fail on any sim error/fatal or a nonzero exit; else pass.
+
+There is deliberately NO bare ``"error"`` substring match -- that would flag
+benign text like ``err_test`` or ``0 errors``.
 """
 
 import os
 import re
+from dv_flow.libhdlsim import sim_diag
 
-# Severity tally lines: "UVM_ERROR :    0"
-_SEV_RE = re.compile(r'^\s*UVM_(INFO|WARNING|ERROR|FATAL)\s*:\s*(\d+)', re.M)
+# Severity tally lines: "UVM_ERROR :    0" (Questa prefixes its transcript
+# with '# ')
+_SEV_RE = re.compile(r'^(?:#\s*)?\s*UVM_(INFO|WARNING|ERROR|FATAL)\s*:\s*(\d+)', re.M)
 
 _SUMMARY_MARKER = "--- UVM Report Summary ---"
+# Lines kept after the summary marker: the severity block is at its top, and a
+# per-id count list can follow; nothing past this is needed for the verdict.
+_SUMMARY_LINES = 400
 
-# Crash / abort signatures used only in the fallback whole-file scan.
+# Crash / abort signatures. Assertion and `$error`-style reports are not
+# crashes; `sim_diag` recognizes those.
 _CRASH_SIGNATURES = (
-    "%Error",
-    "Error-[",
-    "Assertion failed",
     "segmentation fault",
     "Segmentation fault",
     "core dumped",
-    "Fatal:",
 )
 
 # Verilog completion markers (any one means the run reached the end).
 _FINISH_SIGNATURES = ("$finish", "Verilog $finish")
 
-
-def _read_tail(path, tail_bytes):
-    """Return (text, scanned_whole_file). Reads at most `tail_bytes` from the
-    end of the file, discarding a leading partial line when truncated."""
-    size = os.path.getsize(path)
-    with open(path, "rb") as f:
-        if size > tail_bytes:
-            f.seek(size - tail_bytes)
-            f.readline()  # drop the partial first line
-            return f.read().decode("utf-8", errors="replace"), False
-        return f.read().decode("utf-8", errors="replace"), True
+# A UVM report line, for the no-summary count: "UVM_ERROR @ 10: ..."
+_UVM_LINE_RE = re.compile(r'^(?:#\s*)?\s*(UVM_ERROR|UVM_FATAL|UVM_WARNING)\b(?!\s*:\s*\d)')
 
 
 def _parse_summary(region):
@@ -107,19 +122,66 @@ def _empty_result():
         "warnings": 0,
         "fatals": 0,
         "infos": 0,
+        "sim_errors": 0,
+        "sim_fatals": 0,
+        "assertion_failures": 0,
+        "diagnostics": [],
+        "first_failure": "",
         "saw_summary": False,
         "saw_finish": False,
+        "crash": False,
         "scanned_whole_file": False,
     }
 
 
-def parse_uvm_log(path, tail_bytes=65536):
+def _scan(path):
+    """One pass over the log: the diagnostics, the last summary region, the
+    per-line UVM counts, and the finish/crash evidence."""
+    diag = sim_diag.DiagScanner()
+    summary = None          # lines after the last summary marker
+    uvm = {"UVM_ERROR": 0, "UVM_FATAL": 0, "UVM_WARNING": 0}
+    saw_finish = crash = False
+
+    with open(path, "r", errors="replace") as f:
+        for line in f:
+            diag.line(line)
+            if summary is not None and len(summary) < _SUMMARY_LINES:
+                summary.append(line)
+            if _SUMMARY_MARKER in line:
+                summary = [line]
+                continue
+            m = _UVM_LINE_RE.match(line)
+            if m:
+                uvm[m.group(1)] += 1
+            if not crash and any(sig in line for sig in _CRASH_SIGNATURES):
+                crash = True
+            if not saw_finish and any(sig in line for sig in _FINISH_SIGNATURES):
+                saw_finish = True
+    diag.close()
+    return diag, summary, uvm, saw_finish, crash
+
+
+def _fill_diag(res, diag):
+    res["sim_errors"] = diag.errors
+    res["sim_fatals"] = diag.fatals
+    res["assertion_failures"] = diag.assertions
+    res["diagnostics"] = [d.to_dict() for d in diag.sample]
+    first = diag.first()
+    res["first_failure"] = first.summary() if first is not None else ""
+
+
+def parse_uvm_log(path, run_status=None):
     """Parse a UVM simulation log and return a verdict dict.
 
     Keys: ``status`` ("pass"/"fail"/"error"/"timeout"), ``passed`` (bool),
-    ``errors``/``warnings``/``fatals``/``infos`` (int), ``saw_summary`` (bool),
-    ``saw_finish`` (bool), ``scanned_whole_file`` (bool -- True only when the
-    fallback whole-file scan ran, i.e. the fast tail path missed).
+    ``errors``/``warnings``/``fatals``/``infos`` (int, UVM tallies),
+    ``sim_errors``/``sim_fatals``/``assertion_failures`` (int, simulator
+    diagnostics), ``diagnostics`` (a capped sample, as dicts),
+    ``first_failure`` (one line, or ""), ``saw_summary``, ``saw_finish``,
+    ``crash`` and ``scanned_whole_file`` (bool).
+
+    `run_status` is the simulator's exit code when known: a nonzero exit with
+    an otherwise clean log is not a pass.
     """
     res = _empty_result()
 
@@ -127,64 +189,70 @@ def parse_uvm_log(path, tail_bytes=65536):
         res["status"] = "error"
         return res
 
-    tail, whole = _read_tail(path, tail_bytes)
+    diag, summary, uvm, saw_finish, crash = _scan(path)
+    res["scanned_whole_file"] = True
+    res["saw_finish"] = saw_finish
+    res["crash"] = crash
+    _fill_diag(res, diag)
 
-    # ---- Fast path: summary block present in the tail --------------------
-    idx = tail.find(_SUMMARY_MARKER)
-    if idx != -1:
-        counts, verdict = _parse_summary(tail[idx:])
+    if summary is not None:
+        counts, verdict = _parse_summary("".join(summary))
         res["saw_summary"] = True
-        res["scanned_whole_file"] = whole
         res["infos"] = counts["INFO"]
         res["warnings"] = counts["WARNING"]
         res["errors"] = counts["ERROR"]
         res["fatals"] = counts["FATAL"]
-        res["saw_finish"] = any(s in tail for s in _FINISH_SIGNATURES)
 
-        passed = counts["ERROR"] == 0 and counts["FATAL"] == 0
-        if verdict == "fail":
-            passed = False
-        res["passed"] = passed
-        res["status"] = "pass" if passed else "fail"
+        uvm_failed = counts["ERROR"] > 0 or counts["FATAL"] > 0 or verdict == "fail"
+        if uvm_failed or diag.failed:
+            res["status"] = "fail"
+        elif run_status:
+            res["status"] = "error"
+        else:
+            res["status"] = "pass"
+        res["passed"] = res["status"] == "pass"
         return res
 
-    # ---- Fallback: no summary in tail -> stream the whole file -----------
-    # Something aborted before the report server ran. Use anchored patterns
-    # only; never a bare "error" substring.
-    res["scanned_whole_file"] = True
-    errors = fatals = warnings = 0
-    saw_finish = False
-    crash = False
-
-    with open(path, "r", errors="replace") as f:
-        for line in f:
-            s = line.lstrip()
-            if s.startswith("UVM_ERROR"):
-                errors += 1
-            elif s.startswith("UVM_FATAL"):
-                fatals += 1
-            elif s.startswith("UVM_WARNING"):
-                warnings += 1
-            if not crash and any(sig in line for sig in _CRASH_SIGNATURES):
-                crash = True
-            if not saw_finish and any(sig in line for sig in _FINISH_SIGNATURES):
-                saw_finish = True
-
-    res["errors"] = errors
-    res["fatals"] = fatals
-    res["warnings"] = warnings
-    res["saw_finish"] = saw_finish
+    # ---- No summary: something ended the run before the report server ran.
+    res["errors"] = uvm["UVM_ERROR"]
+    res["fatals"] = uvm["UVM_FATAL"]
+    res["warnings"] = uvm["UVM_WARNING"]
     res["passed"] = False  # no clean summary is never a pass
 
-    if crash:
+    if crash or diag.tool_failures:
         res["status"] = "error"
+    elif diag.hdl_fatals:
+        # A checker's $fatal ended the run: a test failure, not a crash
+        res["status"] = "fail"
     elif not saw_finish:
         res["status"] = "timeout"
-    elif errors or fatals:
+    elif res["errors"] or res["fatals"] or diag.failed:
         res["status"] = "fail"
     else:
         # Finished cleanly but produced no summary -- not a recognizable UVM
         # run; treat as an error rather than silently passing.
         res["status"] = "error"
 
+    return res
+
+
+def parse_sim_log(path, run_status=0):
+    """Verdict for a generic (non-UVM) run: the exit code AND the log.
+
+    A simulator can report failed assertions and still exit 0, so a zero exit
+    alone is not a pass. Returns the same keys as `parse_uvm_log` (the UVM
+    tallies stay 0). A missing log is ``status: "error"``.
+    """
+    res = _empty_result()
+    if not os.path.isfile(path):
+        return res
+
+    diag, _summary, _uvm, saw_finish, crash = _scan(path)
+    res["scanned_whole_file"] = True
+    res["saw_finish"] = saw_finish
+    res["crash"] = crash
+    _fill_diag(res, diag)
+
+    res["status"] = "fail" if (diag.failed or run_status) else "pass"
+    res["passed"] = res["status"] == "pass"
     return res
