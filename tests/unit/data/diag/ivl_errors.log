@@ -1,0 +1,9 @@
+ERROR: imm.sv:3: IMM_FAIL a=0
+       Time: 1  Scope: top
+ERROR: imm.sv:4: 
+       Time: 2  Scope: top
+WARNING: imm.sv:5: just a warning
+         Time: 2  Scope: top
+ERROR: imm.sv:6: CHECKER_ERROR diagnostic
+       Time: 2  Scope: top
+imm.sv:7: $finish called at 3 (1s)

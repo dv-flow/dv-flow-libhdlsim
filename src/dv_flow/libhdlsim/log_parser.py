@@ -25,6 +25,7 @@ import enum
 import logging
 from typing import Callable, ClassVar, List, Optional
 from dv_flow.mgr.task_data import TaskMarker, TaskMarkerLoc, SeverityE
+from dv_flow.libhdlsim import sim_diag
 
 class ParseState(enum.Enum):
     Init = enum.auto()
@@ -224,8 +225,17 @@ class LogParser(object):
                         self._code = l[last_open+1:last_close].strip()
                     self.emit_marker()
             else:
-                # Ignore
-                pass
+                # Formats recognized by the runtime scanner (sim_diag) and not
+                # above -- Xcelium's '<tool>: *E,<CODE> (path,line): msg' --
+                # come from its table, so the two cannot drift apart.
+                d = sim_diag.match_header(l.rstrip("\r\n"))
+                if d is not None and d.fmt == "xcm":
+                    self._kind = SeverityE.Warning if d.severity == "warning" else SeverityE.Error
+                    self._code = d.code
+                    if d.file:
+                        self._path = "%s:%d" % (d.file, d.line) if d.line >= 0 else d.file
+                    self._message = d.message
+                    self.emit_marker()
         elif self._state == ParseState.MultiLineStyle1:
             # VCS-style message:
             # <Kind>-<Code> <Short Desc>

@@ -1,0 +1,8 @@
+# ** Error: CHECKER_ERROR diagnostic
+#    Time: 2 ns  Scope: tb_top.u_chk File: checker.sv Line: 6
+# ** Error: Assertion error.
+#    Time: 15 ns Started: 5 ns  Scope: tb_top.u_chk.REQ_KNOWN File: checker.sv Line: 31
+# ** Warning: just a warning
+#    Time: 20 ns  Scope: tb_top.u_chk File: checker.sv Line: 8
+# ** Fatal: CHECKER_FATAL diagnostic
+#    Time: 30 ns  Scope: tb_top.u_chk File: checker.sv Line: 9

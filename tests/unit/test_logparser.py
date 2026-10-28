@@ -407,3 +407,26 @@ def test_code_prefix_in_marker_msg_verilator():
     assert len(markers) == 1
     assert markers[0].msg.startswith("[WIDTHTRUNC]")
 
+
+
+def test_xcelium_envelope_markers():
+    """Xcelium '<tool>: *E,<CODE>' messages come from sim_diag's table."""
+    markers = []
+    p = LogParser(notify=lambda m: markers.append(m), suppress=["NOCOND"])
+    for l in ["xmvlog: *E,EXPSMC (t.sv,5|12): expecting a semicolon (';').",
+              "xmsim: *W,NOCOND (t.sv,12|4): Condition is never evaluated.",
+              "xmsim: *W,XPWDIS: X-propagation is disabled."]:
+        p.line(l)
+    p.close()
+    assert [m.severity for m in markers] == [SeverityE.Error, SeverityE.Warning]
+    assert markers[0].msg.startswith("[EXPSMC]")
+    assert (markers[0].loc.path, markers[0].loc.line) == ("t.sv", 5)
+    assert markers[1].msg.startswith("[XPWDIS]")
+
+
+def test_suppress_never_hides_an_xcelium_error():
+    markers = []
+    p = LogParser(notify=lambda m: markers.append(m), suppress=["ASRTST"])
+    p.line("xmsim: *E,ASRTST (c.sv,33): (time 105 NS) Assertion t.A has failed")
+    p.close()
+    assert len(markers) == 1 and markers[0].severity == SeverityE.Error

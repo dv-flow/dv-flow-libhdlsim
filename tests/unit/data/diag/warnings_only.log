@@ -1,0 +1,13 @@
+xmsim: *W,NOCOND (checker.sv,12|4): Condition is never evaluated.
+xmsim: *W,XPWDIS: X-propagation is disabled for this run.
+Warning-[STASKW_CO] System task warning
+checker.sv, 8
+  just a warning
+
+[32] %Warning: chk.sv:12: top: just a warning
+WARNING: imm.sv:5: just a warning
+         Time: 2  Scope: top
+UVM_INFO @ 0: reporter [CHK] Error: no error here, 0 errors, assertion failed? no
+test err_test: fatal_count=0 failed=0
+Error count: 0
+$finish at simulation time 100

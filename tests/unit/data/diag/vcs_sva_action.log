@@ -1,0 +1,15 @@
+"checker.sv", 31: tb_top.dut.u_chk.REQ_KNOWN: started at 105000ps failed at 105000ps
+	Offending '(!$isunknown({req_valid, req_ready}))'
+Error: "checker.sv", 31: tb_top.dut.u_chk.REQ_KNOWN: at time 105000 ps
+REQ_KNOWN_FAIL
+"checker.sv", 44: tb_top.dut.u_chk.GNT_ONEHOT: started at 105000ps failed at 105000ps
+	Offending '$onehot0(gnt)'
+Error: "checker.sv", 52: tb_top.dut.u_chk: at time 105000 ps
+CHECKER_ERROR unrelated diagnostic
+"checker.sv", 31: tb_top.dut.u_chk.REQ_KNOWN: started at 125000ps failed at 125000ps
+	Offending '(!$isunknown({req_valid, req_ready}))'
+Error: "checker.sv", 31: tb_top.dut.u_chk.REQ_KNOWN: at time 125 ns
+REQ_KNOWN_FAIL
+Fatal: "checker.sv", 60: tb_top.dut.u_chk: at time 130000 ps
+CHECKER_FATAL diagnostic
+$finish at simulation time               130000

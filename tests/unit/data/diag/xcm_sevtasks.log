@@ -1,0 +1,6 @@
+xmsim: *E,ERRSEV (checker.sv,5): (time 1 NS).
+tb_top.u_chk
+CHECKER_ERROR diagnostic
+xmsim: *F,FATSEV (checker.sv,7): (time 2 NS).
+tb_top.u_chk
+CHECKER_FATAL diagnostic

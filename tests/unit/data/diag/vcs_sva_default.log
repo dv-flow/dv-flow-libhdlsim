@@ -1,0 +1,11 @@
+Chronologic VCS simulator copyright 1991-2026
+Compiler version Y-2026.03_Full64; Runtime version Y-2026.03_Full64;
+"checker.sv", 31: tb_top.dut.u_chk.REQ_KNOWN: started at 105000ps failed at 105000ps
+	Offending '(!$isunknown({req_valid, req_ready}))'
+"checker.sv", 31: tb_top.dut.u_chk.REQ_KNOWN: started at 115000ps failed at 115000ps
+	Offending '(!$isunknown({req_valid, req_ready}))'
+$finish called from file "tb_top.sv", line 40.
+$finish at simulation time               200000
+           V C S   S i m u l a t i o n   R e p o r t
+Time: 200000 ps
+CPU Time:      0.320 seconds;       Data structure size:   0.0Mb

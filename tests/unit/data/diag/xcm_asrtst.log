@@ -1,0 +1,6 @@
+xmsim: *W,NOCOND (checker.sv,12|4): Condition is never evaluated.
+xmsim: *E,ASRTST (checker.sv,33): (time 105 NS) Assertion tb_top.dut.u_chk.REQ_KNOWN has failed
+REQ_KNOWN_FAIL
+xmsim: *E,ASRTST (checker.sv,33): (time 115 NS) Assertion tb_top.dut.u_chk.REQ_KNOWN has failed
+xmsim: *E,ASRTST (checker.sv,44): (time 115 NS) Assertion tb_top.dut.u_chk.GNT_ONEHOT has failed
+Simulation complete via $finish(1) at time 200 NS + 0

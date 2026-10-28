@@ -1,0 +1,3 @@
+[3] %Fatal: fat.sv:1: Assertion failed in top: CHECKER_FATAL diagnostic
+%Error: fat.sv:1: Verilog $stop
+Aborting...
