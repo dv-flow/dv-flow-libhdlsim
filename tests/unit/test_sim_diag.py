@@ -131,6 +131,24 @@ def test_warnings_and_benign_text_are_not_failures():
     assert s.sample == []
 
 
+def test_vcs_lint_is_a_warning_with_location():
+    got = []
+    s = sim_diag.DiagScanner(notify=got.append)
+    for l in ['Lint-[WMIA-L] Width mismatch in assignment',
+              '/a/b/top.sv, 42',
+              '  Width of LHS is 4, RHS is 8.',
+              '',
+              'Follow-up line']:
+        s.line(l)
+    s.close()
+    assert (s.errors, s.fatals) == (0, 0)
+    assert len(got) == 1
+    d = got[0]
+    assert (d.severity, d.code, d.fmt) == ("warning", "WMIA-L", "vcs-lint")
+    assert (d.file, d.line) == ("/a/b/top.sv", 42)
+    assert d.message == "Width mismatch in assignment Width of LHS is 4, RHS is 8."
+
+
 def test_eof_without_blank_line_flushes():
     s = sim_diag.scan_lines(['xmsim: *E,ERRSEV (c.sv,5): (time 1 NS).', 'tb', 'LAST'])
     assert s.errors == 1 and s.first().message == "LAST"

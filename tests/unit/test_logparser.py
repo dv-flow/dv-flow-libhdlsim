@@ -122,6 +122,34 @@ Follow-up line
     assert markers[0].loc.pos == -1
     assert markers[0].loc.path == "/foo/bar/baz.v"
 
+def test_parse_vcs_lint():
+    markers = []
+
+    def notify(marker):
+        nonlocal markers
+        markers.append(marker)
+
+    input = """
+Lint-[WMIA-L] Width mismatch in assignment
+/a/b/top.sv, 42
+  Width of LHS is 4, RHS is 8.
+
+
+Follow-up line
+"""
+
+    parser = LogParser(notify=notify)
+    for l in input.splitlines():
+        parser.line(l)
+    parser.close()
+
+    assert len(markers) == 1
+    assert markers[0].severity == SeverityE.Warning
+    assert markers[0].msg == "[WMIA-L] Width mismatch in assignment Width of LHS is 4, RHS is 8."
+    assert markers[0].loc is not None
+    assert markers[0].loc.path == "/a/b/top.sv"
+    assert markers[0].loc.line == 42
+
 def test_parse_vcs_style_2():
     markers = []
 

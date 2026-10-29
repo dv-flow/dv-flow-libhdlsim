@@ -64,16 +64,17 @@ class LogParser(object):
     def _line(self, l):
         self._log.debug("line: %s" % l)
         if self._state == ParseState.Init:
-            if l.startswith("Error-") or l.startswith("Warning-"):
+            if l.startswith("Error-") or l.startswith("Warning-") or l.startswith("Lint-"):
                 # VCS-style message:
-                # <Kind>-[<Code>] <Short Desc>
+                # <Kind>-[<Code>] <Short Desc>  (Kind: Error, Warning, Lint)
                 # <Path>
                 #   <Indented Description Lines>
                 #   ...
                 # 1-2 Blank line delimiter 
                 #
                 l = l.strip()
-                self._kind = SeverityE.Warning if l.startswith("Warning") else SeverityE.Error
+                # Lint- messages are reported as warnings
+                self._kind = SeverityE.Error if l.startswith("Error") else SeverityE.Warning
 
                 # Extract code from [CODE] bracket
                 ob = l.find("[")

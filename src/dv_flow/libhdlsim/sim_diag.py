@@ -140,7 +140,7 @@ def time_fs(text : str) -> Optional[int]:
 # Cheap reject: the first characters every header can start with. Most lines
 # of a large log (UVM_INFO, $display output) fail this and cost one match.
 _PREFILTER = re.compile(
-    r'^(?:#\s*)?(?:"|Error|Fatal|Warning|ERROR|FATAL|WARNING|%|\[|\*\*'
+    r'^(?:#\s*)?(?:"|Error|Fatal|Warning|Lint-|ERROR|FATAL|WARNING|%|\[|\*\*'
     r'|xm|nc|xrun|irun)')
 
 _VCS_SVA = re.compile(
@@ -149,7 +149,8 @@ _VCS_SVA = re.compile(
 _VCS_SEV = re.compile(
     r'^(?P<sev>Error|Fatal|Warning): "(?P<file>[^"]+)", (?P<line>\d+): '
     r'(?P<hier>\S+?):? at time (?P<time>\d+(?:\.\d+)? ?[munpf]?s)\b\s*(?P<msg>.*)$')
-_VCS_TOOL = re.compile(r'^(?P<sev>Error|Warning)-\[(?P<code>[^\]]+)\]\s*(?P<msg>.*)$')
+_VCS_TOOL = re.compile(r'^(?P<sev>Error|Warning|Lint)-\[(?P<code>[^\]]+)\]\s*(?P<msg>.*)$')
+_VCS_LOC = re.compile(r'^(?P<file>\S+), (?P<line>\d+)\s*$')
 
 _XCM = re.compile(
     r'^(?P<tool>xm(?:sim|vlog|elab|vhdl)|nc(?:sim|vlog|elab|vhdl)|xrun|irun)'
@@ -224,6 +225,10 @@ def match_header(l : str) -> Optional[Diag]:
                     message=_clip(m.group("msg")), fmt="vcs-sev")
     m = _VCS_TOOL.match(l)
     if m:
+        if m.group("sev") == "Lint":
+            # Lint-[CODE]: a warning; the next line holds 'path, line'
+            return Diag("warning", "tool", code=m.group("code"),
+                        message=_clip(m.group("msg")), fmt="vcs-lint")
         return Diag(_SEV[m.group("sev")], "tool", code=m.group("code"),
                     message=_clip(m.group("msg")), fmt="vcs-tool")
 
@@ -389,7 +394,7 @@ class DiagScanner(object):
             return _MTI_CONT.match(l) is not None
         if p.fmt == "vcs-sva":
             return l[:1] in (" ", "\t")            # the indented 'Offending'
-        return True                               # vcs-sev, vcs-tool, xcm
+        return True                               # vcs-sev, vcs-tool, vcs-lint, xcm
 
     def _continue(self, p : Diag, l : str):
         if p.fmt == "ivl":
@@ -411,6 +416,11 @@ class DiagScanner(object):
             # ERRSEV/FATSEV: the scope, then the message
             p.hier = l.strip()
             return
+        elif p.fmt == "vcs-lint" and self._cont == 1:
+            m = _VCS_LOC.match(l.strip())
+            if m:
+                p.file, p.line = m.group("file"), _int(m.group("line"))
+                return
         elif p.fmt == "vcs-sva" and l.lstrip().startswith("Offending"):
             if not p.message:
                 p.message = _clip(l)
