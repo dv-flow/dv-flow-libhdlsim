@@ -390,7 +390,6 @@ def test_parse_vcs_se_after_warning():
     _assert_se(markers[1], "macro_then_se.sv", 5, "initial")
     assert "Text macro" not in markers[1].msg
 
-@pytest.mark.xfail(strict=True, reason="SE parsing")
 def test_parse_vcs_warning_after_se():
     markers = _parse_vcs(_VCS_SE_F + _VCS_TMR + "1 warning\n1 error\n")
     assert len(markers) == 2

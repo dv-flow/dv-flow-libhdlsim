@@ -77,6 +77,7 @@ class LogParser(object):
             self._kind = None
             self._path = ""
             self._lint = False
+            self._tmp = ""
 
     def close(self):
         # Process an empty lines to flush any accumulated messages
@@ -94,6 +95,11 @@ class LogParser(object):
                 # 1-2 Blank line delimiter 
                 #
                 l = l.strip()
+                # Each message starts fresh: nothing carries over from the last
+                self._tmp = ""
+                self._path = ""
+                self._message = ""
+                self._code = ""
                 # Lint- messages are reported as warnings
                 self._kind = SeverityE.Error if l.startswith("Error") else SeverityE.Warning
                 self._lint = l.startswith("Lint-")
@@ -274,7 +280,12 @@ class LogParser(object):
                 if c_idx != -1:
                     # May have a path
                     path = l[:c_idx].strip()
-                    if os.path.exists(path) or path.find("/") != -1:
+                    # Unindented '<file>, <line>' is a location even when the
+                    # file is relative and absent here (eg 'top.sv, 2')
+                    rel_loc = (l[:1] not in (" ", "\t") and path != ""
+                               and " " not in path
+                               and l[c_idx+1:].strip().isdigit())
+                    if rel_loc or os.path.exists(path) or path.find("/") != -1:
                         self._path = "%s:%s" % (path, l[c_idx+1:].strip())
                 if self._path == "":
                     # No path
@@ -321,6 +332,7 @@ class LogParser(object):
                 #     self._path += (":" + line[co_idx+1:ns_idx].strip())
 
                 self.emit_marker()
+                self._tmp = ""
                 self._state = ParseState.Init
                 self._count = 0
                 if reparse:
