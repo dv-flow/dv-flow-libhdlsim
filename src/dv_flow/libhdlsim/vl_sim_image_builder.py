@@ -31,7 +31,7 @@ from dv_flow.mgr import FileSet, TaskDataResult, TaskMarker, TaskRunCtxt
 from typing import Any, ClassVar, Dict, List, Optional, Tuple
 from dv_flow.mgr.task_data import SeverityE
 from dv_flow.libhdlsim import cov, prof
-from dv_flow.libhdlsim.log_parser import LogParser
+from dv_flow.libhdlsim.log_parser import LogParser, resolve_lint_as_error
 from dv_flow.libhdlsim.vl_sim_data import VlSimImageData, pli_add, pli_from_fileset
 from svdep import FileCollection, TaskCheckUpToDate
 
@@ -118,6 +118,7 @@ class VlSimImageBuilder(object):
     output : List = dc.field(default_factory=list)
     memento : Any = dc.field(default=None)
     suppress : List = dc.field(default_factory=list)
+    lint_as_error : Any = dc.field(default_factory=list)
     # Coverage levels requested by consumed SimCovArgs items (validated and
     # combined with the `cov` param in run()).
     cov_requests : List[str] = dc.field(default_factory=list)
@@ -247,7 +248,8 @@ class VlSimImageBuilder(object):
         raise NotImplementedError()
 
     def parseLog(self, log):
-        parser = LogParser(notify=lambda m: self.markers.append(m), suppress=self.suppress)
+        parser = LogParser(notify=lambda m: self.markers.append(m), suppress=self.suppress,
+                           lint_as_error=self.lint_as_error)
         with open(log, "r") as fp:
             for line in fp.readlines():
                 parser.line(line)
@@ -292,6 +294,7 @@ class VlSimImageBuilder(object):
         for fs in input.inputs:
             if fs.type == "hdlsim.SuppressWarnings":
                 self.suppress.extend(fs.codes)
+        self.lint_as_error = resolve_lint_as_error(getattr(input.params, 'lint_as_error', None))
 
         # The image must never carry a stale coverage record: drop any left by
         # an earlier build, and write the current one only once this build

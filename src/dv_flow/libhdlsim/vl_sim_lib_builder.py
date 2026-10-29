@@ -28,7 +28,7 @@ from pydantic import BaseModel
 from dv_flow.mgr import FileSet, TaskDataResult, TaskRunCtxt
 from dv_flow.mgr.task_data import TaskMarker, TaskMarkerLoc, SeverityE
 from typing import Any, ClassVar, List, Tuple
-from dv_flow.libhdlsim.log_parser import LogParser
+from dv_flow.libhdlsim.log_parser import LogParser, resolve_lint_as_error
 from dv_flow.libhdlsim.vl_sim_data import VlSimImageData
 
 from svdep import FileCollection, TaskCheckUpToDate, TaskBuildFileCollection
@@ -42,6 +42,7 @@ class VlSimLibBuilder(object):
     memento : Any = dc.field(default=None)
     ctxt : TaskRunCtxt = None
     suppress : List = dc.field(default_factory=list)
+    lint_as_error : Any = dc.field(default_factory=list)
 
     _log : ClassVar = logging.getLogger("VlSimLib")
 
@@ -52,7 +53,8 @@ class VlSimLibBuilder(object):
         raise NotImplementedError()
     
     def parseLog(self, log):
-        parser = LogParser(notify=lambda m: self.markers.append(m), suppress=self.suppress)
+        parser = LogParser(notify=lambda m: self.markers.append(m), suppress=self.suppress,
+                           lint_as_error=self.lint_as_error)
         with open(log, "r") as fp:
             for line in fp.readlines():
                 parser.line(line)
@@ -81,6 +83,7 @@ class VlSimLibBuilder(object):
         for fs in input.inputs:
             if fs.type == "hdlsim.SuppressWarnings":
                 self.suppress.extend(fs.codes)
+        self.lint_as_error = resolve_lint_as_error(getattr(input.params, 'lint_as_error', None))
 
         status, in_changed = await self.build(input, data)
 

@@ -80,7 +80,8 @@ class SimLibBuilder(VlSimLibBuilder):
             logfilter=VcsLogParser(
                 notify=lambda m: self.ctxt.add_marker(m),
                 notify_parsing=notify_parsing,
-                suppress=self.suppress
+                suppress=self.suppress,
+                lint_as_error=self.lint_as_error
             ).line)
 
         if not status:

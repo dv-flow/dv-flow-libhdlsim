@@ -23,9 +23,26 @@ import os
 import dataclasses as dc
 import enum
 import logging
-from typing import Callable, ClassVar, List, Optional
+from typing import Callable, ClassVar, List, Optional, Union
 from dv_flow.mgr.task_data import TaskMarker, TaskMarkerLoc, SeverityE
 from dv_flow.libhdlsim import sim_diag
+
+def resolve_lint_as_error(value) -> Union[bool, List[str]]:
+    """Normalize the `lint_as_error` task param.
+
+    Returns True (escalate all lint), or a list of lint codes to escalate.
+    A bool is kept; "all" or "*" in the list means all codes.
+    """
+    if value is None or value is False:
+        return []
+    if value is True:
+        return True
+    codes = []
+    for elem in ([value] if isinstance(value, str) else value):
+        codes.extend(str(elem).replace(",", " ").split())
+    if any(c.lower() in ("all", "*", "true") for c in codes):
+        return True
+    return codes
 
 class ParseState(enum.Enum):
     Init = enum.auto()
@@ -35,10 +52,13 @@ class ParseState(enum.Enum):
 class LogParser(object):
     notify : Optional[Callable[[TaskMarker], None]] = dc.field(default=None)
     suppress : List[str] = dc.field(default_factory=list)
+    # Escalate VCS Lint- messages to errors: True for all, or a list of codes
+    lint_as_error : Union[bool, List[str]] = dc.field(default=False)
     _state : ParseState = dc.field(default=ParseState.Init)
     _message : str = dc.field(default="")
     _kind : Optional[SeverityE] = dc.field(default=None)
     _code : str = dc.field(default="")
+    _lint : bool = dc.field(default=False)
     _path : str = dc.field(default="")
     _log : ClassVar = logging.getLogger("LogParser")
     _tmp : str = dc.field(default="")
@@ -56,6 +76,7 @@ class LogParser(object):
             self._message = ""
             self._kind = None
             self._path = ""
+            self._lint = False
 
     def close(self):
         # Process an empty lines to flush any accumulated messages
@@ -75,6 +96,7 @@ class LogParser(object):
                 l = l.strip()
                 # Lint- messages are reported as warnings
                 self._kind = SeverityE.Error if l.startswith("Error") else SeverityE.Warning
+                self._lint = l.startswith("Lint-")
 
                 # Extract code from [CODE] bracket
                 ob = l.find("[")
@@ -327,10 +349,17 @@ class LogParser(object):
         code = self._code
         if code and sev == SeverityE.Warning and code in self.suppress:
             self._code = ""
+            self._lint = False
             self._kind = None
             self._message = ""
             self._path = ""
             return
+
+        # Opt-in escalation of lint messages (applied after suppression)
+        if self._lint and sev == SeverityE.Warning:
+            lae = self.lint_as_error
+            if lae is True or (isinstance(lae, (list, tuple, set)) and code in lae):
+                sev = SeverityE.Error
 
         # Prepend [CODE] to message so users can identify the code to suppress
         msg = ("[%s] %s" % (code, self._message)).strip() if code else self._message
@@ -347,6 +376,7 @@ class LogParser(object):
                 msg=msg)
 
         self._code = ""
+        self._lint = False
         self._kind = None
         self._message = ""
         self._path = ""

@@ -150,6 +150,68 @@ Follow-up line
     assert markers[0].loc.path == "/a/b/top.sv"
     assert markers[0].loc.line == 42
 
+_VCS_LINT_LOG = """
+Lint-[WMIA-L] Width mismatch in assignment
+/a/b/top.sv, 42
+  Width of LHS is 4, RHS is 8.
+
+
+Lint-[PCWM-L] Port connection width mismatch
+/a/b/top.sv, 50
+  Port width mismatch.
+
+
+"""
+
+def _parse_lint(**kwargs):
+    markers = []
+    parser = LogParser(notify=lambda m: markers.append(m), **kwargs)
+    for l in _VCS_LINT_LOG.splitlines():
+        parser.line(l)
+    parser.close()
+    return markers
+
+def test_parse_vcs_lint_escalate_listed_code():
+    markers = _parse_lint(lint_as_error=["WMIA-L"])
+    assert [m.severity for m in markers] == [SeverityE.Error, SeverityE.Warning]
+    assert markers[0].msg.startswith("[WMIA-L]")
+    assert markers[0].loc.path == "/a/b/top.sv"
+    assert markers[0].loc.line == 42
+
+def test_parse_vcs_lint_escalate_all():
+    markers = _parse_lint(lint_as_error=True)
+    assert [m.severity for m in markers] == [SeverityE.Error, SeverityE.Error]
+
+def test_parse_vcs_lint_suppress_wins_over_escalation():
+    markers = _parse_lint(suppress=["WMIA-L"], lint_as_error=True)
+    assert len(markers) == 1
+    assert markers[0].msg.startswith("[PCWM-L]")
+    assert markers[0].severity == SeverityE.Error
+
+def test_parse_vcs_lint_escalation_ignores_warnings():
+    input = """
+Warning-[WMIA-L] Not a lint message
+/a/b/top.sv, 7
+  Same code, Warning- kind.
+
+
+"""
+    markers = []
+    parser = LogParser(notify=lambda m: markers.append(m), lint_as_error=True)
+    for l in input.splitlines():
+        parser.line(l)
+    parser.close()
+    assert len(markers) == 1
+    assert markers[0].severity == SeverityE.Warning
+
+def test_resolve_lint_as_error():
+    from dv_flow.libhdlsim.log_parser import resolve_lint_as_error
+    assert resolve_lint_as_error(None) == []
+    assert resolve_lint_as_error([]) == []
+    assert resolve_lint_as_error(True) is True
+    assert resolve_lint_as_error(["all"]) is True
+    assert resolve_lint_as_error("WMIA-L, PCWM-L") == ["WMIA-L", "PCWM-L"]
+
 def test_parse_vcs_style_2():
     markers = []
 

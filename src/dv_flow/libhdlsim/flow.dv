@@ -107,6 +107,9 @@ package:
       suppress_warnings:
         doc: Warning codes to suppress from becoming markers (e.g., [TFIPC, vlog-2623])
         type: list
+      lint_as_error:
+        doc: VCS Lint- codes to report as errors (e.g., [WMIA-L]); [all] for every code. Suppression wins.
+        type: list
 
   - export: SimLibVPI
     desc: Creates a VPI (Verilog Procedural Interface) library
@@ -352,6 +355,9 @@ package:
         type: list
       suppress_warnings:
         doc: Warning codes to suppress from becoming markers (e.g., [TFIPC, vlog-2623])
+        type: list
+      lint_as_error:
+        doc: VCS Lint- codes to report as errors (e.g., [WMIA-L]); [all] for every code. Suppression wins.
         type: list
 
 
