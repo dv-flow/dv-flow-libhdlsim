@@ -242,7 +242,6 @@ neat_pkg, "neat_pkg::"
     assert markers[0].loc.pos == -1
     assert markers[0].loc.path == "/proj/foo/bar/baz/beef_pkg_hdl.sv"
 
-@pytest.mark.xfail(strict=True, reason="SE parsing")
 def test_parse_vcs_style_3():
     markers = []
 
@@ -297,7 +296,6 @@ def _assert_se(marker, path, line, token):
     assert "Following verilog source" not in marker.msg
     assert "^" not in marker.msg
 
-@pytest.mark.xfail(strict=True, reason="SE parsing")
 def test_parse_vcs_se_excerpt():
     markers = _parse_vcs("""
 Error-[SE] Syntax error
@@ -312,7 +310,6 @@ Error-[SE] Syntax error
     _assert_se(markers[0], "se_only.sv", 3, "initial")
     assert "a = 1" not in markers[0].msg
 
-@pytest.mark.xfail(strict=True, reason="SE parsing")
 def test_parse_vcs_se_explanation_after():
     markers = _parse_vcs("""
 Error-[SE] Syntax error
@@ -327,7 +324,6 @@ Error-[SE] Syntax error
     _assert_se(markers[0], "se_two.sv", 3, "logic")
     assert "keyword 'logic' is not expected to be used in this context." in markers[0].msg
 
-@pytest.mark.xfail(strict=True, reason="SE parsing")
 def test_parse_vcs_se_split_loc():
     path = "/proj/workarea/projectx/nice-dv-assertions/.scratch/syntax-error/se_only.sv"
     markers = _parse_vcs("""
@@ -343,7 +339,6 @@ Error-[SE] Syntax error
     _assert_se(markers[0], path, 3, "initial")
     assert path not in markers[0].msg
 
-@pytest.mark.xfail(strict=True, reason="SE parsing")
 def test_parse_vcs_se_no_excerpt():
     markers = _parse_vcs("""
 Error-[SE] Syntax error
@@ -379,7 +374,6 @@ Error-[SE] Syntax error
 
 _VCS_TMR_MSG = "[TMR] Text macro redefined Text macro (W) is redefined. The last definition will override previous ones. Location of previous definition: macro_then_se.sv, 1. Previous value: 4"
 
-@pytest.mark.xfail(strict=True, reason="SE parsing")
 def test_parse_vcs_se_after_warning():
     markers = _parse_vcs(_VCS_TMR + _VCS_SE_F + "1 warning\n1 error\n")
     assert len(markers) == 2
@@ -400,7 +394,6 @@ def test_parse_vcs_warning_after_se():
     assert markers[1].loc.path == "macro_then_se.sv"
     assert markers[1].loc.line == 2
 
-@pytest.mark.xfail(strict=True, reason="SE parsing")
 def test_parse_vcs_two_se():
     markers = _parse_vcs("""
 Error-[SE] Syntax error

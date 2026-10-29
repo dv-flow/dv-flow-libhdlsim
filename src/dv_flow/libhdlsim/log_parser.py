@@ -20,6 +20,7 @@
 #*
 #****************************************************************************
 import os
+import re
 import dataclasses as dc
 import enum
 import logging
@@ -62,7 +63,13 @@ class LogParser(object):
     _path : str = dc.field(default="")
     _log : ClassVar = logging.getLogger("LogParser")
     _tmp : str = dc.field(default="")
+    # Stripped continuation lines of the current VCS message
+    _lines : List[str] = dc.field(default_factory=list)
     _count : int = 0
+
+    # VCS Error-[SE] location: '"<path>", <line>: token is '<tok>'', where
+    # the line number may start the next line
+    _se_loc_re : ClassVar = re.compile(r'"([^"]+)",\s*(\d+):\s*token is (\'[^\']*\')')
 
     def line(self, l):
         try:
@@ -78,6 +85,7 @@ class LogParser(object):
             self._path = ""
             self._lint = False
             self._tmp = ""
+            self._lines = []
 
     def close(self):
         # Process an empty lines to flush any accumulated messages
@@ -97,6 +105,7 @@ class LogParser(object):
                 l = l.strip()
                 # Each message starts fresh: nothing carries over from the last
                 self._tmp = ""
+                self._lines = []
                 self._path = ""
                 self._message = ""
                 self._code = ""
@@ -273,7 +282,11 @@ class LogParser(object):
 
             self._count += 1
 
-            if self._count == 1:
+            if (self._code == "SE" and l.strip() != "" and self._count <= 16
+                    and not l.startswith(("Error-", "Warning-", "Lint-"))):
+                # Syntax error: location and text come from the whole body
+                self._lines.append(l.strip())
+            elif self._count == 1:
                 # First line after the title. If a file path is provided,
                 # then it should be here
                 c_idx = l.find(",")
@@ -304,35 +317,12 @@ class LogParser(object):
                     self._message = line[sq_idx+1:].strip()
                 else:
                     self._message = line
-                # if "-[SE]" in line:
-                #     # Syntax error
-                #     se_idx = line.find("Syntax error")
-                #     co_idx = line.find(':', se_idx) # First part is generic
-                #     qu_idx = line.find('"', se_idx)
-                #     qe_idx = line.find('"', qu_idx+1)
-                #     cm_idx = line.find(',', qe_idx)
-                #     ce_idx = line.find(':', cm_idx)
-                #     self._message = line[co_idx+1:qu_idx].strip()
-                #     self._path = line[qu_idx+1:qe_idx].strip()
-                #     self._path += (":" + line[cm_idx+1:ce_idx].strip())
-                # elif "-NS" in line:
-                #     # Name space error
-                #     sb_idx = line.find(']')
-                #     self._message = line[sb_idx:].strip()
-                # else:
-                #     # Semantic error
-                #     # First, find comma
-                #     ls_idx = line.find(' ')
-                #     co_idx = line.find(',')
-                #     sp_idx = line.rfind(" ", 0, co_idx)
-                #     ns_idx = line.find(" ", co_idx+2)
-
-                #     self._message = line[ls_idx+1:sp_idx] + " " + line[ns_idx:].strip()
-                #     self._path = line[sp_idx+1:co_idx].strip()
-                #     self._path += (":" + line[co_idx+1:ns_idx].strip())
+                if self._code == "SE":
+                    self._se_message()
 
                 self.emit_marker()
                 self._tmp = ""
+                self._lines = []
                 self._state = ParseState.Init
                 self._count = 0
                 if reparse:
@@ -341,6 +331,39 @@ class LogParser(object):
                 # Continue adding to the accumulated message
                 self._tmp += (" " + l.strip())
         pass
+
+    def _se_message(self):
+        # VCS syntax error body:
+        #   Following verilog source has syntax error :
+        #   [<explanation>]
+        #   "<path>", <line>: token is '<tok>'   (or '"<path>",' / '<line>: ...')
+        #   [<echoed source line>]
+        #   [<caret line>]
+        #   [<explanation>]
+        lines = [s for s in self._lines
+                 if not s.startswith("Following verilog source has syntax error")]
+        token = ""
+        loc_end = -1
+        for i in range(len(lines)):
+            # Join with the next line to accept the split location
+            m = self._se_loc_re.search(" ".join(lines[i:i+2]))
+            if m is not None and lines[i].startswith('"'):
+                self._path = "%s:%s" % (m.group(1), m.group(2))
+                token = m.group(3)
+                loc_end = i if "token is" in lines[i] else i+1
+                break
+        if loc_end != -1:
+            # The line after the location echoes the source
+            explain = lines[:i] + lines[loc_end+2:]
+        else:
+            explain = lines
+        explain = [s for s in explain if s.strip("^ ") != ""]
+        msg = "Syntax error"
+        if token != "":
+            msg += ": token is %s" % token
+        if len(explain) > 0:
+            msg += " " + " ".join(explain)
+        self._message = msg
 
     def emit_marker(self):
         loc : Optional[TaskMarkerLoc] = None
