@@ -201,3 +201,107 @@ def test_vcs_lint_followed_by_other_line(gap, follow, counts):
     assert got[0].code == "WMIA-L"
     assert got[0].message == "Width mismatch in assignment Width of LHS is 4, RHS is 8."
     assert len(got) == 1 + sum(counts)
+
+
+# VCS Error-[SE]: DiagScanner and LogParser give the same location
+_SE_LONG = "/proj/workarea/projectx/nice-dv-assertions/.scratch/syntax-error/se_only.sv"
+_SE_FIXTURES = {
+    "A": ("""
+Error-[SE] Syntax error
+  Following verilog source has syntax error :
+  "se_only.sv", 3: token is 'initial'
+    initial a = 1;
+           ^
+
+1 error
+""", "se_only.sv", 3, "initial"),
+    "B": ("""
+Error-[SE] Syntax error
+  Following verilog source has syntax error :
+  "se_two.sv", 3: token is 'logic'
+    logic b
+         ^
+  SystemVerilog  keyword 'logic' is not expected to be used in this context.
+
+""", "se_two.sv", 3, "logic"),
+    "C": ("""
+Error-[SE] Syntax error
+  Following verilog source has syntax error :
+  "%s",
+  3: token is 'initial'
+    initial a = 1;
+           ^
+
+""" % _SE_LONG, _SE_LONG, 3, "initial"),
+    "D": ("""
+Error-[SE] Syntax error
+  Following verilog source has syntax error :
+  "se_late.sv", 3: token is 'endmodule'
+
+1 error
+CPU time: .414 seconds to compile
+""", "se_late.sv", 3, "endmodule"),
+    "E": ("""
+Error-[SE] Syntax error
+  Following verilog source has syntax error :
+    Token 'uvmf_transaction_base' should be a valid type. Please check 
+  whether it is misspelled, not visible/valid in the current context, or not 
+  properly imported/exported.
+  "/foo/bar/baz/uart_transaction.svh",
+  23: token is ';' 
+  class uart_transaction  extends uvmf_transaction_base;
+
+
+""", "/foo/bar/baz/uart_transaction.svh", 23, ";"),
+    "F": ("""
+Warning-[TMR] Text macro redefined
+macro_then_se.sv, 2
+  Text macro (W) is redefined. The last definition will override previous
+  ones.
+  Location of previous definition: macro_then_se.sv, 1.
+  Previous value: 4
+
+Error-[SE] Syntax error
+  Following verilog source has syntax error :
+  "macro_then_se.sv", 5: token is 'initial'
+    initial a = 1;
+           ^
+
+1 warning
+1 error
+""", "macro_then_se.sv", 5, "initial"),
+}
+
+
+@pytest.mark.parametrize("name", sorted(_SE_FIXTURES))
+def test_vcs_se_matches_logparser(name):
+    from dv_flow.libhdlsim.log_parser import LogParser
+    from dv_flow.mgr.task_data import SeverityE
+    text, path, line, token = _SE_FIXTURES[name]
+    s = sim_diag.scan_lines(text.splitlines())
+    assert (s.errors, s.fatals) == (1, 0)
+    d = s.first()
+    assert (d.code, d.file, d.line) == ("SE", path, line)
+    assert ("token is '%s'" % token) in d.message
+    assert "Following verilog source" not in d.message
+    assert "^" not in d.message
+    assert "Text macro" not in d.message
+    assert "1 error" not in d.message
+
+    markers = []
+    p = LogParser(notify=markers.append)
+    for l in text.splitlines():
+        p.line(l)
+    p.close()
+    m = [m for m in markers if m.severity == SeverityE.Error]
+    assert len(m) == 1
+    assert (m[0].loc.path, m[0].loc.line) == (d.file, d.line)
+    assert m[0].msg == "[SE] " + d.message
+
+
+def test_vcs_se_messages_are_separate():
+    s = sim_diag.scan_lines((_SE_FIXTURES["A"][0] + _SE_FIXTURES["D"][0]).splitlines())
+    assert s.errors == 2
+    a, b = s.sample
+    assert (a.file, a.line, b.file, b.line) == ("se_only.sv", 3, "se_late.sv", 3)
+    assert "endmodule" not in a.message and "initial" not in b.message

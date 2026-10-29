@@ -20,7 +20,6 @@
 #*
 #****************************************************************************
 import os
-import re
 import dataclasses as dc
 import enum
 import logging
@@ -66,10 +65,6 @@ class LogParser(object):
     # Stripped continuation lines of the current VCS message
     _lines : List[str] = dc.field(default_factory=list)
     _count : int = 0
-
-    # VCS Error-[SE] location: '"<path>", <line>: token is '<tok>'', where
-    # the line number may start the next line
-    _se_loc_re : ClassVar = re.compile(r'"([^"]+)",\s*(\d+):\s*token is (\'[^\']*\')')
 
     def line(self, l):
         try:
@@ -333,37 +328,11 @@ class LogParser(object):
         pass
 
     def _se_message(self):
-        # VCS syntax error body:
-        #   Following verilog source has syntax error :
-        #   [<explanation>]
-        #   "<path>", <line>: token is '<tok>'   (or '"<path>",' / '<line>: ...')
-        #   [<echoed source line>]
-        #   [<caret line>]
-        #   [<explanation>]
-        lines = [s for s in self._lines
-                 if not s.startswith("Following verilog source has syntax error")]
-        token = ""
-        loc_end = -1
-        for i in range(len(lines)):
-            # Join with the next line to accept the split location
-            m = self._se_loc_re.search(" ".join(lines[i:i+2]))
-            if m is not None and lines[i].startswith('"'):
-                self._path = "%s:%s" % (m.group(1), m.group(2))
-                token = m.group(3)
-                loc_end = i if "token is" in lines[i] else i+1
-                break
-        if loc_end != -1:
-            # The line after the location echoes the source
-            explain = lines[:i] + lines[loc_end+2:]
-        else:
-            explain = lines
-        explain = [s for s in explain if s.strip("^ ") != ""]
-        msg = "Syntax error"
-        if token != "":
-            msg += ": token is %s" % token
-        if len(explain) > 0:
-            msg += " " + " ".join(explain)
-        self._message = msg
+        # Location and text from the shared recognizer, so the compile
+        # markers and the runtime check (DiagScanner) agree
+        path, line, self._message = sim_diag.vcs_se(self._lines)
+        if path != "":
+            self._path = "%s:%d" % (path, line)
 
     def emit_marker(self):
         loc : Optional[TaskMarkerLoc] = None

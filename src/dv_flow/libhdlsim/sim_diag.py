@@ -62,7 +62,7 @@ Like `uvm_log_parser`, this module imports no dv-flow machinery.
 
 import dataclasses as dc
 import re
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 SEVERITIES = ("error", "fatal", "warning")
 CATEGORIES = ("assertion", "check", "tool")
@@ -151,6 +151,11 @@ _VCS_SEV = re.compile(
     r'(?P<hier>\S+?):? at time (?P<time>\d+(?:\.\d+)? ?[munpf]?s)\b\s*(?P<msg>.*)$')
 _VCS_TOOL = re.compile(r'^(?P<sev>Error|Warning|Lint)-\[(?P<code>[^\]]+)\]\s*(?P<msg>.*)$')
 _VCS_LOC = re.compile(r'^(?P<file>\S+), (?P<line>\d+)\s*$')
+# VCS Error-[SE] location: '"<path>", <line>: token is '<tok>'', where the
+# line number may start the next line
+_VCS_SE_LOC = re.compile(r'"([^"]+)",\s*(\d+):\s*token is (\'[^\']*\')')
+# Continuation lines kept for an Error-[SE] body
+VCS_SE_MAX = 16
 
 _XCM = re.compile(
     r'^(?P<tool>xm(?:sim|vlog|elab|vhdl)|nc(?:sim|vlog|elab|vhdl)|xrun|irun)'
@@ -203,6 +208,43 @@ def _int(s) -> int:
 def _clip(s : str) -> str:
     s = s.strip()
     return s if len(s) <= MSG_MAX else s[:MSG_MAX - 3] + "..."
+
+
+def vcs_se(lines : List[str]) -> Tuple[str, int, str]:
+    """(file, line, message) of a VCS Error-[SE] from its stripped body lines;
+    file is "" and line -1 when no location is found. Shared by `DiagScanner`
+    and `LogParser` so the two agree.
+
+    Body:
+      Following verilog source has syntax error :
+      [<explanation>]
+      "<path>", <line>: token is '<tok>'   (or '"<path>",' / '<line>: ...')
+      [<echoed source line>]
+      [<caret line>]
+      [<explanation>]"""
+    lines = [s for s in lines
+             if not s.startswith("Following verilog source has syntax error")]
+    file, line, token = "", -1, ""
+    loc_end = -1
+    for i in range(len(lines)):
+        # Join with the next line to accept the split location
+        m = _VCS_SE_LOC.search(" ".join(lines[i:i+2]))
+        if m is not None and lines[i].startswith('"'):
+            file, line, token = m.group(1), int(m.group(2)), m.group(3)
+            loc_end = i if "token is" in lines[i] else i+1
+            break
+    if loc_end != -1:
+        # The line after the location echoes the source
+        explain = lines[:i] + lines[loc_end+2:]
+    else:
+        explain = lines
+    explain = [s for s in explain if s.strip("^ ") != ""]
+    msg = "Syntax error"
+    if token != "":
+        msg += ": token is %s" % token
+    if len(explain) > 0:
+        msg += " " + " ".join(explain)
+    return file, line, msg
 
 
 def match_header(l : str) -> Optional[Diag]:
@@ -323,6 +365,7 @@ class DiagScanner(object):
     _pending : Optional[Diag] = None
     _cont : int = 0
     _held : Optional[Diag] = None   # a VCS assertion awaiting its $error action
+    _se : List[str] = dc.field(default_factory=list)  # body of a VCS Error-[SE]
     _lineno : int = 0
 
     def line(self, l : str):
@@ -385,6 +428,9 @@ class DiagScanner(object):
     def _accepts(self, p : Diag, l : str) -> bool:
         """Whether `l` continues the pending diagnostic. Each format says what
         its continuation looks like; a line that isn't one ends the record."""
+        if self._is_se(p):
+            # The syntax-error body is longer; it ends at a blank line
+            return l.strip() != "" and self._cont < VCS_SE_MAX
         if l.strip() == "" or self._cont >= CONT_MAX or _CONT_STOP.match(l):
             return False
         if p.fmt == "vlt":
@@ -397,7 +443,14 @@ class DiagScanner(object):
             return l[:1] in (" ", "\t")            # the indented 'Offending'
         return True                               # vcs-sev, vcs-tool, vcs-lint, xcm
 
+    @staticmethod
+    def _is_se(p : Diag) -> bool:
+        return p.fmt == "vcs-tool" and p.code == "SE"
+
     def _continue(self, p : Diag, l : str):
+        if self._is_se(p):
+            self._se.append(l.strip())
+            return
         if p.fmt == "ivl":
             m = _IVL_CONT.match(l)
             if m:
@@ -439,6 +492,12 @@ class DiagScanner(object):
             return
         self._pending = None
         self._cont = 0
+        if self._is_se(p):
+            file, line, msg = vcs_se(self._se)
+            if file:
+                p.file, p.line = file, line
+            p.message = _clip(msg)
+        self._se = []
         if p.fmt == "vcs-sva":
             self._held = p
         else:
