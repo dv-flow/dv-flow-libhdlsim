@@ -242,6 +242,7 @@ neat_pkg, "neat_pkg::"
     assert markers[0].loc.pos == -1
     assert markers[0].loc.path == "/proj/foo/bar/baz/beef_pkg_hdl.sv"
 
+@pytest.mark.xfail(strict=True, reason="SE parsing")
 def test_parse_vcs_style_3():
     markers = []
 
@@ -269,13 +270,157 @@ Error-[SE] Syntax error
 
     assert len(markers) == 1
     assert markers[0].severity == SeverityE.Error
-    # TODO: need some enhancements here
-#    assert markers[0].msg.startswith("Following verilog source has syntax error : Token 'uvmf_transaction_base' should be a valid type. Please check whether it is misspelled, not visible/valid in the current context, or not properly imported/exported.")
-#    assert markers[0].msg == "Token 'uvmf_transaction_base' should be a valid type. Please check whether it is misspelled, not visible/valid in the current context, or not properly imported/exported."
-#    assert markers[0].loc is not None
-#    assert markers[0].loc.line == 23
-#    assert markers[0].loc.pos == -1
-#    assert markers[0].loc.path == "/foo/bar/baz/uart_transaction.svh"
+    assert markers[0].msg.startswith("[SE]")
+    assert "token is ';'" in markers[0].msg
+    assert "Token 'uvmf_transaction_base' should be a valid type. Please check whether it is misspelled, not visible/valid in the current context, or not properly imported/exported." in markers[0].msg
+    assert "Following verilog source" not in markers[0].msg
+    assert markers[0].loc is not None
+    assert markers[0].loc.line == 23
+    assert markers[0].loc.pos == -1
+    assert markers[0].loc.path == "/foo/bar/baz/uart_transaction.svh"
+
+def _parse_vcs(text):
+    markers = []
+    parser = LogParser(notify=lambda m: markers.append(m))
+    for l in text.splitlines():
+        parser.line(l)
+    parser.close()
+    return markers
+
+def _assert_se(marker, path, line, token):
+    assert marker.severity == SeverityE.Error
+    assert marker.loc is not None
+    assert marker.loc.path == path
+    assert marker.loc.line == line
+    assert marker.msg.startswith("[SE]")
+    assert ("token is '%s'" % token) in marker.msg
+    assert "Following verilog source" not in marker.msg
+    assert "^" not in marker.msg
+
+@pytest.mark.xfail(strict=True, reason="SE parsing")
+def test_parse_vcs_se_excerpt():
+    markers = _parse_vcs("""
+Error-[SE] Syntax error
+  Following verilog source has syntax error :
+  "se_only.sv", 3: token is 'initial'
+    initial a = 1;
+           ^
+
+1 error
+""")
+    assert len(markers) == 1
+    _assert_se(markers[0], "se_only.sv", 3, "initial")
+    assert "a = 1" not in markers[0].msg
+
+@pytest.mark.xfail(strict=True, reason="SE parsing")
+def test_parse_vcs_se_explanation_after():
+    markers = _parse_vcs("""
+Error-[SE] Syntax error
+  Following verilog source has syntax error :
+  "se_two.sv", 3: token is 'logic'
+    logic b
+         ^
+  SystemVerilog  keyword 'logic' is not expected to be used in this context.
+
+""")
+    assert len(markers) == 1
+    _assert_se(markers[0], "se_two.sv", 3, "logic")
+    assert "keyword 'logic' is not expected to be used in this context." in markers[0].msg
+
+@pytest.mark.xfail(strict=True, reason="SE parsing")
+def test_parse_vcs_se_split_loc():
+    path = "/proj/workarea/projectx/nice-dv-assertions/.scratch/syntax-error/se_only.sv"
+    markers = _parse_vcs("""
+Error-[SE] Syntax error
+  Following verilog source has syntax error :
+  "%s",
+  3: token is 'initial'
+    initial a = 1;
+           ^
+
+""" % path)
+    assert len(markers) == 1
+    _assert_se(markers[0], path, 3, "initial")
+    assert path not in markers[0].msg
+
+@pytest.mark.xfail(strict=True, reason="SE parsing")
+def test_parse_vcs_se_no_excerpt():
+    markers = _parse_vcs("""
+Error-[SE] Syntax error
+  Following verilog source has syntax error :
+  "se_late.sv", 3: token is 'endmodule'
+
+1 error
+CPU time: .414 seconds to compile
+""")
+    assert len(markers) == 1
+    _assert_se(markers[0], "se_late.sv", 3, "endmodule")
+    assert "1 error" not in markers[0].msg
+    assert "CPU time" not in markers[0].msg
+
+_VCS_TMR = """
+Warning-[TMR] Text macro redefined
+macro_then_se.sv, 2
+  Text macro (W) is redefined. The last definition will override previous
+  ones.
+  Location of previous definition: macro_then_se.sv, 1.
+  Previous value: 4
+
+"""
+
+_VCS_SE_F = """
+Error-[SE] Syntax error
+  Following verilog source has syntax error :
+  "macro_then_se.sv", 5: token is 'initial'
+    initial a = 1;
+           ^
+
+"""
+
+_VCS_TMR_MSG = "[TMR] Text macro redefined Text macro (W) is redefined. The last definition will override previous ones. Location of previous definition: macro_then_se.sv, 1. Previous value: 4"
+
+@pytest.mark.xfail(strict=True, reason="SE parsing")
+def test_parse_vcs_se_after_warning():
+    markers = _parse_vcs(_VCS_TMR + _VCS_SE_F + "1 warning\n1 error\n")
+    assert len(markers) == 2
+    assert markers[0].severity == SeverityE.Warning
+    assert markers[0].msg == _VCS_TMR_MSG
+    assert markers[0].loc.path == "macro_then_se.sv"
+    assert markers[0].loc.line == 2
+    _assert_se(markers[1], "macro_then_se.sv", 5, "initial")
+    assert "Text macro" not in markers[1].msg
+
+@pytest.mark.xfail(strict=True, reason="SE parsing")
+def test_parse_vcs_warning_after_se():
+    markers = _parse_vcs(_VCS_SE_F + _VCS_TMR + "1 warning\n1 error\n")
+    assert len(markers) == 2
+    assert markers[0].severity == SeverityE.Error
+    assert markers[1].severity == SeverityE.Warning
+    assert markers[1].msg == _VCS_TMR_MSG
+    assert "syntax error" not in markers[1].msg
+    assert markers[1].loc.path == "macro_then_se.sv"
+    assert markers[1].loc.line == 2
+
+@pytest.mark.xfail(strict=True, reason="SE parsing")
+def test_parse_vcs_two_se():
+    markers = _parse_vcs("""
+Error-[SE] Syntax error
+  Following verilog source has syntax error :
+  "se_only.sv", 3: token is 'initial'
+    initial a = 1;
+           ^
+
+Error-[SE] Syntax error
+  Following verilog source has syntax error :
+  "se_late.sv", 7: token is 'endmodule'
+
+2 errors
+""")
+    assert len(markers) == 2
+    _assert_se(markers[0], "se_only.sv", 3, "initial")
+    _assert_se(markers[1], "se_late.sv", 7, "endmodule")
+    assert "endmodule" not in markers[0].msg
+    assert "initial" not in markers[1].msg
 
 def test_parse_vcs_style_4():
     markers = []
