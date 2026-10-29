@@ -142,6 +142,8 @@ def test_vcs_lint_is_a_warning_with_location():
         s.line(l)
     s.close()
     assert (s.errors, s.fatals) == (0, 0)
+    assert (s.lint, s.warnings) == (1, 0)
+    assert not s.failed
     assert len(got) == 1
     d = got[0]
     assert (d.severity, d.code, d.fmt) == ("warning", "WMIA-L", "vcs-lint")

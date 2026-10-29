@@ -315,6 +315,7 @@ class DiagScanner(object):
     errors : int = 0
     fatals : int = 0
     warnings : int = 0
+    lint : int = 0              # VCS Lint-[CODE] warnings (not in `warnings`)
     assertions : int = 0
     tool_failures : int = 0     # errors/fatals the simulator raised itself
     hdl_fatals : int = 0        # $fatal / fatal assertions (not tool)
@@ -445,7 +446,10 @@ class DiagScanner(object):
 
     def _commit(self, p : Diag):
         if p.severity == "warning":
-            self.warnings += 1
+            if p.fmt == "vcs-lint":
+                self.lint += 1
+            else:
+                self.warnings += 1
         else:
             if p.severity == "fatal":
                 self.fatals += 1
