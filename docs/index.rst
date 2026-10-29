@@ -946,7 +946,12 @@ Simulator  Recognized
 =========  ===========================================================
 vcs        SVA failure (``"f.sv", 31: top.u.A: started at ... failed
            at ...``), ``Error:``/``Fatal:`` severity reports (an SVA and
-           its ``$error`` action count once), ``Error-[CODE]``
+           its ``$error`` action count once), ``Error-[CODE]``;
+           for ``Error-[SE]`` the file and line come from the quoted
+           ``"<path>", <line>: token is '<tok>'`` line (also when split
+           over two lines) and the message is ``[SE] Syntax error: token
+           is '<tok>'`` plus VCS's explanation (compile log markers and
+           sim diagnostics alike)
 xcm        ``*E,<CODE>`` / ``*F,<CODE>`` from xmsim, xmvlog, xmelab,
            xrun; ``ASRTST`` is an assertion failure, ``ERRSEV``/
            ``FATSEV`` are ``$error``/``$fatal``; ``*W,`` is a warning
