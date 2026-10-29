@@ -279,8 +279,14 @@ class LogParser(object):
                 if self._path == "":
                     # No path
                     self._tmp += (" " + l.strip())
-            elif l.strip() == "" or self._count > 16:
-                # End
+            elif (l.strip() == "" or self._count > 16
+                    or l.startswith(("Error-", "Warning-", "Lint-"))
+                    or (self._lint and self._count > 1
+                        and l[:1] not in (" ", "\t"))):
+                # End: blank line, too long, the next message's header, or
+                # (Lint- only) an unindented plain line. Error-/Warning-
+                # descriptions may have unindented continuation lines.
+                reparse = l.strip() != "" and self._count <= 16
                 line = self._tmp.strip()
                 sq_idx = line.find("]")
                 if sq_idx != -1:
@@ -317,6 +323,8 @@ class LogParser(object):
                 self.emit_marker()
                 self._state = ParseState.Init
                 self._count = 0
+                if reparse:
+                    self._line(l)
             else:
                 # Continue adding to the accumulated message
                 self._tmp += (" " + l.strip())

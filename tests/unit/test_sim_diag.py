@@ -178,3 +178,26 @@ def test_diag_to_dict():
     d = s.first().to_dict()
     assert d["severity"] == "error" and d["category"] == "assertion"
     assert d["code"] == "ASRTST" and d["line"] == 33 and d["log_line"] == 2
+
+
+@pytest.mark.parametrize("gap", [[], [""]])
+@pytest.mark.parametrize("follow,counts", [
+    (["Warning-[TFIPC] Too few port connections", "/a/b/top.sv, 60", "  More text."],
+     (0, 1)),
+    (["Error-[IND] Identifier not declared", "/a/b/top.sv, 70", "  More text."],
+     (1, 0)),
+    (["Simulation complete"], (0, 0)),
+])
+def test_vcs_lint_followed_by_other_line(gap, follow, counts):
+    got = []
+    s = sim_diag.DiagScanner(notify=got.append)
+    for l in ['Lint-[WMIA-L] Width mismatch in assignment',
+              '/a/b/top.sv, 42',
+              '  Width of LHS is 4, RHS is 8.'] + gap + follow + ['']:
+        s.line(l)
+    s.close()
+    assert s.lint == 1
+    assert (s.errors, s.warnings) == counts
+    assert got[0].code == "WMIA-L"
+    assert got[0].message == "Width mismatch in assignment Width of LHS is 4, RHS is 8."
+    assert len(got) == 1 + sum(counts)

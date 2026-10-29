@@ -76,6 +76,7 @@ Compiles HDL sources into a simulation executable.
 | `incdirs` | list | Include directories |
 | `defines` | list | Preprocessor defines |
 | `suppress_warnings` | list | Warning codes to suppress from markers |
+| `lint_as_error` | list | VCS `Lint-[CODE]` codes to report as errors (`[all]` for all); default warnings. Suppression wins |
 | `cov` | str | Coverage level: none (default), func, code, full |
 
 Consumes: systemVerilogSource, verilogSource, verilogIncDir,
@@ -116,6 +117,7 @@ shared libraries to improve compilation time.
 | `defines` | list | Preprocessor defines |
 | `propagate_incdirs` | bool | Propagate include dirs to consumers (default: true) |
 | `suppress_warnings` | list | Warning codes to suppress from markers |
+| `lint_as_error` | list | VCS `Lint-[CODE]` codes to report as errors (`[all]` for all); default warnings. Suppression wins |
 
 ### SimPLI
 

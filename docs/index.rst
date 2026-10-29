@@ -76,6 +76,10 @@ Parameters
 * **incdirs** - [Optional] List of extra include directories
 * **defines** - [Optional] List of extra defines
 * **suppress_warnings** - [Optional] List of warning codes to suppress from becoming markers (e.g., TFIPC, vlog-2623)
+* **lint_as_error** - [Optional] VCS ``Lint-[CODE]`` messages are reported as warnings
+  and counted separately (``lint``). List codes (e.g., WMIA-L) to report them as errors
+  instead, or ``[all]`` for every lint code. ``suppress_warnings`` also applies to
+  lint codes and wins over this list.
 
 Task: SimLibUVM
 ===============
@@ -251,6 +255,10 @@ Parameters
 * **incdirs** - [Optional] List of extra include directories
 * **defines** - [Optional] List of extra defines
 * **suppress_warnings** - [Optional] List of warning codes to suppress from becoming markers (e.g., TFIPC, vlog-2623)
+* **lint_as_error** - [Optional] VCS ``Lint-[CODE]`` messages are reported as warnings
+  and counted separately (``lint``). List codes (e.g., WMIA-L) to report them as errors
+  instead, or ``[all]`` for every lint code. ``suppress_warnings`` also applies to
+  lint codes and wins over this list.
 * **cov** - [Optional] Coverage level: ``none`` (default), ``func``, ``code`` or ``full``.
   The image is built at the highest of this and every consumed ``hdlsim.SimCovArgs``.
   See `Coverage`_.

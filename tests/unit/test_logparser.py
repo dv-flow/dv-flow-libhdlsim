@@ -520,3 +520,43 @@ def test_suppress_never_hides_an_xcelium_error():
     p.line("xmsim: *E,ASRTST (c.sv,33): (time 105 NS) Assertion t.A has failed")
     p.close()
     assert len(markers) == 1 and markers[0].severity == SeverityE.Error
+
+
+import pytest
+
+_LINT_BLOCK = ["Lint-[WMIA-L] Width mismatch in assignment",
+               "/a/b/top.sv, 42",
+               "  Width of LHS is 4, RHS is 8."]
+
+@pytest.mark.parametrize("gap", [[], [""]])
+@pytest.mark.parametrize("follow,sev", [
+    (["Warning-[TFIPC] Too few port connections", "/a/b/top.sv, 60", "  More text."],
+     SeverityE.Warning),
+    (["Error-[IND] Identifier not declared", "/a/b/top.sv, 70", "  More text."],
+     SeverityE.Error),
+])
+def test_parse_vcs_lint_followed_by_message(gap, follow, sev):
+    markers = []
+    parser = LogParser(notify=lambda m: markers.append(m))
+    for l in _LINT_BLOCK + gap + follow + ["", ""]:
+        parser.line(l)
+    parser.close()
+
+    assert len(markers) == 2
+    assert markers[0].severity == SeverityE.Warning
+    assert markers[0].msg == "[WMIA-L] Width mismatch in assignment Width of LHS is 4, RHS is 8."
+    assert markers[0].loc.line == 42
+    assert markers[1].severity == sev
+    assert markers[1].loc.line in (60, 70)
+
+
+@pytest.mark.parametrize("gap", [[], [""]])
+def test_parse_vcs_lint_does_not_swallow_plain_line(gap):
+    markers = []
+    parser = LogParser(notify=lambda m: markers.append(m))
+    for l in _LINT_BLOCK + gap + ["Simulation complete", ""]:
+        parser.line(l)
+    parser.close()
+
+    assert len(markers) == 1
+    assert "Simulation complete" not in markers[0].msg
